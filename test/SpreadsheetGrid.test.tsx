@@ -43,6 +43,15 @@ function columns(): ColumnDef[] {
         { value: 2, label: "Closed" },
       ],
     },
+    {
+      name: "owner",
+      displayName: "Owner",
+      dataType: "Lookup.Simple",
+      kind: "lookup",
+      editable: true,
+      required: "none",
+      lookupTargets: ["contact"],
+    },
   ];
 }
 
@@ -50,13 +59,13 @@ function rows(): GridRow[] {
   return [
     {
       recordId: "r1",
-      raw: { name: "Acme", score: 10, status: 1 },
-      display: { name: "Acme", score: "10", status: "Open" },
+      raw: { name: "Acme", score: 10, status: 1, owner: null },
+      display: { name: "Acme", score: "10", status: "Open", owner: "" },
     },
     {
       recordId: "r2",
-      raw: { name: "Globex", score: 20, status: 2 },
-      display: { name: "Globex", score: "20", status: "Closed" },
+      raw: { name: "Globex", score: 20, status: 2, owner: null },
+      display: { name: "Globex", score: "20", status: "Closed", owner: "" },
     },
   ];
 }
@@ -65,12 +74,16 @@ interface Harness {
   onSave: jest.Mock<Promise<void>, [string, PendingEdit[]]>;
   onCreate: jest.Mock<Promise<void>, [PendingEdit[]]>;
   searchLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
+  resolveLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
   container: HTMLElement;
 }
+
+const JANE: LookupValue = { id: "1", name: "Jane Doe", entityType: "contact" };
 
 function renderGrid(overrides?: {
   onSave?: Harness["onSave"];
   onCreate?: Harness["onCreate"];
+  resolveLookup?: Harness["resolveLookup"];
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -80,6 +93,11 @@ function renderGrid(overrides?: {
   const searchLookup: Harness["searchLookup"] = jest.fn(
     (_targets: string[], _term: string) => Promise.resolve([] as LookupValue[]),
   );
+  const resolveLookup: Harness["resolveLookup"] =
+    overrides?.resolveLookup ??
+    jest.fn((_targets: string[], text: string) =>
+      Promise.resolve(text.trim().toLowerCase() === "jane doe" ? [JANE] : []),
+    );
   const { container } = render(
     <SpreadsheetGrid
       columns={columns()}
@@ -88,9 +106,10 @@ function renderGrid(overrides?: {
       onSave={onSave}
       onCreate={onCreate}
       searchLookup={searchLookup}
+      resolveLookup={resolveLookup}
     />,
   );
-  return { onSave, onCreate, searchLookup, container };
+  return { onSave, onCreate, searchLookup, resolveLookup, container };
 }
 
 function cell(container: HTMLElement, row: number, col: number): HTMLElement {
@@ -138,7 +157,8 @@ describe("selection and navigation", () => {
 
   it("moves with Tab and wraps to the next row", () => {
     const { container } = renderGrid();
-    fireEvent.click(cell(container, 0, 2));
+    // Tab from the last column wraps to the first column of the next row.
+    fireEvent.click(cell(container, 0, 3));
     const grid = screen.getByRole("grid");
     fireEvent.keyDown(grid, { key: "Tab" });
     expect(cell(container, 1, 0).className).toContain("jj-sheet-td-active");
@@ -315,10 +335,12 @@ describe("undo and redo", () => {
 });
 
 describe("new rows", () => {
-  it("adds a new row and creates it on save", async () => {
+  it("adds a new row with ArrowDown and creates it on save", async () => {
     const onCreate = jest.fn((_edits: PendingEdit[]) => Promise.resolve());
     const { container } = renderGrid({ onCreate });
-    fireEvent.click(screen.getByRole("button", { name: /Add row/ }));
+    // Press ArrowDown on the last row to grow the grid.
+    fireEvent.click(cell(container, 1, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
 
     // The new row is appended at index 2.
     expect(cell(container, 2, 0)).toBeInTheDocument();
@@ -350,5 +372,43 @@ describe("new rows", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
     await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(2));
     expect(onSave).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("pasted lookups", () => {
+  it("resolves a pasted name to a record", async () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 3));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "Jane Doe" },
+    });
+    expect(await screen.findByText("Jane Doe")).toBeInTheDocument();
+    expect(cell(container, 0, 3).className).not.toContain("jj-sheet-td-invalid");
+  });
+
+  it("flags a pasted lookup with no matching record", async () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 3));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "Ghost Inc" },
+    });
+    expect(await screen.findByText(/No matching record/)).toBeInTheDocument();
+    expect(cell(container, 0, 3).className).toContain("jj-sheet-td-invalid");
+  });
+
+  it("flags an ambiguous pasted lookup with multiple matches", async () => {
+    const resolveLookup = jest.fn((_t: string[], _text: string) =>
+      Promise.resolve([
+        { id: "1", name: "Jane Doe", entityType: "contact" },
+        { id: "2", name: "Jane Doe", entityType: "contact" },
+      ]),
+    );
+    const { container } = renderGrid({ resolveLookup });
+    fireEvent.click(cell(container, 0, 3));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "Jane Doe" },
+    });
+    expect(await screen.findByText(/Multiple records match/)).toBeInTheDocument();
+    expect(cell(container, 0, 3).className).toContain("jj-sheet-td-invalid");
   });
 });

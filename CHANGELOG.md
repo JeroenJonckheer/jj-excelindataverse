@@ -12,10 +12,14 @@ First release of JJ - Excel in Dataverse.
 - Spreadsheet-style dataset PCF control (`jj_Grids.Spreadsheet`) for Model-Driven Apps.
 - Inline cell editing for text, number, date, choice and lookup columns.
 - Lookup autocomplete with type-ahead search and selection of an existing record.
+- Lookup resolution on paste: pasted text is matched to a record by primary name
+  (trimmed, case-insensitive) or by GUID; no match or several matches mark the
+  cell invalid; values are resolved once and cached for large pastes.
 - Keyboard navigation with Tab, Enter and the arrow keys.
 - Paste from Excel across multiple cells and rows, including Excel quoting; a
   paste that runs past the end of the grid adds new rows instead of dropping data.
-- Add new rows (an Add row button) and create them in Dataverse on save.
+- Add new rows by scrolling past the bottom or pressing the down arrow on the
+  last row, and create them in Dataverse on save.
 - Undo and redo (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes.
 - Only the view's layout columns are shown (non-layout columns are hidden).
 - Metadata-driven validation: required level, maximum length, numeric minimum,

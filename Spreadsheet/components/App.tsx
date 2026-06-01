@@ -127,6 +127,12 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse],
   );
 
+  const resolveLookup = React.useCallback(
+    (targets: string[], text: string): Promise<LookupValue[]> =>
+      dataverse.resolveLookup(targets, text),
+    [dataverse],
+  );
+
   if (!entityName) {
     return React.createElement(
       FluentProvider,
@@ -144,6 +150,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         rows={rows}
         version={CONTROL_VERSION}
         onCreate={onCreate}
+        resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}
       />

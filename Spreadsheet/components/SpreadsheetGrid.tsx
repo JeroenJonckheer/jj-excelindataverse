@@ -27,6 +27,7 @@ export interface SpreadsheetGridProps {
   onSave: (recordId: string, edits: PendingEdit[]) => Promise<void>;
   onCreate: (edits: PendingEdit[]) => Promise<void>;
   searchLookup: (targets: string[], term: string) => Promise<LookupValue[]>;
+  resolveLookup: (targets: string[], text: string) => Promise<LookupValue[]>;
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -66,6 +67,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onSave,
   onCreate,
   searchLookup,
+  resolveLookup,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -216,6 +218,45 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setActive({ rowIndex: allRows.length, colIndex: Math.max(firstEditable, 0) });
   };
 
+  // True when the grid already ends in an empty, unsaved row - so we do not
+  // stack blank rows.
+  const lastRowIsEmptyNew = (): boolean => {
+    const last = allRows[allRows.length - 1];
+    return (
+      !!last &&
+      isNewRow(last.recordId) &&
+      !columns.some((c) => cellKey(last.recordId, c.name) in drafts)
+    );
+  };
+
+  // Extend the grid downward: select the trailing empty row if there is one,
+  // otherwise add a new row. Triggered by ArrowDown on the last row and by
+  // scrolling past the bottom - no button needed.
+  const extendDown = () => {
+    const firstEditable = Math.max(columns.findIndex((c) => c.editable), 0);
+    if (lastRowIsEmptyNew()) {
+      setEditing(false);
+      setActive({
+        rowIndex: allRows.length - 1,
+        colIndex: active?.colIndex ?? firstEditable,
+      });
+      return;
+    }
+    addRow();
+  };
+
+  const wheelTsRef = React.useRef(0);
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.deltaY <= 0) return;
+    const el = containerRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 2) return;
+    const now = Date.now();
+    if (now - wheelTsRef.current < 500) return;
+    wheelTsRef.current = now;
+    extendDown();
+  };
+
   // Keyboard handling while a cell is selected but no editor is open.
   const onGridKeyDown = (e: React.KeyboardEvent) => {
     if (editing) return;
@@ -258,6 +299,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       }
       return;
     }
+    // ArrowDown on the last row grows the grid by a row, the way a spreadsheet
+    // keeps going.
+    if (e.key === "ArrowDown" && active.rowIndex === dims.rowCount - 1) {
+      e.preventDefault();
+      extendDown();
+      return;
+    }
     const nav = toNavKey(e.key, e.shiftKey);
     if (nav) {
       e.preventDefault();
@@ -296,6 +344,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     ];
 
     let createdRows = 0;
+    const lookupCells: { recordId: string; col: ColumnDef; text: string }[] = [];
     for (let r = 0; r < grid.length; r++) {
       const rowIndex = active.rowIndex + r;
       const row = effectiveRows[rowIndex];
@@ -305,7 +354,22 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       for (let c = 0; c < cells.length; c++) {
         const colIndex = active.colIndex + c;
         if (colIndex >= columns.length) break;
-        applyText(row.recordId, columns[colIndex], cells[c]);
+        const col = columns[colIndex];
+        if (!col.editable) continue;
+        if (col.kind === "lookup") {
+          // Mark the cell as pending and resolve it to a record afterwards.
+          const pending = resolveText("", col); // an empty placeholder
+          setDraft(
+            row.recordId,
+            col,
+            pending.value,
+            cells[c].trim(),
+            cells[c].trim().length > 0 ? "Looking up record..." : pending.error,
+          );
+          lookupCells.push({ recordId: row.recordId, col, text: cells[c] });
+        } else {
+          applyText(row.recordId, col, cells[c]);
+        }
       }
     }
     setPasteNotice(
@@ -313,6 +377,54 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         ? `Pasted into ${createdRows} new row${createdRows === 1 ? "" : "s"}. Review and Save to create ${createdRows === 1 ? "it" : "them"}, or press Ctrl+Z to undo.`
         : null,
     );
+    void resolveLookupCells(lookupCells);
+  };
+
+  // Resolves pasted lookup cells to records. Repeated values are de-duplicated
+  // so a large paste makes one request per distinct value (and the service
+  // caches across pastes).
+  const resolveLookupCells = async (
+    cells: { recordId: string; col: ColumnDef; text: string }[],
+  ) => {
+    const byValue = new Map<string, typeof cells>();
+    for (const cell of cells) {
+      const key = `${cell.col.name}::${cell.text.trim().toLowerCase()}`;
+      const list = byValue.get(key) ?? [];
+      list.push(cell);
+      byValue.set(key, list);
+    }
+
+    for (const group of byValue.values()) {
+      const { col, text } = group[0];
+      const trimmed = text.trim();
+      let value: LookupValue | null = null;
+      let error: string | null = null;
+      if (trimmed.length === 0) {
+        error = col.required === "required" ? "This field is required." : null;
+      } else {
+        try {
+          const matches = await resolveLookup(col.lookupTargets ?? [], trimmed);
+          if (matches.length === 1) {
+            value = matches[0];
+          } else if (matches.length === 0) {
+            error = `No matching record for "${trimmed}".`;
+          } else {
+            error = `Multiple records match "${trimmed}". Open the cell to choose.`;
+          }
+        } catch {
+          error = `Could not look up "${trimmed}".`;
+        }
+      }
+      for (const cell of group) {
+        setDraft(
+          cell.recordId,
+          col,
+          value,
+          value ? value.name : cell.text.trim(),
+          error,
+        );
+      }
+    }
   };
 
   const dirtyCount = Object.keys(drafts).length;
@@ -390,6 +502,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         aria-label="Dataverse spreadsheet"
         onKeyDown={onGridKeyDown}
         onPaste={onPaste}
+        onWheel={onWheel}
       >
         <table className="jj-sheet-table">
           <colgroup>
@@ -505,7 +618,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         saving={saving}
         message={footerMessage}
         onSave={handleSave}
-        onAddRow={addRow}
       />
     </div>
   );

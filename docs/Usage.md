@@ -18,6 +18,7 @@
 | F2 or Enter | Start editing the selected cell |
 | Escape | Cancel the current edit |
 | Delete / Backspace | Clear the selected cell |
+| Down arrow on the last row | Add a new row |
 | Ctrl+Z / Ctrl+Y | Undo / redo the last change (including a paste) |
 
 While editing, Enter and Tab commit the value and move on; Escape discards the change.
@@ -29,10 +30,25 @@ saving. The footer shows how many changes are pending.
 
 ## Adding rows
 
-Click **Add row** in the footer to add an empty row at the bottom, then fill it
-in. Pasting more rows than the grid currently has also adds the extra rows. New
-rows are created in Dataverse when you Save; an empty row you never fill in is
-ignored.
+To add a row, scroll past the bottom of the grid, or press the down arrow on the
+last row - a new empty row appears, the way a spreadsheet keeps going. Pasting
+more rows than the grid currently has also adds the extra rows. New rows are
+created in Dataverse when you Save; an empty row you never fill in is ignored.
+
+## Pasting into lookup columns
+
+A spreadsheet cell only holds text, while a lookup stores a reference to a record.
+When you paste text into a lookup column the control resolves it to a record by
+the primary name (trimmed, case-insensitive) or by a GUID:
+
+- One match: the lookup is linked and the cell shows the record name.
+- No match: the cell is invalid; clear it or correct the text.
+- Several matches: the cell is invalid; open it to choose the right record.
+- Empty: the lookup is cleared.
+
+Repeated values across a large paste are resolved once and cached, so pasting
+many rows stays fast. An unresolved or ambiguous lookup is an invalid cell and
+blocks saving until it is fixed.
 
 ## Undo and redo
 

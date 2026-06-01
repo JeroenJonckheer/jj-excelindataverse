@@ -22,6 +22,12 @@ export interface IDataverseService {
     term: string,
     top?: number,
   ): Promise<LookupValue[]>;
+  /**
+   * Resolves pasted or typed text to existing records, matching on the primary
+   * name (trimmed, case-insensitive) or on a GUID. Results are cached so a paste
+   * of many rows with repeating values stays fast.
+   */
+  resolveLookup(targets: string[], text: string): Promise<LookupValue[]>;
   /** Saves the pending edits for a single record to Dataverse. */
   saveRecord(
     entityName: string,
@@ -61,9 +67,13 @@ function mapRequiredLevel(value: string | undefined): RequiredLevel {
  * metadata reads are cached per control instance so repeated lookups stay
  * cheap.
  */
+const GUID_PATTERN =
+  /^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$/i;
+
 export class DataverseService implements IDataverseService {
   private entityMetaCache = new Map<string, EntityMeta>();
   private relationshipCache = new Map<string, RelationshipMeta>();
+  private lookupResolveCache = new Map<string, LookupValue[]>();
 
   constructor(private ctx: ComponentFramework.Context<IInputs>) {}
 
@@ -212,6 +222,59 @@ export class DataverseService implements IDataverseService {
         );
       }
     }
+    return results;
+  }
+
+  async resolveLookup(targets: string[], text: string): Promise<LookupValue[]> {
+    const term = text.trim();
+    if (term.length === 0) return [];
+    const cacheKey = `${targets.join(",")}::${term.toLowerCase()}`;
+    const cached = this.lookupResolveCache.get(cacheKey);
+    if (cached) return cached;
+
+    const isGuid = GUID_PATTERN.test(term);
+    const id = term.replace(/[{}]/g, "");
+    const results: LookupValue[] = [];
+
+    for (const target of targets) {
+      try {
+        const meta = await this.getEntityMeta(target);
+        if (isGuid) {
+          const rec = await this.webApi.retrieveRecord(
+            target,
+            id,
+            `?$select=${meta.primaryNameAttribute}`,
+          );
+          results.push({
+            id,
+            name: rec[meta.primaryNameAttribute] ?? "(unnamed)",
+            entityType: target,
+          });
+        } else {
+          const list = await this.webApi.retrieveMultipleRecords(
+            target,
+            `?$select=${meta.primaryIdAttribute},${meta.primaryNameAttribute}` +
+              `&$filter=${meta.primaryNameAttribute} eq '${escapeODataString(term)}'&$top=5`,
+          );
+          for (const e of list.entities) {
+            results.push({
+              id: e[meta.primaryIdAttribute],
+              name: e[meta.primaryNameAttribute] ?? "(unnamed)",
+              entityType: target,
+            });
+          }
+        }
+      } catch (e) {
+        // A missing record by id, or a query failure, simply yields no match
+        // for this target.
+        console.warn(
+          `JJ - Excel in Dataverse: could not resolve lookup '${term}' on table '${target}'.`,
+          e,
+        );
+      }
+    }
+
+    this.lookupResolveCache.set(cacheKey, results);
     return results;
   }
 

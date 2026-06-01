@@ -211,6 +211,15 @@ function createService(store: Store): IDataverseService {
           c.name.toLowerCase().includes(term.toLowerCase()),
         ),
       ),
+    resolveLookup: (_targets, text) => {
+      const term = text.trim().toLowerCase();
+      if (term.length === 0) return Promise.resolve([]);
+      const byId = CONTACTS.filter((c) => c.id.toLowerCase() === term);
+      if (byId.length > 0) return Promise.resolve(byId);
+      return Promise.resolve(
+        CONTACTS.filter((c) => c.name.toLowerCase() === term),
+      );
+    },
     saveRecord: (_entity, recordId, edits: PendingEdit[]) => {
       for (const edit of edits) {
         store[recordId][edit.columnName] = edit.value;

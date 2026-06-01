@@ -238,6 +238,56 @@ describe("searchLookup", () => {
   });
 });
 
+describe("resolveLookup", () => {
+  it("resolves a record by exact primary name", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions(LogicalName='contact')",
+        body: {
+          PrimaryNameAttribute: "fullname",
+          PrimaryIdAttribute: "contactid",
+          EntitySetName: "contacts",
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const retrieveMultipleRecords = jest.fn(() =>
+      Promise.resolve({ entities: [{ contactid: "1", fullname: "Jane Doe" }] }),
+    );
+    const svc = new DataverseService(
+      makeContext({ retrieveMultipleRecords } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    const res = await svc.resolveLookup(["contact"], "Jane Doe");
+    expect(res).toEqual([{ id: "1", name: "Jane Doe", entityType: "contact" }]);
+  });
+
+  it("returns no match for unknown text", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions",
+        body: {
+          PrimaryNameAttribute: "fullname",
+          PrimaryIdAttribute: "contactid",
+          EntitySetName: "contacts",
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const retrieveMultipleRecords = jest.fn(() => Promise.resolve({ entities: [] }));
+    const svc = new DataverseService(
+      makeContext({ retrieveMultipleRecords } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    expect(await svc.resolveLookup(["contact"], "Nobody")).toEqual([]);
+  });
+
+  it("returns empty for blank text without querying", async () => {
+    const retrieveMultipleRecords = jest.fn();
+    const svc = new DataverseService(
+      makeContext({ retrieveMultipleRecords } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    expect(await svc.resolveLookup(["contact"], "   ")).toEqual([]);
+    expect(retrieveMultipleRecords).not.toHaveBeenCalled();
+  });
+});
+
 describe("saveRecord", () => {
   it("writes plain values and ISO dates", async () => {
     const updateRecord = jest.fn(

@@ -84,8 +84,9 @@ test("saves pending changes back to the data source", async ({ page }) => {
   await expect(cell(page, 0, 0)).toContainText("Acme Worldwide");
 });
 
-test("adds a new row and creates the record on save", async ({ page }) => {
-  await page.getByRole("button", { name: "Add row" }).click();
+test("grows the grid with ArrowDown and creates the new record on save", async ({ page }) => {
+  await cell(page, 4, 0).click();
+  await page.keyboard.press("ArrowDown");
   const newCell = cell(page, 5, 0);
   await newCell.dblclick();
   const input = page.getByLabel("Account");
@@ -95,6 +96,20 @@ test("adds a new row and creates the record on save", async ({ page }) => {
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText(/No pending changes/)).toBeVisible();
   await expect(page.getByText("Brand New BV")).toBeVisible();
+});
+
+test("resolves a pasted lookup name to an existing record", async ({ page }) => {
+  await cell(page, 0, 6).click();
+  await page.evaluate(() => {
+    const grid = document.querySelector('[role="grid"]') as HTMLElement;
+    const event = new Event("paste", { bubbles: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { getData: () => "Mary Major" },
+    });
+    grid.dispatchEvent(event);
+  });
+  await expect(cell(page, 0, 6)).toContainText("Mary Major");
+  await expect(cell(page, 0, 6)).not.toHaveClass(/jj-sheet-td-invalid/);
 });
 
 test("navigates between cells with the keyboard", async ({ page }) => {
