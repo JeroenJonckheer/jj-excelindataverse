@@ -20,6 +20,7 @@ export interface DatasetColumnLike {
   dataType: string;
   order?: number;
   visualSizeFactor?: number;
+  isHidden?: boolean;
 }
 
 /** Minimal shape of a dataset record we depend on. */
@@ -31,8 +32,18 @@ export interface DatasetRecordLike {
 
 /** Builds the column definitions (type based, before metadata enrichment). */
 export function buildColumns(columns: DatasetColumnLike[]): ColumnDef[] {
+  const seen = new Set<string>();
   return [...columns]
+    .filter((c) => !c.isHidden)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    // A view can carry the same logical column twice (for example the primary
+    // name column). Keep only the first; two columns sharing a logical name
+    // would otherwise share an edit and confuse the grid.
+    .filter((c) => {
+      if (seen.has(c.name)) return false;
+      seen.add(c.name);
+      return true;
+    })
     .map((c) => {
       const kind = deriveKind(c.dataType);
       return {

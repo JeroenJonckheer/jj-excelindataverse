@@ -250,4 +250,61 @@ describe("paste", () => {
     expect(screen.getByText("Initech")).toBeInTheDocument();
     expect(screen.getByText(/4 pending changes/)).toBeInTheDocument();
   });
+
+  it("warns and skips when a paste has more rows than the grid", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "One\nTwo\nThree" },
+    });
+    expect(screen.getByText(/had no row below the selection/)).toBeInTheDocument();
+    expect(screen.getByText("One")).toBeInTheDocument();
+    expect(screen.getByText("Two")).toBeInTheDocument();
+    expect(screen.queryByText("Three")).not.toBeInTheDocument();
+  });
+});
+
+describe("undo and redo", () => {
+  it("undoes a typed edit with Ctrl+Z", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "C" });
+    const input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Changed Co" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText("Changed Co")).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    expect(screen.queryByText("Changed Co")).not.toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.getByText(/No pending changes/)).toBeInTheDocument();
+  });
+
+  it("undoes a wrong paste in one step", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "Wrong1\nWrong2" },
+    });
+    expect(screen.getByText("Wrong1")).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    expect(screen.queryByText("Wrong1")).not.toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.getByText("Globex")).toBeInTheDocument();
+  });
+
+  it("redoes an undone edit with Ctrl+Y", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "C" });
+    const input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Redone Co" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    expect(screen.queryByText("Redone Co")).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "y", ctrlKey: true });
+    expect(screen.getByText("Redone Co")).toBeInTheDocument();
+  });
 });

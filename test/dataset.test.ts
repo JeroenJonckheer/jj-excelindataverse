@@ -52,6 +52,22 @@ describe("buildColumns", () => {
     ]);
     expect(built[0].displayName).toBe("field");
   });
+  it("de-duplicates columns that share a logical name", () => {
+    const built = buildColumns([
+      { name: "pp_name", displayName: "Account", dataType: "SingleLine.Text", order: 1 },
+      { name: "pp_name", displayName: "pp_name", dataType: "SingleLine.Text", order: 2 },
+      { name: "contact", displayName: "Contact", dataType: "SingleLine.Text", order: 3 },
+    ]);
+    expect(built.map((c) => c.name)).toEqual(["pp_name", "contact"]);
+    expect(built[0].displayName).toBe("Account");
+  });
+  it("skips hidden columns", () => {
+    const built = buildColumns([
+      { name: "name", displayName: "Name", dataType: "SingleLine.Text", order: 1 },
+      { name: "pp_name", displayName: "", dataType: "SingleLine.Text", order: 2, isHidden: true },
+    ]);
+    expect(built.map((c) => c.name)).toEqual(["name"]);
+  });
 });
 
 describe("extractRawValue", () => {

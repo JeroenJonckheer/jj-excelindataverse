@@ -33,6 +33,12 @@ interface Draft {
   display: string;
 }
 
+interface Snapshot {
+  drafts: Record<string, Draft>;
+  errors: Record<string, string>;
+  rowErrors: Record<string, string>;
+}
+
 const SEP = "";
 const cellKey = (recordId: string, columnName: string) =>
   `${recordId}${SEP}${columnName}`;
@@ -62,6 +68,38 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [editing, setEditing] = React.useState(false);
   const [editText, setEditText] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [pasteNotice, setPasteNotice] = React.useState<string | null>(null);
+
+  // Undo/redo history. Each user action (a committed edit, a delete or a paste)
+  // records one snapshot of the pending state, so Ctrl+Z reverts the whole
+  // action - including a paste that landed in the wrong place.
+  const [past, setPast] = React.useState<Snapshot[]>([]);
+  const [future, setFuture] = React.useState<Snapshot[]>([]);
+
+  const snapshot = (): Snapshot => ({ drafts, errors, rowErrors });
+  const restore = (s: Snapshot) => {
+    setDrafts(s.drafts);
+    setErrors(s.errors);
+    setRowErrors(s.rowErrors);
+  };
+  const record = () => {
+    setPast((p) => [...p, snapshot()]);
+    setFuture([]);
+    setPasteNotice(null);
+  };
+  const undo = () => {
+    if (past.length === 0) return;
+    setFuture((f) => [snapshot(), ...f]);
+    setPast((p) => p.slice(0, -1));
+    restore(past[past.length - 1]);
+    setPasteNotice(null);
+  };
+  const redo = () => {
+    if (future.length === 0) return;
+    setPast((p) => [...p, snapshot()]);
+    setFuture((f) => f.slice(1));
+    restore(future[0]);
+  };
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const dims = { rowCount: rows.length, colCount: columns.length };
@@ -142,7 +180,23 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Keyboard handling while a cell is selected but no editor is open.
   const onGridKeyDown = (e: React.KeyboardEvent) => {
-    if (editing || !active) return;
+    if (editing) return;
+
+    // Undo / redo work on the whole grid, independent of the active cell.
+    const mod = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+    if (mod && key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+      return;
+    }
+    if (mod && (key === "y" || (key === "z" && e.shiftKey))) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+
+    if (!active) return;
     const col = columns[active.colIndex];
     const row = rows[active.rowIndex];
     if (!col || !row) return;
@@ -157,6 +211,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     if (e.key === "Delete" || e.key === "Backspace") {
       if (col.editable) {
         e.preventDefault();
+        record();
         if (col.kind === "lookup") {
           commitValueAt(active.rowIndex, active.colIndex, null);
         } else {
@@ -178,14 +233,23 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   };
 
   const onPaste = (e: React.ClipboardEvent) => {
-    if (!active || editing) return;
+    if (editing) return;
     const text = e.clipboardData.getData("text/plain");
     if (!text) return;
     e.preventDefault();
+    if (!active) {
+      setPasteNotice("Select the top-left cell to paste into first.");
+      return;
+    }
     const grid = parseClipboard(text);
+    record();
+    let droppedRows = 0;
     for (let r = 0; r < grid.length; r++) {
       const rowIndex = active.rowIndex + r;
-      if (rowIndex >= rows.length) break;
+      if (rowIndex >= rows.length) {
+        droppedRows = grid.length - r;
+        break;
+      }
       const cells = grid[r];
       for (let c = 0; c < cells.length; c++) {
         const colIndex = active.colIndex + c;
@@ -195,6 +259,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         commitTextAt(rowIndex, colIndex, cells[c]);
       }
     }
+    setPasteNotice(
+      droppedRows > 0
+        ? `${droppedRows} pasted row${droppedRows === 1 ? "" : "s"} had no row below the selection and ${droppedRows === 1 ? "was" : "were"} skipped. Start the paste higher up, or add rows first. Press Ctrl+Z to undo.`
+        : null,
+    );
   };
 
   const dirtyCount = Object.keys(drafts).length;
@@ -252,7 +321,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   };
 
   const footerMessage =
-    Object.values(rowErrors)[0] ?? Object.values(errors)[0] ?? null;
+    Object.values(rowErrors)[0] ?? Object.values(errors)[0] ?? pasteNotice ?? null;
 
   return (
     <div className="jj-sheet-root">
@@ -340,10 +409,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                             initialText={editText}
                             searchLookup={searchLookup}
                             onCommitText={(text, nav) => {
+                              record();
                               commitTextAt(rowIndex, colIndex, text);
                               moveBy({ rowIndex, colIndex }, nav);
                             }}
                             onCommitValue={(value, nav) => {
+                              record();
                               commitValueAt(rowIndex, colIndex, value);
                               moveBy({ rowIndex, colIndex }, nav);
                             }}

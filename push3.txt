@@ -1,0 +1,99 @@
+Connected as Jeroen.Jonckheer@platformpower.nl
+Connected to... Jeroen Jonckheer's Environment
+Using publisher prefix 'jj'.
+Checking if the control 'jj_Grids.Spreadsheet' already exists in the current org.
+Using full update.
+Creating a temporary solution wrapper to push the component.
+Building the temporary solution wrapper.
+  Determining projects to restore...
+  Restored C:\Users\JeroenJonckheer\OneDrive - Platform Power\Documents\Excel in dataverse\obj\PowerAppsToolsTemp_jj\PowerAppsToolsTemp_jj.cdsproj (in 1,31 sec).
+  Restored C:\Users\JeroenJonckheer\OneDrive - Platform Power\Documents\Excel in dataverse\JJExcelInDataverse.pcfproj (in 1,31 sec).
+  
+  > jj-excelindataverse@0.1.0 clean
+  > pcf-scripts clean --noColor --buildMode development --outDir C:\Users\JeroenJonckheer\OneDrive - Platform Power\Documents\Excel in dataverse\out\controls --buildSource MSBuild
+  
+  [16:49:21] [clean] Initializing...
+  [16:49:21] [clean] Cleaning build outputs...
+  [16:49:21] [clean] Succeeded
+  Cleaning output directory: bin\Debug\, Intermediate directory: obj\Debug\ and Solution Packager working directory: obj\Debug\
+  Removing log file: obj\Debug\SolutionPackager.log and generated solution package: bin\Debug\PowerAppsToolsTemp_jj.zip
+  
+  up to date, audited 1016 packages in 4s
+  
+  180 packages are looking for funding
+    run `npm fund` for details
+  
+  found 0 vulnerabilities
+  
+  > jj-excelindataverse@0.1.0 build
+  > pcf-scripts build --noColor --buildMode development --outDir C:\Users\JeroenJonckheer\OneDrive - Platform Power\Documents\Excel in dataverse\out\controls --buildSource MSBuild
+  
+  [16:49:33] [build] Initializing...
+  [16:49:33] [build] Validating manifest...
+  [16:49:33] [build] Validating control...
+  [16:49:36] [build] Generating manifest types...
+  [16:49:36] [build] Generating design types...
+  [16:49:36] [build] Running ESLint...
+  [16:49:39] [build] Compiling and bundling control...
+  [Webpack stats]:
+  asset [1m[32mbundle.js[39m[22m 95.9 KiB [1m[32m[emitted][39m[22m (name: main)
+  runtime modules 937 bytes 4 modules
+  cacheable modules 70.4 KiB
+    modules by path [1m./Spreadsheet/services/*.ts[39m[22m 37.3 KiB
+      [1m./Spreadsheet/services/dataset.ts[39m[22m 3.22 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+      [1m./Spreadsheet/services/DataverseService.ts[39m[22m 13.1 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+      [1m./Spreadsheet/services/version.ts[39m[22m 314 bytes [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+      + 6 modules
+    modules by path [1m./Spreadsheet/components/*.tsx[39m[22m 32.6 KiB
+      [1m./Spreadsheet/components/App.tsx[39m[22m 6.11 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+      [1m./Spreadsheet/components/SpreadsheetGrid.tsx[39m[22m 13.8 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+      [1m./Spreadsheet/components/CellEditor.tsx[39m[22m 5.5 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+      + 2 modules
+    [1m./Spreadsheet/index.ts[39m[22m 528 bytes [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+  [1mexternal "Reactv16"[39m[22m 42 bytes [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+  [1mexternal "FluentUIReactv940"[39m[22m 42 bytes [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+  webpack 5.107.2 compiled [1m[32msuccessfully[39m[22m in 6631 ms
+  [16:49:46] [build] Generating build outputs...
+  [16:49:46] [build] Succeeded
+  Running Solution Packager to build package type: Unmanaged bin\Debug\PowerAppsToolsTemp_jj.zip
+
+Packing C:\Users\JeroenJonckheer\OneDrive - Platform Power\Documents\Excel in dataverse\obj\PowerAppsToolsTemp_jj\obj\Debug\Metadata to bin\Debug\PowerAppsToolsTemp_jj.zip
+
+Processing Component: Entities
+Processing Component: Roles
+Processing Component: Workflows
+Processing Component: FieldSecurityProfiles
+Processing Component: Templates
+Processing Component: EntityMaps
+Processing Component: EntityRelationships
+Processing Component: OrganizationSettings
+Processing Component: optionsets
+Processing Component: CustomControls
+ - Grids.Spreadsheet
+Processing Component: SolutionPluginAssemblies
+Processing Component: EntityDataProviders
+Processing Sharded Component Files
+
+Unmanaged Pack complete.
+
+  Solution: bin\Debug\PowerAppsToolsTemp_jj.zip generated.
+  Solution Package Type: Unmanaged generated.
+  Completed intermediate files clean up.
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:01:06.38
+Building temporary solution wrapper: done.
+Importing the temporary solution wrapper into the current org.
+
+Solution Importing...
+
+Solution Imported successfully.
+Importing the temporary solution wrapper into the current org: done.
+
+Publishing All Customizations...
+
+Published All Customizations.
+Updating the control in the current org: done.
