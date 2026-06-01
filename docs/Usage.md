@@ -18,6 +18,7 @@
 | F2 or Enter | Start editing the selected cell |
 | Escape | Cancel the current edit |
 | Delete / Backspace | Clear the selected cell |
+| Ctrl+Z / Ctrl+Y | Undo / redo the last change (including a paste) |
 
 While editing, Enter and Tab commit the value and move on; Escape discards the change.
 
@@ -25,6 +26,18 @@ While editing, Enter and Tab commit the value and move on; Escape discards the c
 
 Every change is tracked as a pending edit. You can edit as many cells and rows as you like before
 saving. The footer shows how many changes are pending.
+
+## Adding rows
+
+Click **Add row** in the footer to add an empty row at the bottom, then fill it
+in. Pasting more rows than the grid currently has also adds the extra rows. New
+rows are created in Dataverse when you Save; an empty row you never fill in is
+ignored.
+
+## Undo and redo
+
+Press **Ctrl+Z** to undo the last change and **Ctrl+Y** (or Ctrl+Shift+Z) to redo
+it. A paste counts as a single step, so one undo reverts the whole paste.
 
 ## Paste from Excel
 

@@ -34,7 +34,10 @@ thought never comes up.
 - **Inline cell editing** for text, number, date, choice and lookup columns.
 - **Lookup autocomplete** - search the target table as you type and pick an existing record.
 - **Keyboard navigation** with Tab, Enter and the arrow keys, the way a spreadsheet works.
-- **Paste from Excel** across many cells and rows at once, including Excel's quoting rules.
+- **Paste from Excel** across many cells and rows at once, including Excel's quoting rules; pasting
+  past the end of the grid adds new rows instead of losing data.
+- **Add rows** and create new records in Dataverse on save.
+- **Undo and redo** (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes.
 - **Metadata-driven validation** - required, maximum length, numeric minimum, maximum and
   precision, email, phone and URL formats, choice options and lookup references. Nothing is
   invented beyond what the column metadata provides.
@@ -95,7 +98,9 @@ There is one optional property, `pageSize`, controlling how many records load at
 | Editing | Inline editing for text, number, date, choice and lookup |
 | Lookups | Type-ahead autocomplete, selection of an existing record |
 | Keyboard | Tab, Enter and arrow-key navigation |
-| Paste | Multi-cell, multi-row paste from Excel |
+| Paste | Multi-cell, multi-row paste from Excel; overflow adds new rows |
+| Rows | Add rows and create new records on save |
+| History | Undo and redo (Ctrl+Z / Ctrl+Y) |
 | Validation | Required, length, min/max, precision, email/phone/URL, choice and lookup - all from metadata |
 | Saving | Per-cell validation gate, server-side rejection handling per row |
 | Layout | Automatic full-width column distribution, white #ffffff editing background, version in footer |
