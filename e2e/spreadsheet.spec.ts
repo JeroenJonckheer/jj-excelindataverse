@@ -1,5 +1,5 @@
 /*
- * Dataverse Spreadsheet
+ * JJ - Excel in Dataverse
  * Author: Jeroen Jonckheer
  * License: MIT
  */
@@ -19,7 +19,7 @@ test("renders the view as a grid with headers, values and version", async ({ pag
   await expect(page.getByRole("columnheader", { name: "Account" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "Status" })).toBeVisible();
   await expect(cell(page, 2, 0)).toContainText("Initech");
-  await expect(page.getByText(/Dataverse Spreadsheet v\d+\.\d+\.\d+/)).toBeVisible();
+  await expect(page.getByText(/JJ - Excel in Dataverse v\d+\.\d+\.\d+/)).toBeVisible();
 });
 
 test("edits a text cell and tracks the pending change", async ({ page }) => {

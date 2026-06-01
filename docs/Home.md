@@ -1,8 +1,8 @@
-# Dataverse Spreadsheet - Wiki
+# JJ - Excel in Dataverse - Wiki
 
 **The spreadsheet experience Dataverse always should have had - edit your records inline, right inside the Model-Driven App.**
 
-Dataverse Spreadsheet is a [PCF](https://learn.microsoft.com/power-apps/developer/component-framework/overview)
+JJ - Excel in Dataverse is a [PCF](https://learn.microsoft.com/power-apps/developer/component-framework/overview)
 (Power Apps Component Framework) **dataset control** for Microsoft Dynamics 365 / Dataverse. Bind it
 to any view or subgrid and your users get a fast, familiar grid: type in cells, edit several rows at
 once, paste from Excel, pick lookups as you type, and every change is validated and saved straight

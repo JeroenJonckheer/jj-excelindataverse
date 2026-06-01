@@ -1,4 +1,4 @@
-### Dataverse Spreadsheet
+### JJ - Excel in Dataverse
 
 - [Home](Home)
 - [Installation](Installation)

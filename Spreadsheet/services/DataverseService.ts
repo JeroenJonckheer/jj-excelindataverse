@@ -1,5 +1,5 @@
 /*
- * Dataverse Spreadsheet
+ * JJ - Excel in Dataverse
  * Author: Jeroen Jonckheer
  * License: MIT
  */
@@ -81,7 +81,7 @@ export class DataverseService implements IDataverseService {
         // Metadata enrichment is best effort. If it fails the column keeps its
         // type-based defaults and inline validation still applies basic checks.
         console.warn(
-          `Dataverse Spreadsheet: could not read metadata for column '${column.name}'.`,
+          `JJ - Excel in Dataverse: could not read metadata for column '${column.name}'.`,
           e,
         );
         enriched.push(column);
@@ -205,7 +205,7 @@ export class DataverseService implements IDataverseService {
         }
       } catch (e) {
         console.warn(
-          `Dataverse Spreadsheet: lookup search failed for table '${target}'.`,
+          `JJ - Excel in Dataverse: lookup search failed for table '${target}'.`,
           e,
         );
       }

@@ -1,5 +1,5 @@
 /*
- * Dataverse Spreadsheet
+ * JJ - Excel in Dataverse
  * Author: Jeroen Jonckheer
  * License: MIT
  */
@@ -13,7 +13,7 @@ describe("Footer", () => {
     render(
       <Footer version="0.1.0" dirtyCount={0} errorCount={0} saving={false} message={null} onSave={jest.fn()} />,
     );
-    expect(screen.getByText(/Dataverse Spreadsheet v0\.1\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/JJ - Excel in Dataverse v0\.1\.0/)).toBeInTheDocument();
   });
 
   it("disables save with no changes", () => {

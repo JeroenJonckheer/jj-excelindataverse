@@ -1,5 +1,5 @@
 /*
- * Dataverse Spreadsheet
+ * JJ - Excel in Dataverse
  * Author: Jeroen Jonckheer
  * License: MIT
  */
@@ -54,7 +54,7 @@ export const Footer: React.FC<FooterProps> = ({
           Save changes
         </Button>
         <span className="jj-sheet-version" aria-label="Control version">
-          Dataverse Spreadsheet v{version}
+          JJ - Excel in Dataverse v{version}
         </span>
       </div>
     </div>

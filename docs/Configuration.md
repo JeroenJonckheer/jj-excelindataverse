@@ -1,12 +1,12 @@
 # Configuration
 
-Dataverse Spreadsheet is a **dataset** control: it replaces the grid of a view or subgrid.
+JJ - Excel in Dataverse is a **dataset** control: it replaces the grid of a view or subgrid.
 
 ## Add the control to a subgrid or view
 
 1. Open the **classic** form, view or dashboard designer (the Controls tab is most reliable there).
 2. Select the **subgrid / list** you want to turn into a spreadsheet.
-3. Open its properties -> **Controls** tab -> **Add control...** -> choose **Dataverse Spreadsheet**.
+3. Open its properties -> **Controls** tab -> **Add control...** -> choose **JJ - Excel in Dataverse**.
 4. Set it for **Web, Phone and Tablet** (tick all three - a common gotcha is enabling only one).
 5. **Save & Publish.**
 

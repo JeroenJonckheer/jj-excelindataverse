@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format is based on
 
 ## [0.1.0] - 2026-06-01
 
-First release of Dataverse Spreadsheet.
+First release of JJ - Excel in Dataverse.
 
 ### Added
 - Spreadsheet-style dataset PCF control (`jj_Grids.Spreadsheet`) for Model-Driven Apps.

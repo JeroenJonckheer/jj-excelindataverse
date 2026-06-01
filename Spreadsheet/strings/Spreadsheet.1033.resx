@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Dataverse Spreadsheet
+  JJ - Excel in Dataverse
   Author: Jeroen Jonckheer
   License: MIT
 -->
@@ -64,7 +64,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="Spreadsheet_Display" xml:space="preserve">
-    <value>Dataverse Spreadsheet</value>
+    <value>JJ - Excel in Dataverse</value>
   </data>
   <data name="Spreadsheet_Desc" xml:space="preserve">
     <value>Edit Dataverse records inline like a spreadsheet, straight inside a Model-Driven App.</value>

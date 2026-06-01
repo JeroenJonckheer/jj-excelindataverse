@@ -1,5 +1,5 @@
 /*
- * Dataverse Spreadsheet
+ * JJ - Excel in Dataverse
  * Author: Jeroen Jonckheer
  * License: MIT
  */
@@ -41,7 +41,7 @@ function serve() {
     });
   });
   server.listen(PORT, () => {
-    console.log(`Dataverse Spreadsheet harness ready on http://localhost:${PORT}`);
+    console.log(`JJ - Excel in Dataverse harness ready on http://localhost:${PORT}`);
   });
 }
 

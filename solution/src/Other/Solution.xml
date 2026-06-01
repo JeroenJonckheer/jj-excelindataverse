@@ -5,7 +5,7 @@
     <UniqueName>JJExcelInDataverse</UniqueName>
     <LocalizedNames>
       <!-- Localized Solution Name in language code -->
-      <LocalizedName description="Dataverse Spreadsheet" languagecode="1033" />
+      <LocalizedName description="JJ - Excel in Dataverse" languagecode="1033" />
     </LocalizedNames>
     <Descriptions>
       <Description description="Spreadsheet-style inline editing for Dataverse views, by Jeroen Jonckheer." languagecode="1033" />

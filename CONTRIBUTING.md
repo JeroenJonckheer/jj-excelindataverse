@@ -1,4 +1,4 @@
-# Contributing to Dataverse Spreadsheet
+# Contributing to JJ - Excel in Dataverse
 
 Thanks for taking the time to contribute. Bug reports, ideas and pull requests
 are all welcome.

@@ -1,7 +1,7 @@
 {
   "name": "jj-excelindataverse",
   "version": "0.1.0",
-  "description": "Dataverse Spreadsheet - the spreadsheet experience Dataverse always should have had. A PCF dataset control for inline editing in Model-Driven Apps.",
+  "description": "JJ - Excel in Dataverse - the spreadsheet experience Dataverse always should have had. A PCF dataset control for inline editing in Model-Driven Apps.",
   "private": true,
   "author": "Jeroen Jonckheer",
   "license": "MIT",

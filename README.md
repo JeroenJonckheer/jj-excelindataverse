@@ -1,6 +1,6 @@
 <div align="center">
 
-# Dataverse Spreadsheet
+# JJ - Excel in Dataverse
 
 ### The spreadsheet experience Dataverse always should have had - edit your records inline, right inside the Model-Driven App.
 
@@ -25,7 +25,7 @@ Power Apps and Dynamics 365 users work with lists all day, yet the same pattern 
 export to Excel, edit there, import back. The reason is the grid experience, not Dataverse itself.
 A spreadsheet gives speed, direct entry and familiar behaviour that the standard grid lacks.
 
-Dataverse Spreadsheet brings that experience straight into the Model-Driven App. The moment a user
+JJ - Excel in Dataverse brings that experience straight into the Model-Driven App. The moment a user
 thinks "let me just export this to Excel", the application has lost. This control makes sure that
 thought never comes up.
 
@@ -59,7 +59,7 @@ way to edit lists - bulk updates, data clean-up, quick triage - without exportin
    pac auth create --url https://YOURORG.crm.dynamics.com
    pac solution import --path JJExcelInDataverse_managed.zip --publish-changes
    ```
-3. Add **Dataverse Spreadsheet** to a view or subgrid (see Configuration).
+3. Add **JJ - Excel in Dataverse** to a view or subgrid (see Configuration).
 
 ### Option B - build from source
 
@@ -77,11 +77,11 @@ The control uses the host-provided **React 16** and **Fluent UI 9** platform lib
 
 ## Configuration
 
-Dataverse Spreadsheet is a **dataset** control, so it replaces the grid of a view or subgrid.
+JJ - Excel in Dataverse is a **dataset** control, so it replaces the grid of a view or subgrid.
 
 1. Open the classic form, view or dashboard designer.
 2. Select the **subgrid / list** you want to turn into a spreadsheet.
-3. Open its properties -> **Controls** tab -> **Add control...** -> choose **Dataverse Spreadsheet**.
+3. Open its properties -> **Controls** tab -> **Add control...** -> choose **JJ - Excel in Dataverse**.
 4. Enable it for **Web, Phone and Tablet**.
 5. **Save & Publish.**
 
@@ -117,7 +117,7 @@ Full documentation lives in the [project wiki](../../wiki) and, as a backup, und
 
 ## Customization and commercial support
 
-Dataverse Spreadsheet is free and open source (MIT). Need it tailored to your organisation - extra
+JJ - Excel in Dataverse is free and open source (MIT). Need it tailored to your organisation - extra
 column types, bespoke behaviour, a configuration UI, or integration with your processes? I take on
 paid customization and support.
 

@@ -1,5 +1,5 @@
 /*
- * Dataverse Spreadsheet
+ * JJ - Excel in Dataverse
  * Author: Jeroen Jonckheer
  * License: MIT
  */
@@ -103,7 +103,7 @@ describe("rendering", () => {
     expect(screen.getByText("Score")).toBeInTheDocument();
     expect(screen.getByText("Acme")).toBeInTheDocument();
     expect(screen.getByText("Closed")).toBeInTheDocument();
-    expect(screen.getByText(/Dataverse Spreadsheet v0\.1\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/JJ - Excel in Dataverse v0\.1\.0/)).toBeInTheDocument();
   });
 
   it("marks a required column header", () => {

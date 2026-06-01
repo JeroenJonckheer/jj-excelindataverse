@@ -41,5 +41,5 @@ pac auth create --url https://YOURORG.crm.dynamics.com
 pac solution import --path JJExcelInDataverse_managed.zip --publish-changes
 ```
 
-Then add **Dataverse Spreadsheet** to a view or subgrid (see [Configuration](Configuration)) and
+Then add **JJ - Excel in Dataverse** to a view or subgrid (see [Configuration](Configuration)) and
 edit a few records to confirm the control works in your environment.
