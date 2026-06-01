@@ -1,0 +1,231 @@
+/*
+ * Dataverse Spreadsheet
+ * Author: Jeroen Jonckheer
+ * License: MIT
+ *
+ * The styling deliberately follows the standard Dynamics 365 / Model-Driven App
+ * read-only grid: the same Segoe UI font, the same neutral colours and the same
+ * compact sizing. There are no loud colours. The only accents are the white
+ * #ffffff editing background and the red border that marks an invalid cell, both
+ * of which are required behaviours of the control.
+ */
+
+.jj-sheet-fluent,
+.jj-sheet-root {
+  height: 100%;
+  width: 100%;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+.jj-sheet-fluent {
+  font-family: "Segoe UI", "Segoe UI Web (West European)", -apple-system,
+    BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  font-size: 13px;
+  color: var(--colorNeutralForeground1, #242424);
+}
+
+.jj-sheet-message {
+  padding: 24px;
+  color: var(--colorNeutralForeground3, #616161);
+  font-size: 13px;
+}
+
+/* ---- Grid shell ---- */
+
+.jj-sheet {
+  flex: 1 1 auto;
+  width: 100%;
+  overflow: auto;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.jj-sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* ---- Header ---- */
+
+.jj-sheet-th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--colorNeutralForeground2, #424242);
+  background: var(--colorNeutralBackground2, #fafafa);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--colorNeutralStroke2, #e0e0e0);
+  border-right: 1px solid var(--colorNeutralStroke3, #f0f0f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.jj-sheet-required {
+  color: var(--colorPaletteRedForeground1, #b10e1c);
+}
+
+/* ---- Rows and cells ---- */
+
+.jj-sheet-row:hover .jj-sheet-td {
+  background: var(--colorNeutralBackground1Hover, #f5f5f5);
+}
+
+.jj-sheet-td {
+  padding: 0;
+  height: 32px;
+  border-bottom: 1px solid var(--colorNeutralStroke3, #f0f0f0);
+  border-right: 1px solid var(--colorNeutralStroke3, #f0f0f0);
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+.jj-sheet-cell-text {
+  display: block;
+  padding: 0 10px;
+  line-height: 32px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jj-sheet-td-editable {
+  cursor: cell;
+}
+
+.jj-sheet-td-readonly {
+  color: var(--colorNeutralForeground3, #616161);
+  cursor: default;
+}
+
+.jj-sheet-td-active {
+  box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
+}
+
+.jj-sheet-td-dirty {
+  background: var(--colorNeutralBackground3, #f5f5f5);
+}
+
+/* The required red border for an invalid cell. */
+.jj-sheet-td-invalid {
+  box-shadow: inset 0 0 0 2px var(--colorPaletteRedBorderActive, #d13438);
+}
+
+/* ---- Inline editors ---- */
+
+.jj-sheet-input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Editing background is white, spelled out in full as required. */
+.jj-sheet-input input,
+.jj-sheet-select {
+  background-color: #ffffff;
+}
+
+.jj-sheet-select {
+  width: 100%;
+  height: 32px;
+  border: none;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--colorNeutralForeground1, #242424);
+  box-sizing: border-box;
+}
+
+/* ---- Lookup autocomplete ---- */
+
+.jj-sheet-lookup {
+  position: relative;
+  width: 100%;
+}
+
+.jj-sheet-lookup-status {
+  padding: 4px 8px;
+}
+
+.jj-sheet-lookup-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  margin: 2px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background-color: #ffffff;
+  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.jj-sheet-lookup-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jj-sheet-lookup-item-active,
+.jj-sheet-lookup-item:hover {
+  background: var(--colorNeutralBackground1Hover, #f0f0f0);
+}
+
+/* ---- Footer ---- */
+
+.jj-sheet-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--colorNeutralStroke2, #e0e0e0);
+  background: var(--colorNeutralBackground2, #fafafa);
+  font-size: 12px;
+}
+
+.jj-sheet-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jj-sheet-status-info {
+  color: var(--colorNeutralForeground3, #616161);
+}
+
+.jj-sheet-status-error {
+  color: var(--colorPaletteRedForeground1, #b10e1c);
+}
+
+.jj-sheet-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.jj-sheet-version {
+  color: var(--colorNeutralForeground4, #707070);
+  white-space: nowrap;
+}
+
+.jj-sheet-row-error .jj-sheet-td {
+  background: var(--colorPaletteRedBackground1, #fdf3f4);
+}

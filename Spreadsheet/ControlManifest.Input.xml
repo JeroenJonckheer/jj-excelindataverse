@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  Dataverse Spreadsheet
+  Author: Jeroen Jonckheer
+  License: MIT
+-->
+<manifest>
+  <control namespace="Grids"
+           constructor="Spreadsheet"
+           version="0.1.0"
+           display-name-key="Spreadsheet_Display"
+           description-key="Spreadsheet_Desc"
+           control-type="virtual">
+    <external-service-usage enabled="false"></external-service-usage>
+
+    <!-- Bind to any view or subgrid; the control reads its columns from the view metadata. -->
+    <data-set name="records"
+              display-name-key="Records_Display"
+              cds-data-set-options="displayCommandBar:true;displayViewSelector:true">
+    </data-set>
+
+    <!-- Optional override for the number of records loaded in one page. -->
+    <property name="pageSize"
+              display-name-key="PageSize_Display"
+              description-key="PageSize_Desc"
+              of-type="Whole.None"
+              default-value="100"
+              usage="input"
+              required="false" />
+
+    <resources>
+      <code path="index.ts" order="1" />
+      <platform-library name="React" version="16.14.0" />
+      <platform-library name="Fluent" version="9.46.2" />
+      <css path="css/Spreadsheet.css" order="1" />
+      <resx path="strings/Spreadsheet.1033.resx" version="1.0.0" />
+    </resources>
+
+    <feature-usage>
+      <uses-feature name="WebAPI" required="true" />
+      <uses-feature name="Utility" required="true" />
+    </feature-usage>
+  </control>
+</manifest>

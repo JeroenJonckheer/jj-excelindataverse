@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "jest", "powerapps-component-framework"]
+  },
+  "include": [
+    "Spreadsheet/**/*.ts",
+    "Spreadsheet/**/*.tsx",
+    "test/**/*.ts",
+    "test/**/*.tsx",
+    "harness/**/*.ts",
+    "e2e/**/*.ts"
+  ]
+}

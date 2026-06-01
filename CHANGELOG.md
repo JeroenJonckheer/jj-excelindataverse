@@ -1,0 +1,26 @@
+# Changelog
+
+All notable changes to this project are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/), and this project adheres to
+[Semantic Versioning](https://semver.org/).
+
+## [0.1.0] - 2026-06-01
+
+First release of Dataverse Spreadsheet.
+
+### Added
+- Spreadsheet-style dataset PCF control (`jj_Grids.Spreadsheet`) for Model-Driven Apps.
+- Inline cell editing for text, number, date, choice and lookup columns.
+- Lookup autocomplete with type-ahead search and selection of an existing record.
+- Keyboard navigation with Tab, Enter and the arrow keys.
+- Paste from Excel across multiple cells and rows, including Excel quoting.
+- Metadata-driven validation: required level, maximum length, numeric minimum,
+  maximum and precision, email, phone and URL formats, choice options and lookup
+  references. No rules are invented beyond what the column metadata provides.
+- Save to Dataverse per record, with per-cell validation gating and server-side
+  rejection handling that keeps the remaining changes.
+- Automatic column distribution across the full width.
+- White (#ffffff) editing background and the control version in the footer.
+- Layered test suite: Jest unit tests, React Testing Library component tests and
+  Playwright end-to-end tests against an offline harness.
+- Buildable unmanaged and managed solutions (`solution/`).

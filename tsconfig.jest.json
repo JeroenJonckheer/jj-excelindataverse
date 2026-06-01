@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "isolatedModules": true,
+    "jsx": "react",
+    "esModuleInterop": true,
+    "types": ["node", "jest", "powerapps-component-framework"],
+    "noEmit": false
+  }
+}

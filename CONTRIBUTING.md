@@ -1,0 +1,62 @@
+# Contributing to Dataverse Spreadsheet
+
+Thanks for taking the time to contribute. Bug reports, ideas and pull requests
+are all welcome.
+
+## Reporting bugs and requesting features
+
+Please open an [issue](../../issues/new/choose) using one of the templates. For
+bugs, include your environment (Dynamics / Dataverse version), the view or
+subgrid the control is bound to, the column types involved, and the steps to
+reproduce.
+
+## Development setup
+
+Prerequisites: [Node.js](https://nodejs.org) 18 or later, the
+[.NET SDK](https://dotnet.microsoft.com), and the
+[Power Platform CLI](https://aka.ms/PowerPlatformCLI) (`pac`).
+
+```bash
+npm install
+npm run build        # compile and bundle the control
+npm run verify       # lint, typecheck, unit and component tests, build, e2e
+```
+
+To produce an importable solution:
+
+```bash
+dotnet build solution/JJExcelInDataverseSolution.cdsproj -c Release
+```
+
+## Verification cycle
+
+Every change must pass `npm run verify` before it is merged. The same command
+runs in GitHub Actions on every push and pull request.
+
+| Command | Purpose |
+|---|---|
+| `npm run lint` | ESLint over the control and tests |
+| `npm run typecheck` | TypeScript type checking |
+| `npm run test` | Jest unit and component tests |
+| `npm run test:coverage` | Tests with the enforced coverage threshold |
+| `npm run test:e2e` | Playwright end-to-end tests against the harness |
+| `npm run verify` | All of the above plus the build, in order |
+
+## Pull requests
+
+1. Fork the repo and create a topic branch (`feature/...` or `fix/...`).
+2. Keep changes focused and match the existing TypeScript style and layout.
+3. Make sure `npm run verify` passes.
+4. Describe the change and the use case in the pull request.
+
+## Coding conventions
+
+- Every source file starts with a header containing `Author: Jeroen Jonckheer`.
+- No emoji anywhere - code, logging, messages or documentation.
+- Editing inputs use a white `#ffffff` background.
+- Validation rules come only from the Dataverse column metadata.
+
+## License
+
+By contributing, you agree that your contributions are licensed under the
+project's [MIT License](LICENSE).

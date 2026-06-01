@@ -1,0 +1,29 @@
+# ---- dependencies & build output ----
+node_modules/
+**/generated/
+out/
+bin/
+obj/
+*.binlog
+solution/bin/
+solution/obj/
+solution/src/WebResources/
+
+# ---- harness build & test artifacts ----
+harness/dist/
+coverage/
+test-results/
+playwright-report/
+.playwright/
+demo-output/
+
+# ---- demo source clips (the README GIF in media/ IS committed) ----
+*.webm
+*.mp4
+
+# ---- editor / tooling ----
+.vs/
+.vscode/
+.qodo/
+.DS_Store
+*.log
