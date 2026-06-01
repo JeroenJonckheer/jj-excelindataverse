@@ -63,16 +63,20 @@ function rows(): GridRow[] {
 
 interface Harness {
   onSave: jest.Mock<Promise<void>, [string, PendingEdit[]]>;
+  onCreate: jest.Mock<Promise<void>, [PendingEdit[]]>;
   searchLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
   container: HTMLElement;
 }
 
 function renderGrid(overrides?: {
   onSave?: Harness["onSave"];
+  onCreate?: Harness["onCreate"];
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
     jest.fn((_recordId: string, _edits: PendingEdit[]) => Promise.resolve());
+  const onCreate: Harness["onCreate"] =
+    overrides?.onCreate ?? jest.fn((_edits: PendingEdit[]) => Promise.resolve());
   const searchLookup: Harness["searchLookup"] = jest.fn(
     (_targets: string[], _term: string) => Promise.resolve([] as LookupValue[]),
   );
@@ -82,10 +86,11 @@ function renderGrid(overrides?: {
       rows={rows()}
       version="0.1.0"
       onSave={onSave}
+      onCreate={onCreate}
       searchLookup={searchLookup}
     />,
   );
-  return { onSave, searchLookup, container };
+  return { onSave, onCreate, searchLookup, container };
 }
 
 function cell(container: HTMLElement, row: number, col: number): HTMLElement {
@@ -251,16 +256,16 @@ describe("paste", () => {
     expect(screen.getByText(/4 pending changes/)).toBeInTheDocument();
   });
 
-  it("warns and skips when a paste has more rows than the grid", () => {
+  it("creates a new row when a paste runs one past the end", () => {
     const { container } = renderGrid();
     fireEvent.click(cell(container, 0, 0));
     fireEvent.paste(screen.getByRole("grid"), {
       clipboardData: { getData: () => "One\nTwo\nThree" },
     });
-    expect(screen.getByText(/had no row below the selection/)).toBeInTheDocument();
     expect(screen.getByText("One")).toBeInTheDocument();
     expect(screen.getByText("Two")).toBeInTheDocument();
-    expect(screen.queryByText("Three")).not.toBeInTheDocument();
+    expect(screen.getByText("Three")).toBeInTheDocument();
+    expect(screen.getByText(/1 new row/)).toBeInTheDocument();
   });
 });
 
@@ -306,5 +311,44 @@ describe("undo and redo", () => {
     expect(screen.queryByText("Redone Co")).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole("grid"), { key: "y", ctrlKey: true });
     expect(screen.getByText("Redone Co")).toBeInTheDocument();
+  });
+});
+
+describe("new rows", () => {
+  it("adds a new row and creates it on save", async () => {
+    const onCreate = jest.fn((_edits: PendingEdit[]) => Promise.resolve());
+    const { container } = renderGrid({ onCreate });
+    fireEvent.click(screen.getByRole("button", { name: /Add row/ }));
+
+    // The new row is appended at index 2.
+    expect(cell(container, 2, 0)).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "N" });
+    const input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Brand New Co" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText("Brand New Co")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1));
+    const edits = onCreate.mock.calls[0][0];
+    expect(edits[0].columnName).toBe("name");
+    expect(edits[0].value).toBe("Brand New Co");
+  });
+
+  it("creates rows when a paste runs past the end of the grid", async () => {
+    const onSave = jest.fn((_r: string, _e: PendingEdit[]) => Promise.resolve());
+    const onCreate = jest.fn((_edits: PendingEdit[]) => Promise.resolve());
+    const { container } = renderGrid({ onSave, onCreate });
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "A1\nB2\nC3\nD4" },
+    });
+    expect(screen.getByText("C3")).toBeInTheDocument();
+    expect(screen.getByText("D4")).toBeInTheDocument();
+    expect(screen.getByText(/2 new rows/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(2));
+    expect(onSave).toHaveBeenCalledTimes(2);
   });
 });

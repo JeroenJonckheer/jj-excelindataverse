@@ -111,6 +111,16 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse, entityName, dataset, onChange],
   );
 
+  const onCreate = React.useCallback(
+    async (edits: PendingEdit[]) => {
+      await dataverse.createRecord(entityName, edits);
+      const refreshable = dataset as unknown as { refresh?: () => void };
+      refreshable.refresh?.();
+      onChange();
+    },
+    [dataverse, entityName, dataset, onChange],
+  );
+
   const searchLookup = React.useCallback(
     (targets: string[], term: string): Promise<LookupValue[]> =>
       dataverse.searchLookup(targets, term),
@@ -133,6 +143,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         columns={columns}
         rows={rows}
         version={CONTROL_VERSION}
+        onCreate={onCreate}
         onSave={onSave}
         searchLookup={searchLookup}
       />

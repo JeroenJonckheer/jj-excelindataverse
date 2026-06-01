@@ -64,9 +64,16 @@ describe("buildColumns", () => {
   it("skips hidden columns", () => {
     const built = buildColumns([
       { name: "name", displayName: "Name", dataType: "SingleLine.Text", order: 1 },
-      { name: "pp_name", displayName: "", dataType: "SingleLine.Text", order: 2, isHidden: true },
+      { name: "secret", displayName: "", dataType: "SingleLine.Text", order: 2, isHidden: true },
     ]);
     expect(built.map((c) => c.name)).toEqual(["name"]);
+  });
+  it("skips columns that are not on the view layout (order -1)", () => {
+    const built = buildColumns([
+      { name: "account", displayName: "Account", dataType: "SingleLine.Text", order: 0 },
+      { name: "pp_name", displayName: "name", dataType: "SingleLine.Text", order: -1 },
+    ]);
+    expect(built.map((c) => c.name)).toEqual(["account"]);
   });
 });
 

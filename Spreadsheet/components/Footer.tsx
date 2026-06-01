@@ -15,6 +15,7 @@ export interface FooterProps {
   /** The most relevant message to show (validation or server error), if any. */
   message: string | null;
   onSave: () => void;
+  onAddRow: () => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export const Footer: React.FC<FooterProps> = ({
   saving,
   message,
   onSave,
+  onAddRow,
 }) => {
   const canSave = dirtyCount > 0 && errorCount === 0 && !saving;
   const status =
@@ -45,6 +47,14 @@ export const Footer: React.FC<FooterProps> = ({
         <span>{status}</span>
       </div>
       <div className="jj-sheet-footer-right">
+        <Button
+          appearance="secondary"
+          size="small"
+          onClick={onAddRow}
+          disabled={saving}
+        >
+          Add row
+        </Button>
         <Button
           appearance="primary"
           size="small"

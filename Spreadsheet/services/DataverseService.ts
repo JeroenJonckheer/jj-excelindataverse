@@ -28,6 +28,8 @@ export interface IDataverseService {
     recordId: string,
     edits: PendingEdit[],
   ): Promise<void>;
+  /** Creates a new record from the pending edits of a new row. */
+  createRecord(entityName: string, edits: PendingEdit[]): Promise<void>;
 }
 
 interface EntityMeta {
@@ -218,11 +220,24 @@ export class DataverseService implements IDataverseService {
     recordId: string,
     edits: PendingEdit[],
   ): Promise<void> {
+    const payload = await this.buildPayload(entityName, edits);
+    await this.webApi.updateRecord(entityName, recordId, payload);
+  }
+
+  async createRecord(entityName: string, edits: PendingEdit[]): Promise<void> {
+    const payload = await this.buildPayload(entityName, edits);
+    await this.webApi.createRecord(entityName, payload);
+  }
+
+  private async buildPayload(
+    entityName: string,
+    edits: PendingEdit[],
+  ): Promise<Record<string, unknown>> {
     const payload: Record<string, unknown> = {};
     for (const edit of edits) {
       await this.applyEditToPayload(entityName, payload, edit);
     }
-    await this.webApi.updateRecord(entityName, recordId, payload);
+    return payload;
   }
 
   private async applyEditToPayload(

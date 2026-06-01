@@ -34,7 +34,10 @@ export interface DatasetRecordLike {
 export function buildColumns(columns: DatasetColumnLike[]): ColumnDef[] {
   const seen = new Set<string>();
   return [...columns]
-    .filter((c) => !c.isHidden)
+    // Only columns that are part of the view layout. Dataverse exposes extra
+    // columns (such as the primary-name attribute) with order -1 even when they
+    // are not on the view; those must not appear in the grid.
+    .filter((c) => !c.isHidden && (c.order ?? 0) >= 0)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     // A view can carry the same logical column twice (for example the primary
     // name column). Keep only the first; two columns sharing a logical name

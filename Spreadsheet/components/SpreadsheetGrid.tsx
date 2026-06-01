@@ -25,8 +25,13 @@ export interface SpreadsheetGridProps {
   rows: GridRow[];
   version: string;
   onSave: (recordId: string, edits: PendingEdit[]) => Promise<void>;
+  onCreate: (edits: PendingEdit[]) => Promise<void>;
   searchLookup: (targets: string[], term: string) => Promise<LookupValue[]>;
 }
+
+/** Prefix that marks an as-yet-unsaved new row. */
+const NEW_ROW_PREFIX = "new-";
+const isNewRow = (recordId: string) => recordId.startsWith(NEW_ROW_PREFIX);
 
 interface Draft {
   value: CellValue;
@@ -59,6 +64,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   rows,
   version,
   onSave,
+  onCreate,
   searchLookup,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
@@ -69,6 +75,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [editText, setEditText] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [pasteNotice, setPasteNotice] = React.useState<string | null>(null);
+  // Ids of new rows the user is adding but has not saved yet.
+  const [newRows, setNewRows] = React.useState<string[]>([]);
+  const newRowIdRef = React.useRef(0);
 
   // Undo/redo history. Each user action (a committed edit, a delete or a paste)
   // records one snapshot of the pending state, so Ctrl+Z reverts the whole
@@ -102,8 +111,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   };
 
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const dims = { rowCount: rows.length, colCount: columns.length };
   const widths = React.useMemo(() => computePercentWidths(columns), [columns]);
+
+  // The rendered rows are the bound dataset rows plus any unsaved new rows.
+  const allRows: GridRow[] = React.useMemo(
+    () => [
+      ...rows,
+      ...newRows.map((id) => ({ recordId: id, raw: {}, display: {} })),
+    ],
+    [rows, newRows],
+  );
+  const dims = { rowCount: allRows.length, colCount: columns.length };
 
   // Keep keyboard focus on the grid shell when not actively editing a cell.
   React.useEffect(() => {
@@ -144,16 +162,27 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     });
   };
 
+  const applyText = (recordId: string, col: ColumnDef, text: string) => {
+    if (!col.editable || col.kind === "lookup") return;
+    const resolved = resolveText(text, col);
+    setDraft(recordId, col, resolved.value, resolved.display, resolved.error);
+  };
+
   const commitTextAt = (
     rowIndex: number,
     colIndex: number,
     text: string,
   ) => {
     const col = columns[colIndex];
-    const row = rows[rowIndex];
-    if (!col || !row || !col.editable || col.kind === "lookup") return;
-    const resolved = resolveText(text, col);
-    setDraft(row.recordId, col, resolved.value, resolved.display, resolved.error);
+    const row = allRows[rowIndex];
+    if (!col || !row) return;
+    applyText(row.recordId, col, text);
+  };
+
+  const applyValue = (recordId: string, col: ColumnDef, value: CellValue) => {
+    if (!col.editable) return;
+    const resolved = resolveValue(value, col);
+    setDraft(recordId, col, resolved.value, resolved.display, resolved.error);
   };
 
   const commitValueAt = (
@@ -162,10 +191,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     value: CellValue,
   ) => {
     const col = columns[colIndex];
-    const row = rows[rowIndex];
-    if (!col || !row || !col.editable) return;
-    const resolved = resolveValue(value, col);
-    setDraft(row.recordId, col, resolved.value, resolved.display, resolved.error);
+    const row = allRows[rowIndex];
+    if (!col || !row) return;
+    applyValue(row.recordId, col, value);
   };
 
   const moveBy = (from: CellAddress, nav: NavKey | null) => {
@@ -176,6 +204,16 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const beginEdit = (initial: string) => {
     setEditText(initial);
     setEditing(true);
+  };
+
+  // Add an empty new row at the bottom and select its first editable cell.
+  const addRow = () => {
+    record();
+    const id = `${NEW_ROW_PREFIX}${++newRowIdRef.current}`;
+    setNewRows((nr) => [...nr, id]);
+    const firstEditable = columns.findIndex((c) => c.editable);
+    setEditing(false);
+    setActive({ rowIndex: allRows.length, colIndex: Math.max(firstEditable, 0) });
   };
 
   // Keyboard handling while a cell is selected but no editor is open.
@@ -198,7 +236,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
     if (!active) return;
     const col = columns[active.colIndex];
-    const row = rows[active.rowIndex];
+    const row = allRows[active.rowIndex];
     if (!col || !row) return;
 
     if (e.key === "Enter" || e.key === "F2") {
@@ -243,25 +281,36 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     }
     const grid = parseClipboard(text);
     record();
-    let droppedRows = 0;
+
+    // Extend with new rows so a paste that runs past the end of the grid adds
+    // rows instead of dropping data.
+    const needed = active.rowIndex + grid.length - allRows.length;
+    const added: string[] = [];
+    for (let i = 0; i < needed; i++) {
+      added.push(`${NEW_ROW_PREFIX}${++newRowIdRef.current}`);
+    }
+    if (added.length > 0) setNewRows((nr) => [...nr, ...added]);
+    const effectiveRows = [
+      ...allRows,
+      ...added.map((id) => ({ recordId: id, raw: {}, display: {} }) as GridRow),
+    ];
+
+    let createdRows = 0;
     for (let r = 0; r < grid.length; r++) {
       const rowIndex = active.rowIndex + r;
-      if (rowIndex >= rows.length) {
-        droppedRows = grid.length - r;
-        break;
-      }
+      const row = effectiveRows[rowIndex];
+      if (!row) break;
+      if (isNewRow(row.recordId)) createdRows++;
       const cells = grid[r];
       for (let c = 0; c < cells.length; c++) {
         const colIndex = active.colIndex + c;
         if (colIndex >= columns.length) break;
-        const col = columns[colIndex];
-        if (!col.editable || col.kind === "lookup") continue;
-        commitTextAt(rowIndex, colIndex, cells[c]);
+        applyText(row.recordId, columns[colIndex], cells[c]);
       }
     }
     setPasteNotice(
-      droppedRows > 0
-        ? `${droppedRows} pasted row${droppedRows === 1 ? "" : "s"} had no row below the selection and ${droppedRows === 1 ? "was" : "were"} skipped. Start the paste higher up, or add rows first. Press Ctrl+Z to undo.`
+      createdRows > 0
+        ? `Pasted into ${createdRows} new row${createdRows === 1 ? "" : "s"}. Review and Save to create ${createdRows === 1 ? "it" : "them"}, or press Ctrl+Z to undo.`
         : null,
     );
   };
@@ -298,7 +347,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     await Promise.all(
       Array.from(byRecord.entries()).map(async ([recordId, edits]) => {
         try {
-          await onSave(recordId, edits);
+          if (isNewRow(recordId)) {
+            await onCreate(edits);
+          } else {
+            await onSave(recordId, edits);
+          }
           savedRecords.push(recordId);
         } catch (err) {
           failures[recordId] =
@@ -316,6 +369,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       }
       return copy;
     });
+    // Saved new rows leave the temporary list; the refreshed dataset now carries
+    // them as real records.
+    setNewRows((nr) => nr.filter((id) => !savedRecords.includes(id)));
+    setActive(null);
     setRowErrors((re) => ({ ...re, ...failures }));
     setSaving(false);
   };
@@ -355,12 +412,19 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIndex) => {
+            {allRows.map((row, rowIndex) => {
               const rowHasError = row.recordId in rowErrors;
+              const rowClasses = [
+                "jj-sheet-row",
+                isNewRow(row.recordId) ? "jj-sheet-row-new" : "",
+                rowHasError ? "jj-sheet-row-error" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
                 <tr
                   key={row.recordId}
-                  className={rowHasError ? "jj-sheet-row jj-sheet-row-error" : "jj-sheet-row"}
+                  className={rowClasses}
                   data-record-id={row.recordId}
                 >
                   {columns.map((col, colIndex) => {
@@ -441,6 +505,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         saving={saving}
         message={footerMessage}
         onSave={handleSave}
+        onAddRow={addRow}
       />
     </div>
   );

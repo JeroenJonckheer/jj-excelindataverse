@@ -229,3 +229,8 @@
 .jj-sheet-row-error .jj-sheet-td {
   background: var(--colorPaletteRedBackground1, #fdf3f4);
 }
+
+/* New, not-yet-saved rows get a subtle left marker. */
+.jj-sheet-row-new .jj-sheet-td:first-child {
+  box-shadow: inset 3px 0 0 var(--colorBrandStroke1, #0f6cbd);
+}

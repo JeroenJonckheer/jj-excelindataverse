@@ -217,6 +217,15 @@ function createService(store: Store): IDataverseService {
       }
       return Promise.resolve();
     },
+    createRecord: (_entity, edits: PendingEdit[]) => {
+      const id = `demo-${ORDER.length + 1}`;
+      store[id] = {};
+      for (const edit of edits) {
+        store[id][edit.columnName] = edit.value;
+      }
+      ORDER.push(id);
+      return Promise.resolve();
+    },
   };
 }
 

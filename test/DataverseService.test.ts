@@ -263,6 +263,21 @@ describe("saveRecord", () => {
     expect(payload.createdon).toBe("2026-01-02T00:00:00.000Z");
   });
 
+  it("creates a record from new-row edits", async () => {
+    const createRecord = jest.fn(
+      (_entity: string, _data: Record<string, unknown>) =>
+        Promise.resolve({ entityType: "account", id: "new1", name: "" }),
+    );
+    const svc = new DataverseService(
+      makeContext({ createRecord } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    await svc.createRecord("account", [
+      { recordId: "new-1", columnName: "name", kind: "text", value: "Fresh Co", display: "Fresh Co" },
+    ]);
+    const payload = createRecord.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.name).toBe("Fresh Co");
+  });
+
   it("binds a lookup via its navigation property", async () => {
     global.fetch = mockFetch([
       {

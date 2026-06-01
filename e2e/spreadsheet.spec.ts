@@ -84,6 +84,19 @@ test("saves pending changes back to the data source", async ({ page }) => {
   await expect(cell(page, 0, 0)).toContainText("Acme Worldwide");
 });
 
+test("adds a new row and creates the record on save", async ({ page }) => {
+  await page.getByRole("button", { name: "Add row" }).click();
+  const newCell = cell(page, 5, 0);
+  await newCell.dblclick();
+  const input = page.getByLabel("Account");
+  await input.fill("Brand New BV");
+  await input.press("Enter");
+  await expect(newCell).toContainText("Brand New BV");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText(/No pending changes/)).toBeVisible();
+  await expect(page.getByText("Brand New BV")).toBeVisible();
+});
+
 test("navigates between cells with the keyboard", async ({ page }) => {
   await cell(page, 0, 0).click();
   await page.keyboard.press("ArrowRight");
