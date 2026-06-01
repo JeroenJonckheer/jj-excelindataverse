@@ -21,6 +21,12 @@ demo-output/
 *.webm
 *.mp4
 
+# ---- local scratch logs ----
+push*.txt
+verify*.txt
+e2e*.txt
+*-out.txt
+
 # ---- editor / tooling ----
 .vs/
 .vscode/

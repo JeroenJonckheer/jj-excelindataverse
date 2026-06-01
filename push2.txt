@@ -1,7 +1,0 @@
-Connected as Jeroen.Jonckheer@platformpower.nl
-Connected to... Jeroen Jonckheer's Environment
-Using publisher prefix 'jj'.
-Checking if the control 'jj_Grids.Spreadsheet' already exists in the current org.
-Using full update.
-Sorry, the app encountered a non-recoverable error and will need to terminate. The exception details have been captured and will be forwarded to the development team, if telemetry has been enabled. Session Id: aaddd29b-832b-44e2-83fb-fb1a7f7dd7e4, Exception Type: System.IO.IOException
-The diagnostic logs can be found at: C:\Users\JeroenJonckheer\AppData\Local\Microsoft\PowerAppsCli\Microsoft.PowerApps.CLI.2.7.4\tools\logs\pac-log.txt
