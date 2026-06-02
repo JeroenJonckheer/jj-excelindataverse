@@ -58,7 +58,7 @@ describe("CellEditor dispatch", () => {
     expect(onCommitText).toHaveBeenCalledWith("hi", null);
   });
 
-  it("renders a boolean dropdown and commits the clicked option", () => {
+  it("renders a boolean dropdown and commits the chosen value", () => {
     const onCommitValue = jest.fn();
     render(
       <CellEditor
@@ -76,32 +76,8 @@ describe("CellEditor dispatch", () => {
         searchLookup={noSearch}
       />,
     );
-    fireEvent.mouseDown(screen.getByRole("option", { name: "Yes" }));
+    fireEvent.change(screen.getByLabelText("Field"), { target: { value: "1" } });
     expect(onCommitValue).toHaveBeenCalledWith(true, null);
-  });
-
-  it("commits a choice with the keyboard (arrow + Enter)", () => {
-    const onCommitValue = jest.fn();
-    render(
-      <CellEditor
-        column={col({
-          kind: "choice",
-          options: [
-            { value: 1, label: "Open" },
-            { value: 2, label: "Closed" },
-          ],
-        })}
-        initialText="Open"
-        onCommitText={jest.fn()}
-        onCommitValue={onCommitValue}
-        onCancel={jest.fn()}
-        searchLookup={noSearch}
-      />,
-    );
-    const listbox = screen.getByRole("listbox", { name: "Field" });
-    fireEvent.keyDown(listbox, { key: "ArrowDown" });
-    fireEvent.keyDown(listbox, { key: "Enter" });
-    expect(onCommitValue).toHaveBeenCalledWith(2, "Enter");
   });
 
   it("commits an empty choice value as null", () => {
@@ -119,7 +95,7 @@ describe("CellEditor dispatch", () => {
         searchLookup={noSearch}
       />,
     );
-    fireEvent.mouseDown(screen.getByRole("option", { name: "(empty)" }));
+    fireEvent.change(screen.getByLabelText("Field"), { target: { value: "" } });
     expect(onCommitValue).toHaveBeenCalledWith(null, null);
   });
 
@@ -135,7 +111,7 @@ describe("CellEditor dispatch", () => {
         searchLookup={noSearch}
       />,
     );
-    fireEvent.keyDown(screen.getByRole("listbox", { name: "Field" }), { key: "Escape" });
+    fireEvent.keyDown(screen.getByLabelText("Field"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalled();
   });
 

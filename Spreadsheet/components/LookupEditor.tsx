@@ -9,7 +9,6 @@ import { Input, Spinner } from "@fluentui/react-components";
 import type { ColumnDef, LookupValue } from "../services/types";
 import type { NavKey } from "../services/navigation";
 import { toNavKey } from "../services/navigation";
-import { DropdownList } from "./DropdownList";
 
 export interface LookupEditorProps {
   column: ColumnDef;
@@ -38,7 +37,6 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
   const [activeIndex, setActiveIndex] = React.useState(0);
   const targets = column.lookupTargets ?? [];
   const reqRef = React.useRef(0);
-  const containerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const term = text.trim();
@@ -104,7 +102,7 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
   };
 
   return (
-    <div className="jj-sheet-lookup" ref={containerRef}>
+    <div className="jj-sheet-lookup">
       <Input
         autoFocus
         appearance="filled-lighter"
@@ -120,7 +118,7 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
         </div>
       )}
       {!loading && options.length > 0 && (
-        <DropdownList anchorRef={containerRef}>
+        <ul className="jj-sheet-lookup-list" role="listbox" aria-label="Suggestions">
           {options.map((opt, i) => (
             <li
               key={`${opt.entityType}:${opt.id}`}
@@ -139,7 +137,7 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
               {opt.name}
             </li>
           ))}
-        </DropdownList>
+        </ul>
       )}
     </div>
   );

@@ -190,34 +190,6 @@
   box-sizing: border-box;
 }
 
-/* ---- Choice / boolean dropdown ---- */
-
-.jj-sheet-choice {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  outline: none;
-}
-
-/* The portal dropdown list (choice and lookup). Rendered at the document body,
-   so it carries its own font and colours instead of inheriting Fluent's. */
-.jj-sheet-dropdown {
-  margin: 0;
-  padding: 4px 0;
-  list-style: none;
-  max-height: 240px;
-  overflow-y: auto;
-  background-color: #ffffff;
-  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
-  z-index: 100000;
-  font-family: "Segoe UI", "Segoe UI Web (West European)", -apple-system,
-    BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
-  font-size: 13px;
-  color: var(--colorNeutralForeground1, #242424);
-}
-
 /* ---- Lookup autocomplete ---- */
 
 .jj-sheet-lookup {

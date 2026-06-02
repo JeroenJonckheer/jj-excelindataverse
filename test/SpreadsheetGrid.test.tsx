@@ -193,11 +193,11 @@ describe("inline editing", () => {
     expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
   });
 
-  it("opens the choice dropdown on a single click and commits the picked option", () => {
+  it("opens the choice dropdown on a single click and commits the chosen value", () => {
     const { container } = renderGrid();
-    // Single click opens the dropdown immediately.
+    // Single click enters edit and shows the native select.
     fireEvent.click(cell(container, 0, 2));
-    fireEvent.mouseDown(screen.getByRole("option", { name: "Closed" }));
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "2" } });
     expect(cell(container, 0, 2).textContent).toContain("Closed");
     expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
   });

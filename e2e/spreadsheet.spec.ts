@@ -50,7 +50,7 @@ test("edits a text cell and tracks the pending change", async ({ page }) => {
 
 test("opens the choice dropdown on a single click", async ({ page }) => {
   await cell(page, 1, 3).click();
-  await page.getByRole("option", { name: "Won", exact: true }).click();
+  await page.getByLabel("Status").selectOption({ label: "Won" });
   await expect(cell(page, 1, 3)).toContainText("Won");
 });
 

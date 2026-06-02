@@ -31,8 +31,8 @@ First release of JJ - Excel in Dataverse.
 - Sort by clicking a column header (server-side via the dataset, so it respects
   the view filter and works on large datasets).
 - Resize columns by dragging the right edge of a header.
-- Choice and boolean cells open their dropdown on a single click (custom
-  pick-list, arrow-key and click selectable).
+- Choice and boolean cells edit with a native dropdown (with its caret) that
+  opens on a single click, so the browser positions the list correctly.
 - The column header stays frozen while scrolling the grid vertically.
 - The view's columns and filter flow straight through: changing the view, its
   column layout or its filter is reflected in the grid.
