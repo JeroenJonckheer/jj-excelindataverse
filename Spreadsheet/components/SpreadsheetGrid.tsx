@@ -805,9 +805,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         data-col={colIndex}
                         data-cell-key={key}
                         onClick={() => {
-                          if (!isEditingCell) {
+                          if (isEditingCell) return;
+                          setActive({ rowIndex, colIndex });
+                          // Choice and boolean cells open their dropdown on a
+                          // single click, like a spreadsheet pick-list.
+                          if (
+                            col.editable &&
+                            (col.kind === "choice" || col.kind === "boolean")
+                          ) {
+                            beginEdit(displayOf(row, col));
+                          } else {
                             setEditing(false);
-                            setActive({ rowIndex, colIndex });
                           }
                         }}
                         onDoubleClick={() => openRow(row.recordId)}

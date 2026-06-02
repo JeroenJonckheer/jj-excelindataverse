@@ -48,7 +48,10 @@
 
 .jj-sheet-table {
   width: 100%;
-  border-collapse: collapse;
+  /* Separate borders (with zero spacing) instead of collapse: collapsed borders
+     break position:sticky on <th> in Chromium, which the header relies on. */
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
 }
 
@@ -185,6 +188,14 @@
   font-size: 13px;
   color: var(--colorNeutralForeground1, #242424);
   box-sizing: border-box;
+}
+
+/* ---- Choice / boolean dropdown ---- */
+
+.jj-sheet-choice {
+  position: relative;
+  width: 100%;
+  outline: none;
 }
 
 /* ---- Lookup autocomplete ---- */

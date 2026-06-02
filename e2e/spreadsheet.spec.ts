@@ -48,11 +48,9 @@ test("edits a text cell and tracks the pending change", async ({ page }) => {
   await expect(page.getByText(/1 pending change\b/)).toBeVisible();
 });
 
-test("changes a choice value with the dropdown", async ({ page }) => {
-  await startEdit(page, 1, 3);
-  const select = page.getByLabel("Status");
-  await select.selectOption({ label: "Won" });
-  await select.press("Enter");
+test("opens the choice dropdown on a single click", async ({ page }) => {
+  await cell(page, 1, 3).click();
+  await page.getByRole("option", { name: "Won", exact: true }).click();
   await expect(cell(page, 1, 3)).toContainText("Won");
 });
 

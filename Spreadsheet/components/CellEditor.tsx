@@ -37,7 +37,7 @@ export const CellEditor: React.FC<CellEditorProps> = (props) => {
     );
   }
   if (column.kind === "choice" || column.kind === "boolean") {
-    return <SelectEditor {...props} />;
+    return <ChoiceEditor {...props} />;
   }
   return <TextLikeEditor {...props} />;
 };
@@ -106,31 +106,50 @@ const TextLikeEditor: React.FC<CellEditorProps> = ({
   );
 };
 
-const SelectEditor: React.FC<CellEditorProps> = ({
+interface ChoiceItem {
+  value: CellValue;
+  label: string;
+}
+
+/**
+ * Choice and boolean editor: a dropdown that opens immediately when the cell is
+ * activated, navigable with the arrow keys, committed with Enter, Tab or a click.
+ */
+const ChoiceEditor: React.FC<CellEditorProps> = ({
   column,
   initialText,
   onCommitValue,
   onCancel,
 }) => {
-  const options = column.options ?? [];
-  const initialValue = options.find((o) => o.label === initialText)?.value;
-  const [value, setValue] = React.useState<string>(
-    initialValue != null ? String(initialValue) : "",
-  );
-  const valueRef = React.useRef(value);
-  valueRef.current = value;
-
-  const doneRef = React.useRef(false);
-  const toCellValue = (v: string): CellValue => {
-    if (v === "") return null;
-    const num = Number(v);
-    if (column.kind === "boolean") return num === 1;
-    return num;
+  const toCellValue = (raw: number | null): CellValue => {
+    if (raw === null) return null;
+    return column.kind === "boolean" ? raw === 1 : raw;
   };
-  const finish = (nav: NavKey | null) => {
+  const items: ChoiceItem[] = [
+    { value: null, label: "(empty)" },
+    ...(column.options ?? []).map((o) => ({
+      value: toCellValue(o.value),
+      label: o.label,
+    })),
+  ];
+  const initialIndex = Math.max(
+    items.findIndex((it) => it.label === initialText),
+    0,
+  );
+  const [active, setActive] = React.useState(initialIndex);
+  const activeRef = React.useRef(active);
+  activeRef.current = active;
+  const doneRef = React.useRef(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  const choose = (value: CellValue, nav: NavKey | null) => {
     if (doneRef.current) return;
     doneRef.current = true;
-    onCommitValue(toCellValue(valueRef.current), nav);
+    onCommitValue(value, nav);
   };
   const cancel = () => {
     if (doneRef.current) return;
@@ -138,28 +157,63 @@ const SelectEditor: React.FC<CellEditorProps> = ({
     onCancel();
   };
 
-  const onKeyDown = useCommitKeys(
-    () => finish(null),
-    (nav) => finish(nav),
-    cancel,
-  );
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      cancel();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      e.stopPropagation();
+      setActive((i) => Math.min(i + 1, items.length - 1));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      setActive((i) => Math.max(i - 1, 0));
+      return;
+    }
+    const nav = toNavKey(e.key, e.shiftKey);
+    if (nav === "Enter" || nav === "ShiftEnter" || nav === "Tab" || nav === "ShiftTab") {
+      e.preventDefault();
+      e.stopPropagation();
+      choose(items[activeRef.current].value, nav);
+    }
+  };
 
   return (
-    <select
-      autoFocus
-      className="jj-sheet-select"
+    <div
+      className="jj-sheet-choice"
+      ref={containerRef}
+      tabIndex={0}
+      role="listbox"
       aria-label={column.displayName}
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
       onKeyDown={onKeyDown}
-      onBlur={() => finish(null)}
+      onBlur={() => cancel()}
     >
-      <option value="">(empty)</option>
-      {options.map((o) => (
-        <option key={o.value} value={String(o.value)}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      <ul className="jj-sheet-lookup-list">
+        {items.map((it, i) => (
+          <li
+            key={it.label}
+            role="option"
+            aria-selected={i === active}
+            className={
+              i === active
+                ? "jj-sheet-lookup-item jj-sheet-lookup-item-active"
+                : "jj-sheet-lookup-item"
+            }
+            onMouseDown={(e) => {
+              e.preventDefault();
+              choose(it.value, null);
+            }}
+          >
+            {it.label}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
