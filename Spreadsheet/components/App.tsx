@@ -148,6 +148,15 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse, entityName],
   );
 
+  // Stable callback that reads the current dataset from the ref, so syncing the
+  // selection to the host does not re-create the callback on every render.
+  const onSelectionChange = React.useCallback((recordIds: string[]) => {
+    const ds = ctxRef.current.parameters.records as unknown as {
+      setSelectedRecordIds?: (ids: string[]) => void;
+    };
+    ds.setSelectedRecordIds?.(recordIds);
+  }, []);
+
   if (!entityName) {
     return React.createElement(
       FluentProvider,
@@ -167,6 +176,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         onCreate={onCreate}
         onDelete={onDelete}
         onOpenRecord={onOpenRecord}
+        onSelectionChange={onSelectionChange}
         resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}

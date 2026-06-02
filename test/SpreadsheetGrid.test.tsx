@@ -529,6 +529,26 @@ describe("selection, deletion and opening", () => {
     ).not.toContain("jj-sheet-row-delete");
   });
 
+  it("reports selected saved-record ids to the host for command-bar sync", () => {
+    const onSelectionChange = jest.fn();
+    const { container } = render(
+      <SpreadsheetGrid
+        columns={columns()}
+        rows={rows()}
+        version="0.1.0"
+        onSave={jest.fn(() => Promise.resolve())}
+        onCreate={jest.fn(() => Promise.resolve())}
+        onDelete={jest.fn(() => Promise.resolve())}
+        onOpenRecord={jest.fn()}
+        searchLookup={jest.fn(() => Promise.resolve([] as LookupValue[]))}
+        resolveLookup={jest.fn(() => Promise.resolve([] as LookupValue[]))}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+    fireEvent.click(rowCheckbox(container, "r2"));
+    expect(onSelectionChange).toHaveBeenLastCalledWith(["r2"]);
+  });
+
   it("opens the record on double-click of a saved row", () => {
     const onOpenRecord = jest.fn();
     const { container } = renderGrid({ onOpenRecord });

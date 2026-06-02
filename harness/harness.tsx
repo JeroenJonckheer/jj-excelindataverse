@@ -188,6 +188,7 @@ function buildContext(store: Store): ComponentFramework.Context<IInputs> {
     records,
     getTargetEntityType: () => "demo_account",
     refresh: () => undefined,
+    setSelectedRecordIds: () => undefined,
     loading: false,
   };
   return {

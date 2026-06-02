@@ -30,6 +30,8 @@ export interface SpreadsheetGridProps {
   onOpenRecord: (recordId: string) => void;
   searchLookup: (targets: string[], term: string) => Promise<LookupValue[]>;
   resolveLookup: (targets: string[], text: string) => Promise<LookupValue[]>;
+  /** Reports the selected saved-record ids so the host command bar stays in sync. */
+  onSelectionChange?: (recordIds: string[]) => void;
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -74,6 +76,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onOpenRecord,
   searchLookup,
   resolveLookup,
+  onSelectionChange,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -151,6 +154,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       containerRef.current.focus();
     }
   }, [editing, active]);
+
+  // Mirror the checkbox selection into the host dataset so the standard command
+  // bar (its Delete and other actions) operates on the same records.
+  React.useEffect(() => {
+    onSelectionChange?.(
+      Array.from(selectedRows).filter((id) => !isNewRow(id)),
+    );
+  }, [selectedRows, onSelectionChange]);
 
   const valueOf = (row: GridRow, col: ColumnDef): CellValue => {
     const key = cellKey(row.recordId, col.name);
