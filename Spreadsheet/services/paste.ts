@@ -30,11 +30,16 @@ export function parseHtmlClipboard(html: string): string[][] | null {
   const table = doc.querySelector("table");
   if (!table) return null;
 
+  const nbsp = new RegExp(String.fromCharCode(160), "g");
   const rows: string[][] = [];
   for (const tr of Array.from(table.querySelectorAll("tr"))) {
-    const cells = Array.from(tr.querySelectorAll("td,th")).map((cell) =>
-      (cell.textContent ?? "").replace(new RegExp(String.fromCharCode(160), "g"), " ").trim(),
-    );
+    // Skip rows that belong to a table nested inside a cell - only this table's
+    // own rows count.
+    if (tr.closest("table") !== table) continue;
+    // Only the row's direct cells, so a nested table's cells are not pulled in.
+    const cells = Array.from(tr.children)
+      .filter((el) => el.tagName === "TD" || el.tagName === "TH")
+      .map((cell) => (cell.textContent ?? "").replace(nbsp, " ").trim());
     if (cells.length > 0) rows.push(cells);
   }
   return rows.length > 0 ? rows : null;
