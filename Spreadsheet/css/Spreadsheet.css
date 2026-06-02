@@ -62,9 +62,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  /* Intentionally not position:sticky / z-index: a stacking context here would
+     render the header above the host's modal dim (it must dim with the rows). */
 }
 
 .jj-sheet-required {
