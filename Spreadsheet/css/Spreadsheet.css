@@ -230,7 +230,16 @@
   background: var(--colorPaletteRedBackground1, #fdf3f4);
 }
 
-/* New, not-yet-saved rows get a subtle left marker. */
-.jj-sheet-row-new .jj-sheet-td:first-child {
-  box-shadow: inset 3px 0 0 var(--colorBrandStroke1, #0f6cbd);
+/* New, not-yet-saved rows get a subtle background tint so they stand out.
+   We deliberately do not use box-shadow here - that would override the active
+   cell's box-shadow border on the first cell of a new row. */
+.jj-sheet-row-new .jj-sheet-td {
+  background-color: var(--colorNeutralBackground2, #fafafa);
+}
+
+/* The active cell border must always win, including on new and dirty rows. */
+.jj-sheet-td.jj-sheet-td-active {
+  box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
+  position: relative;
+  z-index: 2;
 }

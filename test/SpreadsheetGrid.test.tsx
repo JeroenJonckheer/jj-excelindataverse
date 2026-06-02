@@ -375,6 +375,20 @@ describe("new rows", () => {
   });
 });
 
+describe("paste into new rows", () => {
+  it("pastes several rows starting from a freshly added empty row", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 1, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "P1\nP2\nP3" },
+    });
+    expect(cell(container, 2, 0)).toHaveTextContent("P1");
+    expect(cell(container, 3, 0)).toHaveTextContent("P2");
+    expect(cell(container, 4, 0)).toHaveTextContent("P3");
+  });
+});
+
 describe("pasted lookups", () => {
   it("resolves a pasted name to a record", async () => {
     const { container } = renderGrid();
