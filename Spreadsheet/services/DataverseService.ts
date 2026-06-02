@@ -230,7 +230,10 @@ export class DataverseService implements IDataverseService {
   }
 
   async resolveLookup(targets: string[], text: string): Promise<LookupValue[]> {
-    const term = text.trim();
+    // Collapse all whitespace - including newlines and tabs that a copied cell
+    // can carry - to single spaces. A record name is single line, and a stray
+    // line break in the pasted value would otherwise break the query.
+    const term = text.replace(/\s+/g, " ").trim();
     if (term.length === 0) return [];
     const cacheKey = `${targets.join(",")}::${term.toLowerCase()}`;
     const cached = this.lookupResolveCache.get(cacheKey);

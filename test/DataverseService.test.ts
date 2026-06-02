@@ -328,6 +328,31 @@ describe("resolveLookup", () => {
     expect(res).toEqual([{ id: "a1", name: "Helix Group", entityType: "account" }]);
   });
 
+  it("collapses newlines and tabs in a pasted value before querying", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions",
+        body: {
+          PrimaryNameAttribute: "name",
+          PrimaryIdAttribute: "accountid",
+          EntitySetName: "accounts",
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const retrieveMultipleRecords = jest.fn((_entity: string, _query: string) =>
+      Promise.resolve({ entities: [{ accountid: "a1", name: "Helix Group" }] }),
+    );
+    const svc = new DataverseService(
+      makeContext({ retrieveMultipleRecords } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    const res = await svc.resolveLookup(["account"], "Helix\n  Group");
+    expect(res).toEqual([{ id: "a1", name: "Helix Group", entityType: "account" }]);
+    // The query must use the collapsed term, not the raw newline value.
+    expect(retrieveMultipleRecords.mock.calls[0][1]).toContain(
+      "contains(name,'Helix Group')",
+    );
+  });
+
   it("returns empty for blank text without querying", async () => {
     const retrieveMultipleRecords = jest.fn();
     const svc = new DataverseService(
