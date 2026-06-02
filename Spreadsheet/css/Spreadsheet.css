@@ -258,12 +258,13 @@
   cursor: pointer;
 }
 
-/* Selected rows get a clear blue highlight that wins over the hover tint.
-   Background only (no box-shadow), so the active-cell border still shows. */
+/* Selected rows get a subtle highlight, matching the standard grid - clear
+   enough to read but not a stark band. Background only (no box-shadow), so the
+   active-cell border still shows. */
 .jj-sheet-row-selected .jj-sheet-td,
 .jj-sheet-row-selected .jj-sheet-select-td,
 .jj-sheet-row-selected:hover .jj-sheet-td {
-  background: var(--colorBrandBackground2, #d3e6fb);
+  background: var(--colorNeutralBackground1Selected, #edf2f9);
 }
 
 /* Rows marked for deletion are struck through until the next save. */
@@ -308,8 +309,8 @@
 }
 
 /* The active cell border must always win, including on new and dirty rows. */
+/* The active-cell border must win over the new/dirty/selected backgrounds.
+   No z-index here: a stacking context would poke above the host's modal dim. */
 .jj-sheet-td.jj-sheet-td-active {
   box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
-  position: relative;
-  z-index: 2;
 }
