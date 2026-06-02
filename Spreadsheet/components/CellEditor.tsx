@@ -10,6 +10,7 @@ import type { CellValue, ColumnDef, LookupValue } from "../services/types";
 import type { NavKey } from "../services/navigation";
 import { toNavKey } from "../services/navigation";
 import { LookupEditor } from "./LookupEditor";
+import { DropdownList } from "./DropdownList";
 
 export interface CellEditorProps {
   column: ColumnDef;
@@ -194,7 +195,7 @@ const ChoiceEditor: React.FC<CellEditorProps> = ({
       onKeyDown={onKeyDown}
       onBlur={() => cancel()}
     >
-      <ul className="jj-sheet-lookup-list">
+      <DropdownList anchorRef={containerRef}>
         {items.map((it, i) => (
           <li
             key={it.label}
@@ -213,7 +214,7 @@ const ChoiceEditor: React.FC<CellEditorProps> = ({
             {it.label}
           </li>
         ))}
-      </ul>
+      </DropdownList>
     </div>
   );
 };
