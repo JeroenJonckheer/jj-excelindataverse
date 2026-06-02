@@ -43,6 +43,7 @@ interface Snapshot {
   drafts: Record<string, Draft>;
   errors: Record<string, string>;
   rowErrors: Record<string, string>;
+  newRows: string[];
 }
 
 const SEP = "";
@@ -87,11 +88,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [past, setPast] = React.useState<Snapshot[]>([]);
   const [future, setFuture] = React.useState<Snapshot[]>([]);
 
-  const snapshot = (): Snapshot => ({ drafts, errors, rowErrors });
+  const snapshot = (): Snapshot => ({ drafts, errors, rowErrors, newRows });
   const restore = (s: Snapshot) => {
     setDrafts(s.drafts);
     setErrors(s.errors);
     setRowErrors(s.rowErrors);
+    setNewRows(s.newRows);
   };
   const record = () => {
     setPast((p) => [...p, snapshot()]);

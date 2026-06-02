@@ -319,6 +319,21 @@ describe("undo and redo", () => {
     expect(screen.getByText("Globex")).toBeInTheDocument();
   });
 
+  it("undo removes rows created by a paste, not just the pasted values", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: { getData: () => "A1\nB2\nC3\nD4" },
+    });
+    // Two existing rows filled, two new rows created (indexes 2 and 3).
+    expect(container.querySelector('[data-row="3"]')).not.toBeNull();
+
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    // The created rows are gone again - no leftover empty rows.
+    expect(container.querySelector('[data-row="2"]')).toBeNull();
+    expect(screen.queryByText("A1")).not.toBeInTheDocument();
+  });
+
   it("redoes an undone edit with Ctrl+Y", () => {
     const { container } = renderGrid();
     fireEvent.click(cell(container, 0, 0));

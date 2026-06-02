@@ -20,7 +20,8 @@ First release of JJ - Excel in Dataverse.
   paste that runs past the end of the grid adds new rows instead of dropping data.
 - Add new rows by scrolling past the bottom or pressing the down arrow on the
   last row, and create them in Dataverse on save.
-- Undo and redo (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes.
+- Undo and redo (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes; undo also
+  removes rows that a paste created, leaving no empty leftover rows.
 - Only the view's layout columns are shown (non-layout columns are hidden).
 - Metadata-driven validation: required level, maximum length, numeric minimum,
   maximum and precision, email, phone and URL formats, choice options and lookup
