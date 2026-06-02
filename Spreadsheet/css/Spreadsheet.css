@@ -240,6 +240,7 @@
 .jj-sheet-select-td {
   width: 36px;
   text-align: center;
+  vertical-align: middle;
   padding: 0;
   border-right: 1px solid var(--colorNeutralStroke3, #f0f0f0);
 }
@@ -248,8 +249,21 @@
   border-bottom: 1px solid var(--colorNeutralStroke3, #f0f0f0);
 }
 
-.jj-sheet-row-selected .jj-sheet-td {
-  background: var(--colorNeutralBackground1Selected, #ebf3fc);
+/* Centre the checkbox both ways within the row. */
+.jj-sheet-select-th input,
+.jj-sheet-select-td input {
+  display: inline-block;
+  margin: 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+/* Selected rows get a clear blue highlight that wins over the hover tint.
+   Background only (no box-shadow), so the active-cell border still shows. */
+.jj-sheet-row-selected .jj-sheet-td,
+.jj-sheet-row-selected .jj-sheet-select-td,
+.jj-sheet-row-selected:hover .jj-sheet-td {
+  background: var(--colorBrandBackground2, #d3e6fb);
 }
 
 /* Rows marked for deletion are struck through until the next save. */
