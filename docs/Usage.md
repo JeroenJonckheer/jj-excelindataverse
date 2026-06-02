@@ -65,6 +65,15 @@ The block is mapped cell-for-cell from the selected cell, across columns and dow
 Excel's quoting for values that contain tabs or line breaks. Each pasted value is parsed and
 validated just like a typed value.
 
+## Sorting, resizing and the view
+
+- **Sort** by clicking a column header; click again to reverse. Sorting runs on
+  the dataset (server-side), so it respects the view filter and large datasets.
+- **Resize** a column by dragging the right edge of its header.
+- The grid takes its **columns and filter from the bound view**. Change the view
+  (or its column layout or filter, or pick another view in the selector) and the
+  grid updates to match.
+
 ## Selecting, deleting and opening records
 
 - The leading checkbox column selects whole rows; the header checkbox selects all.

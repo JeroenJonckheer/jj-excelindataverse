@@ -88,6 +88,9 @@ function renderGrid(overrides?: {
   onDelete?: Harness["onDelete"];
   onOpenRecord?: Harness["onOpenRecord"];
   resolveLookup?: Harness["resolveLookup"];
+  onSort?: (columnName: string) => void;
+  sortColumn?: string | null;
+  sortDescending?: boolean;
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -117,6 +120,9 @@ function renderGrid(overrides?: {
       onOpenRecord={onOpenRecord}
       searchLookup={searchLookup}
       resolveLookup={resolveLookup}
+      onSort={overrides?.onSort}
+      sortColumn={overrides?.sortColumn ?? null}
+      sortDescending={overrides?.sortDescending}
     />,
   );
   return { onSave, onCreate, onDelete, onOpenRecord, searchLookup, resolveLookup, container };
@@ -590,5 +596,37 @@ describe("selection, deletion and opening", () => {
     expect(
       container.querySelector('tr[data-record-id="r2"]')?.className,
     ).toContain("jj-sheet-row-delete");
+  });
+});
+
+describe("sorting and resizing", () => {
+  it("requests a sort when a column header is clicked", () => {
+    const onSort = jest.fn();
+    const { container } = renderGrid({ onSort });
+    const header = within(container).getByText("Score").closest("th") as HTMLElement;
+    fireEvent.click(header);
+    expect(onSort).toHaveBeenCalledWith("score");
+  });
+
+  it("shows the sort indicator on the sorted column", () => {
+    const { container } = renderGrid({
+      onSort: jest.fn(),
+      sortColumn: "name",
+      sortDescending: true,
+    });
+    const header = within(container).getByText("Name").closest("th") as HTMLElement;
+    expect(header.getAttribute("aria-sort")).toBe("descending");
+    expect(header.querySelector(".jj-sheet-sort-desc")).not.toBeNull();
+  });
+
+  it("resizes a column by dragging its handle", () => {
+    const { container } = renderGrid();
+    const handle = container.querySelectorAll(".jj-sheet-resize-handle")[0] as HTMLElement;
+    fireEvent.mouseDown(handle, { clientX: 0 });
+    fireEvent.mouseMove(document, { clientX: 120 });
+    fireEvent.mouseUp(document);
+    // The first data column's <col> is index 1 (index 0 is the selection column).
+    const col = container.querySelectorAll("colgroup col")[1] as HTMLElement;
+    expect(col.style.width).toBe("120px");
   });
 });

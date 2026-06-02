@@ -41,6 +41,8 @@ thought never comes up.
   records in Dataverse on save.
 - **Select and delete rows** via a leading checkbox column - a footer button or a right-click
   menu - committed on save. **Double-click** a row to open the record.
+- **Sort** by clicking a column header (server-side, respects the view filter) and **resize**
+  columns by dragging the header edge. Columns and filter come straight from the bound view.
 - **Undo and redo** (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes.
 - **Metadata-driven validation** - required, maximum length, numeric minimum, maximum and
   precision, email, phone and URL formats, choice options and lookup references. Nothing is

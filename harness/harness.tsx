@@ -166,7 +166,33 @@ function formattedValue(value: CellValue, column: ColumnDef): string {
   return formatValue(value, column);
 }
 
-function buildContext(store: Store): ComponentFramework.Context<IInputs> {
+let sortState: { name: string; sortDirection: number }[] = [];
+
+function sortableKey(value: CellValue): string | number {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "object" && "name" in value) return (value as LookupValue).name;
+  if (typeof value === "number") return value;
+  return String(value);
+}
+
+function sortedOrder(store: Store): string[] {
+  const ids = [...ORDER];
+  const sort = sortState[0];
+  if (!sort) return ids;
+  ids.sort((a, b) => {
+    const ka = sortableKey(store[a][sort.name] ?? null);
+    const kb = sortableKey(store[b][sort.name] ?? null);
+    const cmp = ka < kb ? -1 : ka > kb ? 1 : 0;
+    return sort.sortDirection === 1 ? -cmp : cmp;
+  });
+  return ids;
+}
+
+function buildContext(
+  store: Store,
+  force: () => void,
+): ComponentFramework.Context<IInputs> {
   const records: Record<string, unknown> = {};
   for (const id of ORDER) {
     records[id] = {
@@ -184,10 +210,14 @@ function buildContext(store: Store): ComponentFramework.Context<IInputs> {
       order: i,
       visualSizeFactor: c.name === "name" ? 1.6 : 1,
     })),
-    sortedRecordIds: [...ORDER],
+    sortedRecordIds: sortedOrder(store),
     records,
+    sorting: [...sortState],
     getTargetEntityType: () => "demo_account",
-    refresh: () => undefined,
+    refresh: () => {
+      sortState = dataset.sorting || [];
+      force();
+    },
     setSelectedRecordIds: () => undefined,
     loading: false,
   };
@@ -254,7 +284,7 @@ const Harness: React.FC = () => {
   const serviceRef = React.useRef<IDataverseService>(createService(storeRef.current));
   const [, force] = React.useReducer((x: number) => x + 1, 0);
 
-  const context = buildContext(storeRef.current);
+  const context = buildContext(storeRef.current, force);
   return (
     <div style={{ position: "absolute", inset: 0, padding: 16, background: "#f3f2f1" }}>
       <div

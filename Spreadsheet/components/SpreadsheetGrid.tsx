@@ -32,6 +32,12 @@ export interface SpreadsheetGridProps {
   resolveLookup: (targets: string[], text: string) => Promise<LookupValue[]>;
   /** Reports the selected saved-record ids so the host command bar stays in sync. */
   onSelectionChange?: (recordIds: string[]) => void;
+  /** Logical name of the column the view is currently sorted by, if any. */
+  sortColumn?: string | null;
+  /** Whether the current sort is descending. */
+  sortDescending?: boolean;
+  /** Requests a sort on a column (the host re-queries the dataset). */
+  onSort?: (columnName: string) => void;
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -77,6 +83,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   searchLookup,
   resolveLookup,
   onSelectionChange,
+  sortColumn,
+  sortDescending,
+  onSort,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -95,6 +104,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
   // Right-click context menu position and target record.
   const [menu, setMenu] = React.useState<{ x: number; y: number; recordId: string } | null>(null);
+  // Manual per-column width overrides (pixels), keyed by column name.
+  const [widthOverrides, setWidthOverrides] = React.useState<Record<string, number>>({});
 
   // Undo/redo history. Each user action (a committed edit, a delete or a paste)
   // records one snapshot of the pending state, so Ctrl+Z reverts the whole
@@ -286,6 +297,25 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     if (now - wheelTsRef.current < 500) return;
     wheelTsRef.current = now;
     extendDown();
+  };
+
+  // Drag the right edge of a header to resize that column.
+  const onResizeStart = (e: React.MouseEvent, columnName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const th = (e.currentTarget as HTMLElement).parentElement as HTMLElement;
+    const startX = e.clientX;
+    const startWidth = th.offsetWidth;
+    const move = (ev: MouseEvent) => {
+      const width = Math.max(48, startWidth + (ev.clientX - startX));
+      setWidthOverrides((prev) => ({ ...prev, [columnName]: width }));
+    };
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
   };
 
   // ---- Row selection, deletion and opening ----
@@ -654,7 +684,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           <colgroup>
             <col className="jj-sheet-select-col" />
             {columns.map((c, i) => (
-              <col key={c.name} style={{ width: `${widths[i]}%` }} />
+              <col
+                key={c.name}
+                style={{
+                  width:
+                    widthOverrides[c.name] != null
+                      ? `${widthOverrides[c.name]}px`
+                      : `${widths[i]}%`,
+                }}
+              />
             ))}
           </colgroup>
           <thead>
@@ -667,16 +705,46 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                   onChange={toggleSelectAll}
                 />
               </th>
-              {columns.map((c) => (
-                <th key={c.name} scope="col" className="jj-sheet-th">
-                  <span>{c.displayName}</span>
-                  {c.required === "required" && (
-                    <span className="jj-sheet-required" aria-hidden="true">
-                      {" *"}
-                    </span>
-                  )}
-                </th>
-              ))}
+              {columns.map((c) => {
+                const sorted = sortColumn === c.name;
+                const ariaSort = sorted
+                  ? sortDescending
+                    ? "descending"
+                    : "ascending"
+                  : "none";
+                return (
+                  <th
+                    key={c.name}
+                    scope="col"
+                    className={onSort ? "jj-sheet-th jj-sheet-th-sortable" : "jj-sheet-th"}
+                    aria-sort={ariaSort}
+                    onClick={() => onSort?.(c.name)}
+                  >
+                    <span>{c.displayName}</span>
+                    {c.required === "required" && (
+                      <span className="jj-sheet-required" aria-hidden="true">
+                        {" *"}
+                      </span>
+                    )}
+                    {sorted && (
+                      <span
+                        className={
+                          sortDescending
+                            ? "jj-sheet-sort jj-sheet-sort-desc"
+                            : "jj-sheet-sort jj-sheet-sort-asc"
+                        }
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span
+                      className="jj-sheet-resize-handle"
+                      aria-hidden="true"
+                      onMouseDown={(e) => onResizeStart(e, c.name)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>

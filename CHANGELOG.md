@@ -28,6 +28,11 @@ First release of JJ - Excel in Dataverse.
   records are removed from Dataverse on save (and Ctrl+Z reverts the mark).
 - Double-click a row to open the underlying record in the host app; right-click
   offers Open record and Delete.
+- Sort by clicking a column header (server-side via the dataset, so it respects
+  the view filter and works on large datasets).
+- Resize columns by dragging the right edge of a header.
+- The view's columns and filter flow straight through: changing the view, its
+  column layout or its filter is reflected in the grid.
 - Undo and redo (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes; undo also
   removes rows that a paste created, leaving no empty leftover rows.
 - Only the view's layout columns are shown (non-layout columns are hidden).

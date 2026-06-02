@@ -74,8 +74,47 @@
   z-index: 1;
 }
 
+.jj-sheet-th {
+  position: relative;
+}
+
+.jj-sheet-th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
 .jj-sheet-required {
   color: var(--colorPaletteRedForeground1, #b10e1c);
+}
+
+/* Sort indicator drawn with CSS borders (no glyphs). */
+.jj-sheet-sort {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.jj-sheet-sort-asc {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 5px solid currentColor;
+}
+.jj-sheet-sort-desc {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+/* Drag handle on the right edge of a header to resize the column. */
+.jj-sheet-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
 }
 
 /* ---- Rows and cells ---- */

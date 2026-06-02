@@ -157,6 +157,30 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     ds.setSelectedRecordIds?.(recordIds);
   }, []);
 
+  // Current sort, read from the dataset so the header shows the right indicator.
+  const sorting = (dataset as unknown as {
+    sorting?: { name: string; sortDirection: number }[];
+  }).sorting;
+  const sortColumn = sorting && sorting.length > 0 ? sorting[0].name : null;
+  const sortDescending = !!(sorting && sorting.length > 0 && sorting[0].sortDirection === 1);
+
+  // Toggle the sort on a column. The host re-queries the dataset (server-side
+  // sort), so it respects the view filter and works on large datasets.
+  const onSort = React.useCallback((columnName: string) => {
+    const ds = ctxRef.current.parameters.records as unknown as {
+      sorting?: { name: string; sortDirection: number }[];
+      refresh?: () => void;
+    };
+    const current = ds.sorting && ds.sorting[0];
+    const descending = !!(
+      current &&
+      current.name === columnName &&
+      current.sortDirection === 0
+    );
+    ds.sorting = [{ name: columnName, sortDirection: descending ? 1 : 0 }];
+    ds.refresh?.();
+  }, []);
+
   if (!entityName) {
     return React.createElement(
       FluentProvider,
@@ -177,6 +201,9 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         onDelete={onDelete}
         onOpenRecord={onOpenRecord}
         onSelectionChange={onSelectionChange}
+        sortColumn={sortColumn}
+        sortDescending={sortDescending}
+        onSort={onSort}
         resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}

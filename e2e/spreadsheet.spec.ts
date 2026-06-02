@@ -132,6 +132,12 @@ test("selects a row and deletes it on save", async ({ page }) => {
   await expect(page.getByText("Acme Corporation")).toHaveCount(0);
 });
 
+test("sorts the grid when a column header is clicked", async ({ page }) => {
+  // Ascending by Score puts the lowest score (Hooli, 15) first.
+  await page.getByRole("columnheader", { name: "Score" }).click();
+  await expect(cell(page, 0, 0)).toContainText("Hooli");
+});
+
 test("opens the record on double-click", async ({ page }) => {
   const messages: string[] = [];
   page.on("console", (m) => messages.push(m.text()));
