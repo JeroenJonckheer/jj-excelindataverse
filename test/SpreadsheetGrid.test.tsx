@@ -287,6 +287,35 @@ describe("paste", () => {
     expect(screen.getByText("Three")).toBeInTheDocument();
     expect(screen.getByText(/1 new row/)).toBeInTheDocument();
   });
+
+  it("uses the clipboard HTML table even when the plain text is mangled", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    const html =
+      "<table><tr><td>Row1</td><td>10</td></tr><tr><td>Row2</td><td>20</td></tr></table>";
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: {
+        getData: (type: string) =>
+          type === "text/html" ? html : "Row1\t10\tRow2\t20",
+      },
+    });
+    expect(cell(container, 0, 0)).toHaveTextContent("Row1");
+    expect(cell(container, 1, 0)).toHaveTextContent("Row2");
+  });
+
+  it("recovers rows from tab-only plain text using the column count", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    // No HTML; one line of 8 tab-separated cells for the 4-column grid.
+    fireEvent.paste(screen.getByRole("grid"), {
+      clipboardData: {
+        getData: (type: string) =>
+          type === "text/html" ? "" : "P1\t5\tOpen\t\tP2\t6\tClosed\t",
+      },
+    });
+    expect(cell(container, 0, 0)).toHaveTextContent("P1");
+    expect(cell(container, 1, 0)).toHaveTextContent("P2");
+  });
 });
 
 describe("undo and redo", () => {

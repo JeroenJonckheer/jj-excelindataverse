@@ -4,7 +4,12 @@
  * License: MIT
  */
 
-import { mapPaste, parseClipboard } from "../Spreadsheet/services/paste";
+import {
+  mapPaste,
+  parseClipboard,
+  parseHtmlClipboard,
+  reflowSingleRow,
+} from "../Spreadsheet/services/paste";
 
 describe("parseClipboard", () => {
   it("returns empty for empty input", () => {
@@ -37,6 +42,45 @@ describe("parseClipboard", () => {
     expect(parseClipboard('"she said ""hi"""\tend')).toEqual([
       ['she said "hi"', "end"],
     ]);
+  });
+});
+
+describe("parseHtmlClipboard", () => {
+  it("parses an HTML table into rows", () => {
+    const html =
+      "<table><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>";
+    expect(parseHtmlClipboard(html)).toEqual([
+      ["A", "B"],
+      ["C", "D"],
+    ]);
+  });
+  it("keeps empty cells and trims whitespace", () => {
+    const html = "<table><tr><td></td><td>  X  </td></tr></table>";
+    expect(parseHtmlClipboard(html)).toEqual([["", "X"]]);
+  });
+  it("returns null when there is no table", () => {
+    expect(parseHtmlClipboard("<div>nope</div>")).toBeNull();
+    expect(parseHtmlClipboard("")).toBeNull();
+  });
+});
+
+describe("reflowSingleRow", () => {
+  it("re-chunks a tab-only single row using the column count", () => {
+    expect(reflowSingleRow(["a", "1", "b", "2", "c", "3"], 2)).toEqual([
+      ["a", "1"],
+      ["b", "2"],
+      ["c", "3"],
+    ]);
+  });
+  it("drops a single stray leading empty cell", () => {
+    expect(reflowSingleRow(["", "a", "1", "b", "2"], 2)).toEqual([
+      ["a", "1"],
+      ["b", "2"],
+    ]);
+  });
+  it("returns null when it cannot chunk cleanly", () => {
+    expect(reflowSingleRow(["a", "b", "c"], 2)).toBeNull();
+    expect(reflowSingleRow(["a", "b"], 2)).toBeNull();
   });
 });
 

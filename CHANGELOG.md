@@ -16,8 +16,11 @@ First release of JJ - Excel in Dataverse.
   (trimmed, case-insensitive) or by GUID; no match or several matches mark the
   cell invalid; values are resolved once and cached for large pastes.
 - Keyboard navigation with Tab, Enter and the arrow keys.
-- Paste from Excel across multiple cells and rows, including Excel quoting; a
-  paste that runs past the end of the grid adds new rows instead of dropping data.
+- Paste from Excel across multiple cells and rows. The clipboard's HTML table is
+  used when present (robust to Excel Protected View and to copy paths that drop
+  row separators), with plain-text parsing and a column-count based row
+  reconstruction as fallbacks. A paste that runs past the end of the grid adds
+  new rows instead of dropping data.
 - Add new rows by scrolling past the bottom or pressing the down arrow on the
   last row, and create them in Dataverse on save.
 - Undo and redo (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes; undo also

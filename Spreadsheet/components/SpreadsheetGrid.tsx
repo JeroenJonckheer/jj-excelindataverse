@@ -16,7 +16,7 @@ import type { GridRow } from "../services/dataset";
 import { computePercentWidths } from "../services/columns";
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
-import { parseClipboard } from "../services/paste";
+import { parseClipboard, parseHtmlClipboard, reflowSingleRow } from "../services/paste";
 import { CellEditor } from "./CellEditor";
 import { Footer } from "./Footer";
 
@@ -322,14 +322,28 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const onPaste = (e: React.ClipboardEvent) => {
     if (editing) return;
+    const html = e.clipboardData.getData("text/html");
     const text = e.clipboardData.getData("text/plain");
-    if (!text) return;
+    if (!html && !text) return;
     e.preventDefault();
     if (!active) {
       setPasteNotice("Select the top-left cell to paste into first.");
       return;
     }
-    const grid = parseClipboard(text);
+
+    // Prefer the clipboard's HTML table (unambiguous rows and cells, works in
+    // Excel Protected View too). Fall back to plain text, and from there to a
+    // column-count based row reconstruction when the source dropped its row
+    // separators.
+    let grid = parseHtmlClipboard(html);
+    if (!grid) {
+      grid = parseClipboard(text);
+      if (grid.length === 1 && grid[0].length > columns.length) {
+        const reflowed = reflowSingleRow(grid[0], columns.length);
+        if (reflowed) grid = reflowed;
+      }
+    }
+    if (grid.length === 0) return;
     record();
 
     // Extend with new rows so a paste that runs past the end of the grid adds
