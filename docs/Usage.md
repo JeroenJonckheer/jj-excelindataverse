@@ -3,7 +3,7 @@
 ## Editing a cell
 
 - **Click** a cell to select it.
-- **Double-click**, press **Enter** or press **F2** to start editing.
+- Press **Enter** or **F2** to start editing.
 - Start **typing** on a selected cell to replace its content.
 - For a choice or Yes/No column, a dropdown opens with the values from the option set.
 - For a lookup column, start typing to search the target table and pick a record from the list.
@@ -64,6 +64,16 @@ it. A paste counts as a single step, so one undo reverts the whole paste.
 The block is mapped cell-for-cell from the selected cell, across columns and down rows, honouring
 Excel's quoting for values that contain tabs or line breaks. Each pasted value is parsed and
 validated just like a typed value.
+
+## Selecting, deleting and opening records
+
+- The leading checkbox column selects whole rows; the header checkbox selects all.
+- **Delete selected** in the footer removes the selected rows. New, unsaved rows
+  disappear immediately; saved records are marked for deletion (shown struck
+  through) and removed from Dataverse when you Save. Press **Ctrl+Z** to undo a
+  deletion mark before saving.
+- **Right-click** a row for a menu with **Open record** and **Delete**.
+- **Double-click** a row to open the underlying record in the app.
 
 ## Saving
 

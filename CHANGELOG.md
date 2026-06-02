@@ -23,6 +23,11 @@ First release of JJ - Excel in Dataverse.
   new rows instead of dropping data.
 - Add new rows by scrolling past the bottom or pressing the down arrow on the
   last row, and create them in Dataverse on save.
+- Select rows with a leading checkbox column and delete them - via a footer
+  button or a right-click context menu. New rows are dropped immediately; saved
+  records are removed from Dataverse on save (and Ctrl+Z reverts the mark).
+- Double-click a row to open the underlying record in the host app; right-click
+  offers Open record and Delete.
 - Undo and redo (Ctrl+Z / Ctrl+Y) for edits, deletes and pastes; undo also
   removes rows that a paste created, leaving no empty leftover rows.
 - Only the view's layout columns are shown (non-layout columns are hidden).

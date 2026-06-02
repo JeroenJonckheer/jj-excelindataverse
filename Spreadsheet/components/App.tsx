@@ -133,6 +133,21 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse],
   );
 
+  const onDelete = React.useCallback(
+    async (recordId: string) => {
+      await dataverse.deleteRecord(entityName, recordId);
+      const refreshable = dataset as unknown as { refresh?: () => void };
+      refreshable.refresh?.();
+      onChange();
+    },
+    [dataverse, entityName, dataset, onChange],
+  );
+
+  const onOpenRecord = React.useCallback(
+    (recordId: string) => dataverse.openRecord(entityName, recordId),
+    [dataverse, entityName],
+  );
+
   if (!entityName) {
     return React.createElement(
       FluentProvider,
@@ -150,6 +165,8 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         rows={rows}
         version={CONTROL_VERSION}
         onCreate={onCreate}
+        onDelete={onDelete}
+        onOpenRecord={onOpenRecord}
         resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}

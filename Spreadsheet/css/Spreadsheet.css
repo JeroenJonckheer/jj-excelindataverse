@@ -230,6 +230,62 @@
   background: var(--colorPaletteRedBackground1, #fdf3f4);
 }
 
+/* ---- Selection column ---- */
+
+.jj-sheet-select-col {
+  width: 36px;
+}
+
+.jj-sheet-select-th,
+.jj-sheet-select-td {
+  width: 36px;
+  text-align: center;
+  padding: 0;
+  border-right: 1px solid var(--colorNeutralStroke3, #f0f0f0);
+}
+
+.jj-sheet-select-td {
+  border-bottom: 1px solid var(--colorNeutralStroke3, #f0f0f0);
+}
+
+.jj-sheet-row-selected .jj-sheet-td {
+  background: var(--colorNeutralBackground1Selected, #ebf3fc);
+}
+
+/* Rows marked for deletion are struck through until the next save. */
+.jj-sheet-row-delete .jj-sheet-td,
+.jj-sheet-row-delete .jj-sheet-select-td {
+  text-decoration: line-through;
+  color: var(--colorNeutralForeground4, #707070);
+  background: var(--colorPaletteRedBackground1, #fdf3f4);
+}
+
+/* ---- Right-click context menu ---- */
+
+.jj-sheet-menu {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  min-width: 160px;
+  background-color: #ffffff;
+  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+  font-size: 13px;
+}
+
+.jj-sheet-menu-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.jj-sheet-menu-item:hover {
+  background: var(--colorNeutralBackground1Hover, #f0f0f0);
+}
+
 /* New, not-yet-saved rows get a subtle background tint so they stand out.
    We deliberately do not use box-shadow here - that would override the active
    cell's box-shadow border on the first cell of a new row. */

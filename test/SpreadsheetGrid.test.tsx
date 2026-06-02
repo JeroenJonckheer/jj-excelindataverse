@@ -73,6 +73,8 @@ function rows(): GridRow[] {
 interface Harness {
   onSave: jest.Mock<Promise<void>, [string, PendingEdit[]]>;
   onCreate: jest.Mock<Promise<void>, [PendingEdit[]]>;
+  onDelete: jest.Mock<Promise<void>, [string]>;
+  onOpenRecord: jest.Mock<void, [string]>;
   searchLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
   resolveLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
   container: HTMLElement;
@@ -83,6 +85,8 @@ const JANE: LookupValue = { id: "1", name: "Jane Doe", entityType: "contact" };
 function renderGrid(overrides?: {
   onSave?: Harness["onSave"];
   onCreate?: Harness["onCreate"];
+  onDelete?: Harness["onDelete"];
+  onOpenRecord?: Harness["onOpenRecord"];
   resolveLookup?: Harness["resolveLookup"];
 }): Harness {
   const onSave: Harness["onSave"] =
@@ -90,6 +94,10 @@ function renderGrid(overrides?: {
     jest.fn((_recordId: string, _edits: PendingEdit[]) => Promise.resolve());
   const onCreate: Harness["onCreate"] =
     overrides?.onCreate ?? jest.fn((_edits: PendingEdit[]) => Promise.resolve());
+  const onDelete: Harness["onDelete"] =
+    overrides?.onDelete ?? jest.fn((_recordId: string) => Promise.resolve());
+  const onOpenRecord: Harness["onOpenRecord"] =
+    overrides?.onOpenRecord ?? jest.fn((_recordId: string) => undefined);
   const searchLookup: Harness["searchLookup"] = jest.fn(
     (_targets: string[], _term: string) => Promise.resolve([] as LookupValue[]),
   );
@@ -105,11 +113,13 @@ function renderGrid(overrides?: {
       version="0.1.0"
       onSave={onSave}
       onCreate={onCreate}
+      onDelete={onDelete}
+      onOpenRecord={onOpenRecord}
       searchLookup={searchLookup}
       resolveLookup={resolveLookup}
     />,
   );
-  return { onSave, onCreate, searchLookup, resolveLookup, container };
+  return { onSave, onCreate, onDelete, onOpenRecord, searchLookup, resolveLookup, container };
 }
 
 function cell(container: HTMLElement, row: number, col: number): HTMLElement {
@@ -179,7 +189,8 @@ describe("inline editing", () => {
 
   it("edits a choice cell with the dropdown", () => {
     const { container } = renderGrid();
-    fireEvent.doubleClick(cell(container, 0, 2));
+    fireEvent.click(cell(container, 0, 2));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "Enter" });
     const select = screen.getByLabelText("Status") as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "2" } });
     fireEvent.keyDown(select, { key: "Enter" });
@@ -468,5 +479,96 @@ describe("pasted lookups", () => {
     });
     expect(await screen.findByText(/Multiple records match/)).toBeInTheDocument();
     expect(cell(container, 0, 3).className).toContain("jj-sheet-td-invalid");
+  });
+});
+
+describe("selection, deletion and opening", () => {
+  const rowCheckbox = (container: HTMLElement, recordId: string) =>
+    container.querySelector(
+      `tr[data-record-id="${recordId}"] input[type="checkbox"]`,
+    ) as HTMLInputElement;
+
+  it("marks a selected existing row for deletion and deletes it on save", async () => {
+    const onDelete = jest.fn((_id: string) => Promise.resolve());
+    const { container } = renderGrid({ onDelete });
+    fireEvent.click(rowCheckbox(container, "r1"));
+    fireEvent.click(screen.getByRole("button", { name: /Delete selected \(1\)/ }));
+    expect(
+      container.querySelector('tr[data-record-id="r1"]')?.className,
+    ).toContain("jj-sheet-row-delete");
+    expect(screen.getByText(/1 pending deletion/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith("r1"));
+  });
+
+  it("removes a new row immediately without a server delete", () => {
+    const onDelete = jest.fn((_id: string) => Promise.resolve());
+    const { container } = renderGrid({ onDelete });
+    fireEvent.click(cell(container, 1, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
+    expect(container.querySelector('[data-row="2"]')).not.toBeNull();
+
+    const newRow = container.querySelectorAll("tbody tr")[2];
+    fireEvent.click(newRow.querySelector('input[type="checkbox"]') as HTMLInputElement);
+    fireEvent.click(screen.getByRole("button", { name: /Delete selected/ }));
+    expect(container.querySelector('[data-row="2"]')).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("undo restores a row marked for deletion", () => {
+    const { container } = renderGrid();
+    fireEvent.click(rowCheckbox(container, "r1"));
+    fireEvent.click(screen.getByRole("button", { name: /Delete selected/ }));
+    expect(
+      container.querySelector('tr[data-record-id="r1"]')?.className,
+    ).toContain("jj-sheet-row-delete");
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    expect(
+      container.querySelector('tr[data-record-id="r1"]')?.className,
+    ).not.toContain("jj-sheet-row-delete");
+  });
+
+  it("opens the record on double-click of a saved row", () => {
+    const onOpenRecord = jest.fn();
+    const { container } = renderGrid({ onOpenRecord });
+    fireEvent.doubleClick(cell(container, 0, 0));
+    expect(onOpenRecord).toHaveBeenCalledWith("r1");
+  });
+
+  it("does not open an unsaved new row", () => {
+    const onOpenRecord = jest.fn();
+    const { container } = renderGrid({ onOpenRecord });
+    fireEvent.click(cell(container, 1, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
+    fireEvent.doubleClick(cell(container, 2, 0));
+    expect(onOpenRecord).not.toHaveBeenCalled();
+  });
+
+  it("deletes a row that also has pending edits, skipping its update", async () => {
+    const onSave = jest.fn((_r: string, _e: PendingEdit[]) => Promise.resolve());
+    const onDelete = jest.fn((_id: string) => Promise.resolve());
+    const { container } = renderGrid({ onSave, onDelete });
+    // Edit r1, then mark it for deletion.
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "X" });
+    const input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Temp" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(rowCheckbox(container, "r1"));
+    fireEvent.click(screen.getByRole("button", { name: /Delete selected/ }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith("r1"));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("deletes a row from the right-click context menu", () => {
+    const { container } = renderGrid();
+    fireEvent.contextMenu(container.querySelector('tr[data-record-id="r2"]') as HTMLElement);
+    fireEvent.click(screen.getByText("Delete row"));
+    expect(
+      container.querySelector('tr[data-record-id="r2"]')?.className,
+    ).toContain("jj-sheet-row-delete");
   });
 });

@@ -36,6 +36,10 @@ export interface IDataverseService {
   ): Promise<void>;
   /** Creates a new record from the pending edits of a new row. */
   createRecord(entityName: string, edits: PendingEdit[]): Promise<void>;
+  /** Deletes a record. */
+  deleteRecord(entityName: string, recordId: string): Promise<void>;
+  /** Opens the standard form for a record in the host app. */
+  openRecord(entityName: string, recordId: string): void;
 }
 
 interface EntityMeta {
@@ -290,6 +294,28 @@ export class DataverseService implements IDataverseService {
   async createRecord(entityName: string, edits: PendingEdit[]): Promise<void> {
     const payload = await this.buildPayload(entityName, edits);
     await this.webApi.createRecord(entityName, payload);
+  }
+
+  async deleteRecord(entityName: string, recordId: string): Promise<void> {
+    await this.webApi.deleteRecord(entityName, recordId);
+  }
+
+  openRecord(entityName: string, recordId: string): void {
+    const opts = { entityName, entityId: recordId };
+    const nav = (this.ctx as unknown as { navigation?: { openForm?: (o: unknown) => void } })
+      .navigation;
+    if (nav?.openForm) {
+      try {
+        nav.openForm(opts);
+        return;
+      } catch (e) {
+        console.warn("JJ - Excel in Dataverse: navigation.openForm failed.", e);
+      }
+    }
+    const xrm = (window as unknown as { Xrm?: { Navigation?: { openForm?: (o: unknown) => void } } }).Xrm;
+    if (xrm?.Navigation?.openForm) {
+      xrm.Navigation.openForm(opts);
+    }
   }
 
   private async buildPayload(

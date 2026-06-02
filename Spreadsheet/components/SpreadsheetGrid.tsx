@@ -26,6 +26,8 @@ export interface SpreadsheetGridProps {
   version: string;
   onSave: (recordId: string, edits: PendingEdit[]) => Promise<void>;
   onCreate: (edits: PendingEdit[]) => Promise<void>;
+  onDelete: (recordId: string) => Promise<void>;
+  onOpenRecord: (recordId: string) => void;
   searchLookup: (targets: string[], term: string) => Promise<LookupValue[]>;
   resolveLookup: (targets: string[], text: string) => Promise<LookupValue[]>;
 }
@@ -44,6 +46,7 @@ interface Snapshot {
   errors: Record<string, string>;
   rowErrors: Record<string, string>;
   newRows: string[];
+  pendingDeletes: string[];
 }
 
 const SEP = "";
@@ -67,6 +70,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   version,
   onSave,
   onCreate,
+  onDelete,
+  onOpenRecord,
   searchLookup,
   resolveLookup,
 }) => {
@@ -81,6 +86,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // Ids of new rows the user is adding but has not saved yet.
   const [newRows, setNewRows] = React.useState<string[]>([]);
   const newRowIdRef = React.useRef(0);
+  // Rows selected via the leading checkbox column.
+  const [selectedRows, setSelectedRows] = React.useState<Set<string>>(new Set());
+  // Existing records marked for deletion; removed from Dataverse on save.
+  const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
+  // Right-click context menu position and target record.
+  const [menu, setMenu] = React.useState<{ x: number; y: number; recordId: string } | null>(null);
 
   // Undo/redo history. Each user action (a committed edit, a delete or a paste)
   // records one snapshot of the pending state, so Ctrl+Z reverts the whole
@@ -88,12 +99,19 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [past, setPast] = React.useState<Snapshot[]>([]);
   const [future, setFuture] = React.useState<Snapshot[]>([]);
 
-  const snapshot = (): Snapshot => ({ drafts, errors, rowErrors, newRows });
+  const snapshot = (): Snapshot => ({
+    drafts,
+    errors,
+    rowErrors,
+    newRows,
+    pendingDeletes: Array.from(pendingDeletes),
+  });
   const restore = (s: Snapshot) => {
     setDrafts(s.drafts);
     setErrors(s.errors);
     setRowErrors(s.rowErrors);
     setNewRows(s.newRows);
+    setPendingDeletes(new Set(s.pendingDeletes));
   };
   const record = () => {
     setPast((p) => [...p, snapshot()]);
@@ -258,6 +276,86 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     wheelTsRef.current = now;
     extendDown();
   };
+
+  // ---- Row selection, deletion and opening ----
+
+  const toggleRowSelected = (recordId: string) => {
+    setSelectedRows((s) => {
+      const next = new Set(s);
+      if (next.has(recordId)) next.delete(recordId);
+      else next.add(recordId);
+      return next;
+    });
+  };
+
+  const allSelected =
+    allRows.length > 0 && allRows.every((r) => selectedRows.has(r.recordId));
+  const toggleSelectAll = () => {
+    setSelectedRows(() =>
+      allSelected ? new Set() : new Set(allRows.map((r) => r.recordId)),
+    );
+  };
+
+  // Marks rows for deletion. New (unsaved) rows are dropped immediately; saved
+  // records are flagged and removed from Dataverse on save. Ctrl+Z reverts.
+  const deleteRows = (ids: string[]) => {
+    if (ids.length === 0) return;
+    record();
+    const newToRemove = ids.filter(isNewRow);
+    const existing = ids.filter((id) => !isNewRow(id));
+    if (newToRemove.length > 0) {
+      setNewRows((nr) => nr.filter((id) => !newToRemove.includes(id)));
+      setDrafts((d) => {
+        const copy = { ...d };
+        for (const id of newToRemove)
+          for (const col of columns) delete copy[cellKey(id, col.name)];
+        return copy;
+      });
+    }
+    if (existing.length > 0) {
+      setPendingDeletes((pd) => {
+        const next = new Set(pd);
+        existing.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+    setSelectedRows((s) => {
+      const next = new Set(s);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    setMenu(null);
+  };
+
+  const openRow = (recordId: string) => {
+    setMenu(null);
+    if (!isNewRow(recordId)) onOpenRecord(recordId);
+  };
+
+  const openMenu = (e: React.MouseEvent, recordId: string) => {
+    e.preventDefault();
+    setMenu({ x: e.clientX, y: e.clientY, recordId });
+  };
+  const menuDelete = () => {
+    if (!menu) return;
+    const ids =
+      selectedRows.size > 0 && selectedRows.has(menu.recordId)
+        ? Array.from(selectedRows)
+        : [menu.recordId];
+    deleteRows(ids);
+  };
+
+  // Close the context menu on any outside click or Escape.
+  React.useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    document.addEventListener("click", close);
+    document.addEventListener("contextmenu", close);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("contextmenu", close);
+    };
+  }, [menu]);
 
   // Keyboard handling while a cell is selected but no editor is open.
   const onGridKeyDown = (e: React.KeyboardEvent) => {
@@ -445,9 +543,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const dirtyCount = Object.keys(drafts).length;
   const errorCount = Object.keys(errors).length;
+  const deleteCount = pendingDeletes.size;
 
   const handleSave = async () => {
-    if (dirtyCount === 0 || errorCount > 0 || saving) return;
+    if ((dirtyCount === 0 && deleteCount === 0) || errorCount > 0 || saving) return;
     setSaving(true);
 
     // Group the pending edits per record.
@@ -474,6 +573,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const savedRecords: string[] = [];
     await Promise.all(
       Array.from(byRecord.entries()).map(async ([recordId, edits]) => {
+        // A record marked for deletion does not need its edits saved.
+        if (pendingDeletes.has(recordId)) return;
         try {
           if (isNewRow(recordId)) {
             await onCreate(edits);
@@ -488,11 +589,24 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       }),
     );
 
+    // Delete the records marked for deletion.
+    const deletedRecords: string[] = [];
+    await Promise.all(
+      Array.from(pendingDeletes).map(async (recordId) => {
+        try {
+          await onDelete(recordId);
+          deletedRecords.push(recordId);
+        } catch (err) {
+          failures[recordId] = err instanceof Error ? err.message : String(err);
+        }
+      }),
+    );
+
     // Clear the drafts that saved; keep the ones that failed so the user can
     // fix and retry. The rest of the changes are preserved.
     setDrafts((d) => {
       const copy = { ...d };
-      for (const recordId of savedRecords) {
+      for (const recordId of [...savedRecords, ...deletedRecords]) {
         for (const col of columns) delete copy[cellKey(recordId, col.name)];
       }
       return copy;
@@ -500,6 +614,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     // Saved new rows leave the temporary list; the refreshed dataset now carries
     // them as real records.
     setNewRows((nr) => nr.filter((id) => !savedRecords.includes(id)));
+    setPendingDeletes((pd) => {
+      const next = new Set(pd);
+      deletedRecords.forEach((id) => next.delete(id));
+      return next;
+    });
     setActive(null);
     setRowErrors((re) => ({ ...re, ...failures }));
     setSaving(false);
@@ -522,12 +641,21 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       >
         <table className="jj-sheet-table">
           <colgroup>
+            <col className="jj-sheet-select-col" />
             {columns.map((c, i) => (
               <col key={c.name} style={{ width: `${widths[i]}%` }} />
             ))}
           </colgroup>
           <thead>
             <tr>
+              <th scope="col" className="jj-sheet-th jj-sheet-select-th">
+                <input
+                  type="checkbox"
+                  aria-label="Select all rows"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                />
+              </th>
               {columns.map((c) => (
                 <th key={c.name} scope="col" className="jj-sheet-th">
                   <span>{c.displayName}</span>
@@ -543,10 +671,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           <tbody>
             {allRows.map((row, rowIndex) => {
               const rowHasError = row.recordId in rowErrors;
+              const rowSelected = selectedRows.has(row.recordId);
+              const rowDeleting = pendingDeletes.has(row.recordId);
               const rowClasses = [
                 "jj-sheet-row",
                 isNewRow(row.recordId) ? "jj-sheet-row-new" : "",
                 rowHasError ? "jj-sheet-row-error" : "",
+                rowSelected ? "jj-sheet-row-selected" : "",
+                rowDeleting ? "jj-sheet-row-delete" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -555,7 +687,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                   key={row.recordId}
                   className={rowClasses}
                   data-record-id={row.recordId}
+                  onContextMenu={(e) => openMenu(e, row.recordId)}
                 >
+                  <td className="jj-sheet-select-td">
+                    <input
+                      type="checkbox"
+                      aria-label="Select row"
+                      checked={rowSelected}
+                      onChange={() => toggleRowSelected(row.recordId)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </td>
                   {columns.map((col, colIndex) => {
                     const key = cellKey(row.recordId, col.name);
                     const isActive =
@@ -589,12 +731,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                             setActive({ rowIndex, colIndex });
                           }
                         }}
-                        onDoubleClick={() => {
-                          if (col.editable) {
-                            setActive({ rowIndex, colIndex });
-                            beginEdit(displayOf(row, col));
-                          }
-                        }}
+                        onDoubleClick={() => openRow(row.recordId)}
                       >
                         {isEditingCell ? (
                           <CellEditor
@@ -627,10 +764,35 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           </tbody>
         </table>
       </div>
+      {menu && (
+        <ul
+          className="jj-sheet-menu"
+          style={{ left: menu.x, top: menu.y }}
+          role="menu"
+        >
+          {!isNewRow(menu.recordId) && (
+            <li
+              role="menuitem"
+              className="jj-sheet-menu-item"
+              onClick={() => openRow(menu.recordId)}
+            >
+              Open record
+            </li>
+          )}
+          <li role="menuitem" className="jj-sheet-menu-item" onClick={menuDelete}>
+            {selectedRows.size > 1 && selectedRows.has(menu.recordId)
+              ? `Delete ${selectedRows.size} rows`
+              : "Delete row"}
+          </li>
+        </ul>
+      )}
       <Footer
         version={version}
         dirtyCount={dirtyCount}
         errorCount={errorCount}
+        deleteCount={deleteCount}
+        selectedCount={selectedRows.size}
+        onDeleteSelected={() => deleteRows(Array.from(selectedRows))}
         saving={saving}
         message={footerMessage}
         onSave={handleSave}

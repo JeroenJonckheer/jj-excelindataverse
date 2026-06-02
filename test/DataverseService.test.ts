@@ -238,6 +238,30 @@ describe("searchLookup", () => {
   });
 });
 
+describe("openRecord", () => {
+  it("opens a record through context.navigation", () => {
+    const openForm = jest.fn();
+    const ctx = {
+      webAPI: {},
+      page: { getClientUrl: () => "" },
+      navigation: { openForm },
+    } as unknown as ComponentFramework.Context<{
+      records: ComponentFramework.PropertyTypes.DataSet;
+      pageSize: ComponentFramework.PropertyTypes.WholeNumberProperty;
+    }>;
+    new DataverseService(ctx).openRecord("account", "r1");
+    expect(openForm).toHaveBeenCalledWith({ entityName: "account", entityId: "r1" });
+  });
+
+  it("falls back to Xrm.Navigation when context navigation is absent", () => {
+    const openForm = jest.fn();
+    (window as unknown as { Xrm?: unknown }).Xrm = { Navigation: { openForm } };
+    new DataverseService(makeContext({})).openRecord("account", "r2");
+    expect(openForm).toHaveBeenCalledWith({ entityName: "account", entityId: "r2" });
+    delete (window as unknown as { Xrm?: unknown }).Xrm;
+  });
+});
+
 describe("resolveLookup", () => {
   it("resolves a record by exact primary name", async () => {
     global.fetch = mockFetch([
@@ -369,6 +393,17 @@ describe("saveRecord", () => {
     ]);
     const payload = updateRecord.mock.calls[0][2] as Record<string, unknown>;
     expect(payload["primarycontactid@odata.bind"]).toBe("/contacts(c1)");
+  });
+
+  it("deletes a record via the web API", async () => {
+    const deleteRecord = jest.fn(() =>
+      Promise.resolve({ entityType: "account", id: "r1", name: "" }),
+    );
+    const svc = new DataverseService(
+      makeContext({ deleteRecord } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    await svc.deleteRecord("account", "r1");
+    expect(deleteRecord).toHaveBeenCalledWith("account", "r1");
   });
 
   it("clears a lookup with a null bind", async () => {

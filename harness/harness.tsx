@@ -235,6 +235,16 @@ function createService(store: Store): IDataverseService {
       ORDER.push(id);
       return Promise.resolve();
     },
+    deleteRecord: (_entity, recordId) => {
+      const index = ORDER.indexOf(recordId);
+      if (index >= 0) ORDER.splice(index, 1);
+      delete store[recordId];
+      return Promise.resolve();
+    },
+    openRecord: (_entity, recordId) => {
+      // The harness has no host form; surface the intent for the demo and tests.
+      console.info(`JJ - Excel in Dataverse: open record ${recordId}`);
+    },
   };
 }
 
