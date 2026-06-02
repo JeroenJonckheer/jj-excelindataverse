@@ -40,6 +40,10 @@
   overflow: auto;
   outline: none;
   box-sizing: border-box;
+  /* Own stacking context: the sticky header's z-index stays trapped inside the
+     grid (so it keeps sticking above the rows on scroll) but cannot rise above
+     the host's delete-confirmation dim, which covers the whole grid. */
+  isolation: isolate;
 }
 
 .jj-sheet-table {
@@ -62,8 +66,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Intentionally not position:sticky / z-index: a stacking context here would
-     render the header above the host's modal dim (it must dim with the rows). */
+  /* Sticks to the top while scrolling the grid. Safe to use z-index because the
+     grid container (.jj-sheet) isolates its stacking context, so this does not
+     float above the host's modal dim. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .jj-sheet-required {
