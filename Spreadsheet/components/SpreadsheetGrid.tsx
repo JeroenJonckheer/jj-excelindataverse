@@ -16,6 +16,7 @@ import type { GridRow } from "../services/dataset";
 import { computePercentWidths } from "../services/columns";
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
+import { isLookupValue } from "../services/format";
 import { parseClipboard, parseHtmlClipboard, reflowSingleRow } from "../services/paste";
 import { CellEditor } from "./CellEditor";
 import { Footer } from "./Footer";
@@ -28,6 +29,8 @@ export interface SpreadsheetGridProps {
   onCreate: (edits: PendingEdit[]) => Promise<void>;
   onDelete: (recordId: string) => Promise<void>;
   onOpenRecord: (recordId: string) => void;
+  /** Opens a record referenced by a lookup value (its own table and id). */
+  onOpenLookup?: (entityType: string, recordId: string) => void;
   searchLookup: (targets: string[], term: string) => Promise<LookupValue[]>;
   resolveLookup: (targets: string[], text: string) => Promise<LookupValue[]>;
   /** Reports the selected saved-record ids so the host command bar stays in sync. */
@@ -80,6 +83,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onCreate,
   onDelete,
   onOpenRecord,
+  onOpenLookup,
   searchLookup,
   resolveLookup,
   onSelectionChange,
@@ -837,6 +841,25 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                             }}
                             onCancel={() => setEditing(false)}
                           />
+                        ) : col.kind === "lookup" &&
+                          isLookupValue(valueOf(row, col)) &&
+                          onOpenLookup ? (
+                          <span className="jj-sheet-cell-text">
+                            <a
+                              className="jj-sheet-link"
+                              role="link"
+                              tabIndex={-1}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const v = valueOf(row, col);
+                                if (isLookupValue(v)) {
+                                  onOpenLookup(v.entityType, v.id);
+                                }
+                              }}
+                            >
+                              {displayOf(row, col)}
+                            </a>
+                          </span>
                         ) : (
                           <span className="jj-sheet-cell-text">
                             {displayOf(row, col)}

@@ -255,17 +255,25 @@ export class DataverseService implements IDataverseService {
             entityType: target,
           });
         } else {
+          // Search with contains, then keep only normalised exact matches. This
+          // is more forgiving than an exact "eq" filter about casing and stray
+          // whitespace, so a pasted value resolves the same way the type-ahead
+          // picker would.
+          const wanted = normalizeName(term);
           const list = await this.webApi.retrieveMultipleRecords(
             target,
             `?$select=${meta.primaryIdAttribute},${meta.primaryNameAttribute}` +
-              `&$filter=${meta.primaryNameAttribute} eq '${escapeODataString(term)}'&$top=5`,
+              `&$filter=contains(${meta.primaryNameAttribute},'${escapeODataString(term)}')&$top=50`,
           );
           for (const e of list.entities) {
-            results.push({
-              id: e[meta.primaryIdAttribute],
-              name: e[meta.primaryNameAttribute] ?? "(unnamed)",
-              entityType: target,
-            });
+            const name = e[meta.primaryNameAttribute] ?? "";
+            if (normalizeName(name) === wanted) {
+              results.push({
+                id: e[meta.primaryIdAttribute],
+                name: name || "(unnamed)",
+                entityType: target,
+              });
+            }
           }
         }
       } catch (e) {
@@ -433,4 +441,9 @@ function numericMetadataType(dataType: string): string {
 /** Escapes a single quote for safe inclusion in an OData string literal. */
 export function escapeODataString(value: string): string {
   return value.replace(/'/g, "''");
+}
+
+/** Normalises a name for lenient matching: trim, collapse whitespace, lowercase. */
+export function normalizeName(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
 }

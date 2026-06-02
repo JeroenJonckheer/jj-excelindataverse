@@ -148,6 +148,16 @@
   cursor: cell;
 }
 
+/* Lookup values look like Dataverse links: blue, underline on hover, click to
+   open the referenced record. */
+.jj-sheet-link {
+  color: var(--colorBrandForegroundLink, #0f6cbd);
+  cursor: pointer;
+}
+.jj-sheet-link:hover {
+  text-decoration: underline;
+}
+
 .jj-sheet-td-readonly {
   color: var(--colorNeutralForeground3, #616161);
   cursor: default;

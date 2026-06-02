@@ -14,7 +14,11 @@ First release of JJ - Excel in Dataverse.
 - Lookup autocomplete with type-ahead search and selection of an existing record.
 - Lookup resolution on paste: pasted text is matched to a record by primary name
   (trimmed, case-insensitive) or by GUID; no match or several matches mark the
-  cell invalid; values are resolved once and cached for large pastes.
+  cell invalid; values are resolved once and cached for large pastes. Matching is
+  lenient about casing and extra whitespace, so a pasted name resolves the same
+  way the type-ahead picker would.
+- Lookup values render as Dataverse-style links (blue, underlined on hover);
+  clicking one opens the referenced record.
 - Keyboard navigation with Tab, Enter and the arrow keys.
 - Paste from Excel across multiple cells and rows. The clipboard's HTML table is
   used when present (robust to Excel Protected View and to copy paths that drop

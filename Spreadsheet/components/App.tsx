@@ -148,6 +148,12 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse, entityName],
   );
 
+  const onOpenLookup = React.useCallback(
+    (lookupEntity: string, recordId: string) =>
+      dataverse.openRecord(lookupEntity, recordId),
+    [dataverse],
+  );
+
   // Stable callback that reads the current dataset from the ref, so syncing the
   // selection to the host does not re-create the callback on every render.
   const onSelectionChange = React.useCallback((recordIds: string[]) => {
@@ -208,6 +214,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         onCreate={onCreate}
         onDelete={onDelete}
         onOpenRecord={onOpenRecord}
+        onOpenLookup={onOpenLookup}
         onSelectionChange={onSelectionChange}
         sortColumn={sortColumn}
         sortDescending={sortDescending}

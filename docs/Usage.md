@@ -83,6 +83,8 @@ validated just like a typed value.
   deletion mark before saving.
 - **Right-click** a row for a menu with **Open record** and **Delete**.
 - **Double-click** a row to open the underlying record in the app.
+- A **lookup value** shows as a link (blue, underlined on hover); click it to open
+  that referenced record.
 
 ## Saving
 

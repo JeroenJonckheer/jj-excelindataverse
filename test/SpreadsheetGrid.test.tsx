@@ -59,8 +59,13 @@ function rows(): GridRow[] {
   return [
     {
       recordId: "r1",
-      raw: { name: "Acme", score: 10, status: 1, owner: null },
-      display: { name: "Acme", score: "10", status: "Open", owner: "" },
+      raw: {
+        name: "Acme",
+        score: 10,
+        status: 1,
+        owner: { id: "c9", name: "Owner Co", entityType: "contact" },
+      },
+      display: { name: "Acme", score: "10", status: "Open", owner: "Owner Co" },
     },
     {
       recordId: "r2",
@@ -75,6 +80,7 @@ interface Harness {
   onCreate: jest.Mock<Promise<void>, [PendingEdit[]]>;
   onDelete: jest.Mock<Promise<void>, [string]>;
   onOpenRecord: jest.Mock<void, [string]>;
+  onOpenLookup: jest.Mock<void, [string, string]>;
   searchLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
   resolveLookup: jest.Mock<Promise<LookupValue[]>, [string[], string]>;
   container: HTMLElement;
@@ -101,6 +107,9 @@ function renderGrid(overrides?: {
     overrides?.onDelete ?? jest.fn((_recordId: string) => Promise.resolve());
   const onOpenRecord: Harness["onOpenRecord"] =
     overrides?.onOpenRecord ?? jest.fn((_recordId: string) => undefined);
+  const onOpenLookup: Harness["onOpenLookup"] = jest.fn(
+    (_entityType: string, _recordId: string) => undefined,
+  );
   const searchLookup: Harness["searchLookup"] = jest.fn(
     (_targets: string[], _term: string) => Promise.resolve([] as LookupValue[]),
   );
@@ -118,6 +127,7 @@ function renderGrid(overrides?: {
       onCreate={onCreate}
       onDelete={onDelete}
       onOpenRecord={onOpenRecord}
+      onOpenLookup={onOpenLookup}
       searchLookup={searchLookup}
       resolveLookup={resolveLookup}
       onSort={overrides?.onSort}
@@ -125,7 +135,16 @@ function renderGrid(overrides?: {
       sortDescending={overrides?.sortDescending}
     />,
   );
-  return { onSave, onCreate, onDelete, onOpenRecord, searchLookup, resolveLookup, container };
+  return {
+    onSave,
+    onCreate,
+    onDelete,
+    onOpenRecord,
+    onOpenLookup,
+    searchLookup,
+    resolveLookup,
+    container,
+  };
 }
 
 function cell(container: HTMLElement, row: number, col: number): HTMLElement {
@@ -551,6 +570,17 @@ describe("selection, deletion and opening", () => {
     );
     fireEvent.click(rowCheckbox(container, "r2"));
     expect(onSelectionChange).toHaveBeenLastCalledWith(["r2"]);
+  });
+
+  it("renders a lookup value as a link that opens the referenced record", () => {
+    const { container, onOpenLookup } = renderGrid();
+    const link = container.querySelector(
+      'tr[data-record-id="r1"] .jj-sheet-link',
+    ) as HTMLElement;
+    expect(link).not.toBeNull();
+    expect(link.textContent).toBe("Owner Co");
+    fireEvent.click(link);
+    expect(onOpenLookup).toHaveBeenCalledWith("contact", "c9");
   });
 
   it("opens the record on double-click of a saved row", () => {

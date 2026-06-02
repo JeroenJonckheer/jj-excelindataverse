@@ -302,6 +302,32 @@ describe("resolveLookup", () => {
     expect(await svc.resolveLookup(["contact"], "Nobody")).toEqual([]);
   });
 
+  it("resolves leniently across casing and extra whitespace", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions",
+        body: {
+          PrimaryNameAttribute: "name",
+          PrimaryIdAttribute: "accountid",
+          EntitySetName: "accounts",
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const retrieveMultipleRecords = jest.fn(() =>
+      Promise.resolve({
+        entities: [
+          { accountid: "a1", name: "Helix Group" },
+          { accountid: "a2", name: "Helix Group BV" },
+        ],
+      }),
+    );
+    const svc = new DataverseService(
+      makeContext({ retrieveMultipleRecords } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    const res = await svc.resolveLookup(["account"], "  helix   group ");
+    expect(res).toEqual([{ id: "a1", name: "Helix Group", entityType: "account" }]);
+  });
+
   it("returns empty for blank text without querying", async () => {
     const retrieveMultipleRecords = jest.fn();
     const svc = new DataverseService(
