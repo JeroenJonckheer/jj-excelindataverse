@@ -177,7 +177,15 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
       current.name === columnName &&
       current.sortDirection === 0
     );
-    ds.sorting = [{ name: columnName, sortDirection: descending ? 1 : 0 }];
+    const next = { name: columnName, sortDirection: descending ? 1 : 0 };
+    // Mutate the existing sorting array in place - reassigning the property is
+    // not reliably honoured by the host. Fall back to assignment if needed.
+    if (Array.isArray(ds.sorting)) {
+      ds.sorting.length = 0;
+      ds.sorting.push(next);
+    } else {
+      ds.sorting = [next];
+    }
     ds.refresh?.();
   }, []);
 
