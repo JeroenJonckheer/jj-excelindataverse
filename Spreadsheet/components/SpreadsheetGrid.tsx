@@ -22,6 +22,13 @@ import {
 
 /** Width (px) of the leading row-selection column. */
 const SELECT_COL_WIDTH = 36;
+
+// Thumbtack (push pin) icon paths - the standard Material "push_pin", drawn as
+// an outline when a column is not frozen and filled when it is.
+const PIN_PATH_OUTLINE =
+  "M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3-2H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3V4h1c.55 0 1-.45 1-1s-.45-1-1-1z";
+const PIN_PATH_FILLED =
+  "M16 9V4l1 0c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1l1 0v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z";
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue, isEmpty, formatValue, valuesEqual } from "../services/format";
@@ -1275,10 +1282,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         toggleFreeze(i);
                       }}
                     >
-                      <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
-                        {/* A thumbtack: round head and a straight needle. */}
-                        <circle cx="8" cy="5" r="3.3" />
-                        <rect x="7.3" y="7.8" width="1.4" height="6" rx="0.7" />
+                      <svg viewBox="-4 -4 32 32" width="13" height="13" aria-hidden="true">
+                        {/* Material "push_pin": outline when free, filled when
+                            frozen, tilted like a stuck thumbtack. */}
+                        <path
+                          transform="rotate(45 12 12)"
+                          d={isFrozen ? PIN_PATH_FILLED : PIN_PATH_OUTLINE}
+                        />
                       </svg>
                     </span>
                     <span

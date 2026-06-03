@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.3] - 2026-06-03
+
+### Changed
+- The freeze pin is now the standard push-pin icon (Material "push_pin"): an
+  outline when the column is free, filled blue when frozen.
+
 ## [0.6.2] - 2026-06-03
 
 ### Changed
