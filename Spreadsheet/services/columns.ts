@@ -126,30 +126,55 @@ export function distributeWidths(
   return widths.map((w) => Math.round(w));
 }
 
+/** The width (px) a column gets when the view defines no size for it. */
+export const DEFAULT_COLUMN_WIDTH = 150;
+/** A column never renders narrower than this (px), so it stays usable. */
+export const MIN_COLUMN_WIDTH = 48;
+
 /**
- * Computes each column's share of the full width as a percentage, proportional
- * to its visual size factor with a sensible floor so no column collapses. The
- * result always sums to 100, which is how the grid fills the full width without
- * needing to measure pixels.
+ * Computes each column's width in pixels, the way the standard Dynamics grid
+ * does it. Each column starts at the pixel width configured in the view
+ * (`visualSizeFactor` is that width in pixels), or a manual resize override.
+ *
+ * - If those widths fill or overflow the available space, they are kept as-is
+ *   and the grid scrolls horizontally - so a 100px column stays 100px.
+ * - If there is room to spare, the columns are stretched proportionally to fill
+ *   the width, preserving their relative sizes (the narrowest stays narrowest).
+ *
+ * Manually resized columns are treated as fixed: they keep their width and only
+ * the remaining columns share the leftover space.
  */
-export function computePercentWidths(
-  columns: Pick<ColumnDef, "visualSizeFactor">[],
-  minPercent = 6,
+export function computeColumnWidths(
+  columns: Pick<ColumnDef, "name" | "visualSizeFactor">[],
+  availableWidth: number,
+  overrides: Record<string, number> = {},
+  opts: { defaultWidth?: number; minWidth?: number } = {},
 ): number[] {
-  const count = columns.length;
-  if (count === 0) return [];
+  const n = columns.length;
+  if (n === 0) return [];
+  const defaultWidth = opts.defaultWidth ?? DEFAULT_COLUMN_WIDTH;
+  const minWidth = opts.minWidth ?? MIN_COLUMN_WIDTH;
 
-  const factors = columns.map((c) =>
-    typeof c.visualSizeFactor === "number" && c.visualSizeFactor > 0
-      ? c.visualSizeFactor
-      : 1,
+  const isFixed = columns.map(
+    (c) => typeof overrides[c.name] === "number" && overrides[c.name] > 0,
   );
-  const sum = factors.reduce((a, b) => a + b, 0);
-  const floor = Math.min(minPercent, 100 / count);
+  const base = columns.map((c, i) => {
+    if (isFixed[i]) return Math.max(overrides[c.name], minWidth);
+    const f = c.visualSizeFactor;
+    return Math.max(typeof f === "number" && f > 0 ? f : defaultWidth, minWidth);
+  });
 
-  let widths = factors.map((f) => Math.max((f / sum) * 100, floor));
-  const total = widths.reduce((a, b) => a + b, 0);
-  // Normalise back to exactly 100 after applying the floor.
-  widths = widths.map((w) => (w / total) * 100);
-  return widths;
+  const fixedTotal = base.reduce((a, w, i) => a + (isFixed[i] ? w : 0), 0);
+  const flexBase = base.reduce((a, w, i) => a + (isFixed[i] ? 0 : w), 0);
+  const availForFlex = availableWidth - fixedTotal;
+
+  // Not measured yet, no flexible columns, or the columns already fill/overflow
+  // the space: keep the configured pixel widths and let the grid scroll.
+  if (availableWidth <= 0 || flexBase <= 0 || availForFlex <= flexBase) {
+    return base.map((w) => Math.round(w));
+  }
+
+  // Room to spare: stretch the flexible columns proportionally to fill it.
+  const scale = availForFlex / flexBase;
+  return base.map((w, i) => Math.round(isFixed[i] ? w : w * scale));
 }

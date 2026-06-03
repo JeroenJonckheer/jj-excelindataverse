@@ -5,7 +5,7 @@
  */
 
 import {
-  computePercentWidths,
+  computeColumnWidths,
   deriveKind,
   deriveTextFormat,
   distributeWidths,
@@ -72,16 +72,52 @@ describe("distributeWidths", () => {
   });
 });
 
-describe("computePercentWidths", () => {
-  it("sums to 100", () => {
-    const widths = computePercentWidths([{}, {}, {}]);
-    expect(widths.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 5);
-  });
-  it("gives wider factors more space", () => {
-    const widths = computePercentWidths([{ visualSizeFactor: 1 }, { visualSizeFactor: 4 }]);
-    expect(widths[1]).toBeGreaterThan(widths[0]);
-  });
+describe("computeColumnWidths", () => {
+  const cols = (...px: number[]) =>
+    px.map((w, i) => ({ name: `c${i}`, visualSizeFactor: w }));
+
   it("returns empty for no columns", () => {
-    expect(computePercentWidths([])).toEqual([]);
+    expect(computeColumnWidths([], 1000)).toEqual([]);
+  });
+
+  it("keeps the configured pixel widths when they overflow the space", () => {
+    const widths = computeColumnWidths(cols(300, 300, 300), 500);
+    expect(widths).toEqual([300, 300, 300]);
+  });
+
+  it("keeps the configured pixel widths when they exactly fill the space", () => {
+    const widths = computeColumnWidths(cols(100, 200), 300);
+    expect(widths).toEqual([100, 200]);
+  });
+
+  it("stretches proportionally to fill when there is room", () => {
+    const widths = computeColumnWidths(cols(100, 300), 800);
+    expect(widths.reduce((a, b) => a + b, 0)).toBe(800);
+    // The 100px column stays the narrowest, in the same 1:3 proportion.
+    expect(widths[1] / widths[0]).toBeCloseTo(3, 1);
+    expect(widths[0]).toBeLessThan(widths[1]);
+  });
+
+  it("falls back to a default width when the view defines none", () => {
+    const widths = computeColumnWidths(
+      [{ name: "a" }, { name: "b" }],
+      0,
+      {},
+      { defaultWidth: 150 },
+    );
+    expect(widths).toEqual([150, 150]);
+  });
+
+  it("applies the minimum width", () => {
+    const widths = computeColumnWidths(cols(10), 0, {}, { minWidth: 48 });
+    expect(widths[0]).toBe(48);
+  });
+
+  it("treats a manual override as a fixed width that is not rescaled", () => {
+    const widths = computeColumnWidths(cols(100, 100), 800, { c0: 120 });
+    // The overridden column keeps 120; only the flexible one absorbs the rest.
+    expect(widths[0]).toBe(120);
+    expect(widths[0] + widths[1]).toBe(800);
+    expect(widths[1]).toBe(680);
   });
 });

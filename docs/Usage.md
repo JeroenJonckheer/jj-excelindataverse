@@ -69,7 +69,12 @@ validated just like a typed value.
 
 - **Sort** by clicking a column header; click again to reverse. Sorting runs on
   the dataset (server-side), so it respects the view filter and large datasets.
-- **Resize** a column by dragging the right edge of its header.
+- **Resize** a column by dragging the right edge of its header. A resized column
+  keeps its width; the others share any remaining space.
+- **Column widths** follow the view: each column uses its configured pixel
+  width. When the columns do not all fit, the grid scrolls horizontally; when
+  there is room to spare they stretch proportionally to fill the width (a narrow
+  column stays the narrowest), the way the standard Dynamics grid behaves.
 - The grid takes its **columns and filter from the bound view**. Change the view
   (or its column layout or filter, or pick another view in the selector) and the
   grid updates to match.

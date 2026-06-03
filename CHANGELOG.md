@@ -48,7 +48,10 @@ First release of JJ - Excel in Dataverse.
   references. No rules are invented beyond what the column metadata provides.
 - Save to Dataverse per record, with per-cell validation gating and server-side
   rejection handling that keeps the remaining changes.
-- Automatic column distribution across the full width.
+- Column widths follow the view: each column uses its configured pixel width
+  and the grid scrolls horizontally when they do not fit; when there is room to
+  spare the columns stretch proportionally to fill the width (keeping their
+  relative sizes), the way the standard Dynamics grid does.
 - White (#ffffff) editing background and the control version in the footer.
 - Layered test suite: Jest unit tests, React Testing Library component tests and
   Playwright end-to-end tests against an offline harness.

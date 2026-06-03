@@ -202,13 +202,25 @@ function buildContext(
         formattedValue(store[id][c] ?? null, COL_BY_NAME.get(c) as ColumnDef),
     };
   }
+  // Pixel widths as a real view defines them, so the harness mirrors how the
+  // grid honours the configured widths (and stretches to fill when there is
+  // room). Deliberately varied so the proportions are visible.
+  const COL_PX: Record<string, number> = {
+    name: 240,
+    email: 200,
+    score: 90,
+    status: 120,
+    active: 80,
+    duedate: 130,
+    owner: 180,
+  };
   const dataset = {
     columns: META.map((c, i) => ({
       name: c.name,
       displayName: c.displayName,
       dataType: c.dataType,
       order: i,
-      visualSizeFactor: c.name === "name" ? 1.6 : 1,
+      visualSizeFactor: COL_PX[c.name] ?? 150,
     })),
     sortedRecordIds: sortedOrder(store),
     records,

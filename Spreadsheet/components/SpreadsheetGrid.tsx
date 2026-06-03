@@ -13,7 +13,10 @@ import type {
   PendingEdit,
 } from "../services/types";
 import type { GridRow } from "../services/dataset";
-import { computePercentWidths } from "../services/columns";
+import { computeColumnWidths } from "../services/columns";
+
+/** Width (px) of the leading row-selection column. */
+const SELECT_COL_WIDTH = 36;
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue } from "../services/format";
@@ -151,7 +154,31 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   };
 
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const widths = React.useMemo(() => computePercentWidths(columns), [columns]);
+
+  // Track the grid's own width so columns can fill it the way the standard
+  // Dynamics grid does. A ResizeObserver keeps this responsive to window and
+  // panel resizes; we fall back to the window resize event where it is absent.
+  const [viewportWidth, setViewportWidth] = React.useState(0);
+  React.useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => setViewportWidth(el.clientWidth);
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const widths = React.useMemo(
+    () => computeColumnWidths(columns, viewportWidth - SELECT_COL_WIDTH, widthOverrides),
+    [columns, viewportWidth, widthOverrides],
+  );
+  const tableWidth =
+    SELECT_COL_WIDTH + widths.reduce((a, b) => a + b, 0);
 
   // The rendered rows are the bound dataset rows plus any unsaved new rows.
   const allRows: GridRow[] = React.useMemo(
@@ -684,19 +711,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         onPaste={onPaste}
         onWheel={onWheel}
       >
-        <table className="jj-sheet-table">
+        <table className="jj-sheet-table" style={{ width: `${tableWidth}px` }}>
           <colgroup>
             <col className="jj-sheet-select-col" />
             {columns.map((c, i) => (
-              <col
-                key={c.name}
-                style={{
-                  width:
-                    widthOverrides[c.name] != null
-                      ? `${widthOverrides[c.name]}px`
-                      : `${widths[i]}%`,
-                }}
-              />
+              <col key={c.name} style={{ width: `${widths[i]}px` }} />
             ))}
           </colgroup>
           <thead>
