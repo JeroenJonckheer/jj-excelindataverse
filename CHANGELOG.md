@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-06-03
+
+### Changed
+- Fill handle now frames the whole series like Excel: the selection outline grows
+  to include the target cells while dragging, and after release the entire range
+  (source plus filled cells) stays selected.
+
 ## [0.4.0] - 2026-06-03
 
 ### Added

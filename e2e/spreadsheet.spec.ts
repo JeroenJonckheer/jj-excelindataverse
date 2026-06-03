@@ -233,6 +233,9 @@ test("fills a value down with the fill handle", async ({ page }) => {
   await page.mouse.up();
   await expect(cell(page, 2, 2)).toHaveText("40");
   await expect(cell(page, 3, 2)).toHaveText("40");
+  // The whole resulting series is framed (selected), like Excel.
+  await expect(cell(page, 1, 2)).toHaveClass(/jj-sheet-td-selected/);
+  await expect(cell(page, 3, 2)).toHaveClass(/jj-sheet-td-selected/);
 });
 
 test("fills a numeric series with the fill handle", async ({ page }) => {

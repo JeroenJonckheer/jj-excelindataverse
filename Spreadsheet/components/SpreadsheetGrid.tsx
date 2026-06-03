@@ -243,7 +243,28 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     !!active &&
     !!selStart &&
     rangeIncludes(selStart, active, { rowIndex, colIndex });
-  const selBounds = active && selStart ? rangeBounds(selStart, active) : null;
+  // The frame to draw: normally the selection, but while dragging the fill
+  // handle it grows to include the target cells, the way Excel extends the
+  // marching frame around the whole series as you drag.
+  const frameBounds =
+    active && selStart
+      ? (() => {
+          const b = rangeBounds(selStart, active);
+          if (!fillTo) return b;
+          return {
+            top: Math.min(b.top, fillTo.rowIndex),
+            bottom: Math.max(b.bottom, fillTo.rowIndex),
+            left: b.left,
+            right: b.right,
+          };
+        })()
+      : null;
+  const inFrame = (rowIndex: number, colIndex: number): boolean =>
+    !!frameBounds &&
+    rowIndex >= frameBounds.top &&
+    rowIndex <= frameBounds.bottom &&
+    colIndex >= frameBounds.left &&
+    colIndex <= frameBounds.right;
 
   // A drag (selection or fill) releases anywhere. The handler is kept in a ref
   // so the single document listener always runs against the latest state.
@@ -510,6 +531,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         }
       });
     }
+
+    // Select the whole resulting series (source + filled cells), so the frame
+    // ends up around the entire range, like Excel.
+    const top = Math.min(b.top, to.rowIndex);
+    const bottom = Math.max(b.bottom, to.rowIndex);
+    setAnchor({ rowIndex: top, colIndex: b.left });
+    setActive({ rowIndex: bottom, colIndex: b.right });
   };
 
   // Reassigned every render so the document mouse-up listener sees fresh state.
@@ -1154,27 +1182,27 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const dirty = key in drafts;
                     const selected =
                       selectionCount > 1 && inSelection(rowIndex, colIndex);
-                    // Draw the selection outline only along the block's edges,
-                    // so the whole selection is framed once (like Excel) instead
-                    // of bordering just the active cell. Skipped for an invalid
-                    // cell so its red border stays visible.
-                    const inSel = inSelection(rowIndex, colIndex);
+                    // Draw the outline only along the frame's edges, so the whole
+                    // block is framed once (like Excel) instead of bordering just
+                    // the active cell. While filling, the frame includes the
+                    // target cells. Skipped for an invalid cell so its red border
+                    // stays visible.
                     let cellStyle: React.CSSProperties | undefined;
-                    if (inSel && selBounds && !error) {
+                    if (inFrame(rowIndex, colIndex) && frameBounds && !error) {
                       const c = "var(--colorBrandStroke1, #0f6cbd)";
                       const edges: string[] = [];
-                      if (rowIndex === selBounds.top) edges.push(`inset 0 2px 0 0 ${c}`);
-                      if (rowIndex === selBounds.bottom) edges.push(`inset 0 -2px 0 0 ${c}`);
-                      if (colIndex === selBounds.left) edges.push(`inset 2px 0 0 0 ${c}`);
-                      if (colIndex === selBounds.right) edges.push(`inset -2px 0 0 0 ${c}`);
+                      if (rowIndex === frameBounds.top) edges.push(`inset 0 2px 0 0 ${c}`);
+                      if (rowIndex === frameBounds.bottom) edges.push(`inset 0 -2px 0 0 ${c}`);
+                      if (colIndex === frameBounds.left) edges.push(`inset 2px 0 0 0 ${c}`);
+                      if (colIndex === frameBounds.right) edges.push(`inset -2px 0 0 0 ${c}`);
                       if (edges.length > 0) cellStyle = { boxShadow: edges.join(", ") };
                     }
                     const fillTarget = inFillPreview(rowIndex, colIndex);
                     const isFillCorner =
-                      !!selBounds &&
+                      !!frameBounds &&
                       !editing &&
-                      rowIndex === selBounds.bottom &&
-                      colIndex === selBounds.right;
+                      rowIndex === frameBounds.bottom &&
+                      colIndex === frameBounds.right;
                     const classNames = [
                       "jj-sheet-td",
                       col.editable ? "jj-sheet-td-editable" : "jj-sheet-td-readonly",

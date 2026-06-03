@@ -803,5 +803,8 @@ describe("fill handle", () => {
     // r2's Score now copies r1's value.
     expect(cell(container, 1, 1).textContent).toBe("10");
     expect(screen.getByText(/pending change/)).toBeInTheDocument();
+    // The whole resulting series is framed (selected), like Excel.
+    expect(cell(container, 0, 1).className).toContain("jj-sheet-td-selected");
+    expect(cell(container, 1, 1).className).toContain("jj-sheet-td-selected");
   });
 });
