@@ -181,16 +181,18 @@
   box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
 }
 
-/* Light blue tint for the cells inside a multi-cell selection, like Excel. */
+.jj-sheet-td-dirty {
+  background: var(--colorNeutralBackground3, #f5f5f5);
+}
+
+/* Light blue tint for the cells inside a multi-cell selection, like Excel.
+   Declared after the dirty rule so a selected pending cell still reads as
+   selected (the blue wins over the dirty grey). */
 .jj-sheet-td-selected {
   background: rgba(15, 108, 189, 0.1);
 }
 .jj-sheet-row:hover .jj-sheet-td-selected {
   background: rgba(15, 108, 189, 0.14);
-}
-
-.jj-sheet-td-dirty {
-  background: var(--colorNeutralBackground3, #f5f5f5);
 }
 
 /* The required red border for an invalid cell. */

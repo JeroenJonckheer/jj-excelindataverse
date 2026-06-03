@@ -117,8 +117,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [anchor, setAnchor] = React.useState<CellAddress | null>(null);
   // Mouse is held down and dragging a selection.
   const draggingRef = React.useRef(false);
-  // A drag actually moved across cells, so the trailing click is suppressed.
-  const draggedRef = React.useRef(false);
   const [editing, setEditing] = React.useState(false);
   const [editText, setEditText] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -349,21 +347,36 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // ---- Range selection by mouse ----
 
-  const onCellMouseDown = (e: React.MouseEvent, rowIndex: number, colIndex: number) => {
-    // While editing, let the click move out of the editor (it commits on blur).
+  const onCellMouseDown = (
+    e: React.MouseEvent,
+    rowIndex: number,
+    colIndex: number,
+  ) => {
+    // While editing, leave the editor's input alone; clicking another cell is
+    // handled by the click (it commits on blur and moves).
     if (editing) return;
-    // Shift+click extends the range; the click handler does that so the trailing
-    // click is not treated as a fresh collapse.
-    if (e.shiftKey) return;
     draggingRef.current = true;
-    draggedRef.current = false;
-    selectCell({ rowIndex, colIndex });
+    if (e.shiftKey && active) {
+      // Extend from the existing anchor to here.
+      setActive({ rowIndex, colIndex });
+    } else {
+      selectCell({ rowIndex, colIndex });
+    }
   };
 
-  const onCellMouseEnter = (rowIndex: number, colIndex: number) => {
+  const onCellMouseEnter = (
+    e: React.MouseEvent,
+    rowIndex: number,
+    colIndex: number,
+  ) => {
     if (!draggingRef.current) return;
-    draggedRef.current = true;
-    // Extend the range to the cell under the cursor (anchor stays put).
+    // Self-heal a drag whose mouse-up was missed (for example released outside
+    // the host iframe): if the primary button is no longer down, stop dragging
+    // instead of letting plain hover keep extending the selection.
+    if ((e.buttons & 1) === 0) {
+      draggingRef.current = false;
+      return;
+    }
     setActive({ rowIndex, colIndex });
   };
 
@@ -377,11 +390,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const isEditingCell =
       active?.rowIndex === rowIndex && active?.colIndex === colIndex && editing;
     if (isEditingCell) return;
-    // Suppress the click that ends a drag, so it does not collapse the range.
-    if (draggedRef.current) {
-      draggedRef.current = false;
-      return;
-    }
     if (e.shiftKey && active) {
       setActive({ rowIndex, colIndex });
       setEditing(false);
@@ -984,7 +992,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         data-col={colIndex}
                         data-cell-key={key}
                         onMouseDown={(e) => onCellMouseDown(e, rowIndex, colIndex)}
-                        onMouseEnter={() => onCellMouseEnter(rowIndex, colIndex)}
+                        onMouseEnter={(e) => onCellMouseEnter(e, rowIndex, colIndex)}
                         onClick={(e) => onCellClick(e, rowIndex, colIndex, row, col)}
                         onDoubleClick={() => openRow(row.recordId)}
                       >

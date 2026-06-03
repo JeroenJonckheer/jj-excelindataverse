@@ -700,4 +700,22 @@ describe("range selection", () => {
     expect(cell(container, 0, 1).className).toContain("jj-sheet-td-selected");
     expect(cell(container, 1, 1).className).toContain("jj-sheet-td-selected");
   });
+
+  it("selects a range by dragging with the mouse", () => {
+    const { container } = renderGrid();
+    fireEvent.mouseDown(cell(container, 0, 0));
+    fireEvent.mouseEnter(cell(container, 1, 0), { buttons: 1 });
+    expect(cell(container, 0, 0).className).toContain("jj-sheet-td-selected");
+    expect(cell(container, 1, 0).className).toContain("jj-sheet-td-selected");
+  });
+
+  it("self-heals a drag whose mouse-up was missed (no stuck selection)", () => {
+    const { container } = renderGrid();
+    fireEvent.mouseDown(cell(container, 0, 0));
+    fireEvent.mouseEnter(cell(container, 1, 0), { buttons: 1 });
+    // Mouse-up was missed (released outside the iframe). A later hover with no
+    // button held must not keep extending the selection.
+    fireEvent.mouseEnter(cell(container, 1, 1), { buttons: 0 });
+    expect(cell(container, 1, 1).className).not.toContain("jj-sheet-td-selected");
+  });
 });

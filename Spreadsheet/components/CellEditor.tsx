@@ -86,11 +86,22 @@ const TextLikeEditor: React.FC<CellEditorProps> = ({
     onCancel();
   };
 
-  const onKeyDown = useCommitKeys(
+  const commitKeys = useCommitKeys(
     () => finish(null),
     (nav) => finish(nav),
     cancel,
   );
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    // Up/Down commit the value and move, the way Excel does while editing.
+    // (Left/Right stay as caret movement within the text.)
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      finish(e.key);
+      return;
+    }
+    commitKeys(e);
+  };
 
   return (
     <Input
