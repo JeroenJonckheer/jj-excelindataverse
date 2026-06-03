@@ -34,3 +34,5 @@ e2e*.txt
 .DS_Store
 *.log
 v.txt
+solbuild.txt
+verify.txt
