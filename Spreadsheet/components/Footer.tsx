@@ -6,6 +6,7 @@
 
 import * as React from "react";
 import { Button, Spinner } from "@fluentui/react-components";
+import type { Aggregates } from "../services/selection";
 
 export interface FooterProps {
   version: string;
@@ -13,11 +14,21 @@ export interface FooterProps {
   errorCount: number;
   deleteCount: number;
   selectedCount: number;
+  /** Aggregates for the current multi-cell selection, Excel-style. */
+  selectionStats?: (Aggregates & { count: number }) | null;
   saving: boolean;
   /** The most relevant message to show (validation or server error), if any. */
   message: string | null;
   onSave: () => void;
   onDeleteSelected: () => void;
+}
+
+/** Formats an aggregate number: integers as-is, otherwise up to two decimals. */
+function formatStat(n: number): string {
+  const rounded = Math.round(n * 100) / 100;
+  return Number.isInteger(rounded)
+    ? rounded.toLocaleString()
+    : rounded.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 /**
@@ -31,6 +42,7 @@ export const Footer: React.FC<FooterProps> = ({
   errorCount,
   deleteCount,
   selectedCount,
+  selectionStats,
   saving,
   message,
   onSave,
@@ -38,6 +50,17 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const pending = dirtyCount + deleteCount;
   const canSave = pending > 0 && errorCount === 0 && !saving;
+
+  // The Excel-style status-bar aggregate for the current selection.
+  let aggregateText: string | null = null;
+  if (selectionStats && selectionStats.count > 1) {
+    const parts = [`Count ${selectionStats.count.toLocaleString()}`];
+    if (selectionStats.numericCount > 0 && selectionStats.average !== null) {
+      parts.push(`Sum ${formatStat(selectionStats.sum)}`);
+      parts.push(`Average ${formatStat(selectionStats.average)}`);
+    }
+    aggregateText = parts.join("  ·  ");
+  }
 
   let status: string;
   if (message) {
@@ -64,6 +87,11 @@ export const Footer: React.FC<FooterProps> = ({
         <span>{status}</span>
       </div>
       <div className="jj-sheet-footer-right">
+        {aggregateText && (
+          <span className="jj-sheet-agg" aria-label="Selection summary">
+            {aggregateText}
+          </span>
+        )}
         {selectedCount > 0 && (
           <Button
             appearance="secondary"

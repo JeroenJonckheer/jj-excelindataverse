@@ -23,6 +23,17 @@
 
 While editing, Enter and Tab commit the value and move on; Escape discards the change.
 
+## Selecting a range of cells
+
+- **Click** a cell, then **Shift+click** another to select the rectangle between
+  them; **Shift+Arrow** extends the selection; **drag** across cells with the
+  mouse to select a block.
+- **Ctrl+C** copies the selected range to the clipboard (tabs and line breaks,
+  so it pastes straight into Excel or back into the grid).
+- **Delete** or **Backspace** clears every editable cell in the selection.
+- The footer shows an Excel-style summary of the selection: the cell **count**,
+  and the **sum** and **average** of the numeric cells.
+
 ## Editing several rows at once
 
 Every change is tracked as a pending edit. You can edit as many cells and rows as you like before

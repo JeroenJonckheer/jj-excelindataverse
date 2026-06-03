@@ -170,3 +170,41 @@ export function mapPaste(
   }
   return targets;
 }
+
+/** Wraps a cell in double quotes (Excel style) when it contains a separator. */
+function escapeTsvCell(value: string): string {
+  if (/[\t\r\n"]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Serialises a grid of cells to tab separated text, the format Excel and other
+ * spreadsheets read from the clipboard. Cells with tabs, newlines or quotes are
+ * quoted so the block pastes back exactly.
+ */
+export function gridToTsv(grid: string[][]): string {
+  return grid.map((row) => row.map(escapeTsvCell).join("\t")).join("\r\n");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Serialises a grid of cells to an HTML table, the rich clipboard flavour that
+ * Excel prefers when present. Pairs with the plain-text TSV.
+ */
+export function gridToHtml(grid: string[][]): string {
+  const body = grid
+    .map(
+      (row) =>
+        `<tr>${row.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`,
+    )
+    .join("");
+  return `<table>${body}</table>`;
+}

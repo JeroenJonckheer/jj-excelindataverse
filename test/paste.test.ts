@@ -5,6 +5,8 @@
  */
 
 import {
+  gridToHtml,
+  gridToTsv,
   mapPaste,
   parseClipboard,
   parseHtmlClipboard,
@@ -106,5 +108,41 @@ describe("mapPaste", () => {
       { rowOffset: 0, colOffset: 0, text: "a" },
       { rowOffset: 0, colOffset: 1, text: "b" },
     ]);
+  });
+});
+
+describe("gridToTsv", () => {
+  it("joins cells with tabs and rows with CRLF", () => {
+    expect(
+      gridToTsv([
+        ["a", "b"],
+        ["c", "d"],
+      ]),
+    ).toBe("a\tb\r\nc\td");
+  });
+  it("quotes cells that contain a separator or quote, Excel-style", () => {
+    expect(gridToTsv([["a\tb", 'say "hi"', "line\nbreak"]])).toBe(
+      '"a\tb"\t"say ""hi"""\t"line\nbreak"',
+    );
+  });
+  it("round-trips through parseClipboard", () => {
+    const grid = [
+      ["plain", "with\ttab"],
+      ["with\nnewline", 'with "quote"'],
+    ];
+    expect(parseClipboard(gridToTsv(grid))).toEqual(grid);
+  });
+});
+
+describe("gridToHtml", () => {
+  it("builds an HTML table and escapes markup", () => {
+    expect(
+      gridToHtml([
+        ["a", "b"],
+        ["<x>", "&"],
+      ]),
+    ).toBe(
+      "<table><tr><td>a</td><td>b</td></tr><tr><td>&lt;x&gt;</td><td>&amp;</td></tr></table>",
+    );
   });
 });

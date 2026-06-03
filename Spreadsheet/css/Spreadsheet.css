@@ -66,6 +66,9 @@
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
+  /* Dragging a cell range must not select the cell text. Inputs are unaffected,
+     so inline editing still allows text selection. */
+  user-select: none;
 }
 
 /* ---- Header ---- */
@@ -176,6 +179,14 @@
 
 .jj-sheet-td-active {
   box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
+}
+
+/* Light blue tint for the cells inside a multi-cell selection, like Excel. */
+.jj-sheet-td-selected {
+  background: rgba(15, 108, 189, 0.1);
+}
+.jj-sheet-row:hover .jj-sheet-td-selected {
+  background: rgba(15, 108, 189, 0.14);
 }
 
 .jj-sheet-td-dirty {
@@ -294,6 +305,13 @@
 .jj-sheet-version {
   color: var(--colorNeutralForeground4, #707070);
   white-space: nowrap;
+}
+
+/* Excel-style selection summary (Count / Sum / Average) in the footer. */
+.jj-sheet-agg {
+  color: var(--colorNeutralForeground3, #616161);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .jj-sheet-row-error .jj-sheet-td {

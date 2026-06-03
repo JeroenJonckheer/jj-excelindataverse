@@ -20,7 +20,20 @@ const SELECT_COL_WIDTH = 36;
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue } from "../services/format";
-import { parseClipboard, parseHtmlClipboard, reflowSingleRow } from "../services/paste";
+import {
+  parseClipboard,
+  parseHtmlClipboard,
+  reflowSingleRow,
+  gridToTsv,
+  gridToHtml,
+} from "../services/paste";
+import {
+  aggregate,
+  rangeBounds,
+  rangeIncludes,
+  rangeSize,
+  type Aggregates,
+} from "../services/selection";
 import { CellEditor } from "./CellEditor";
 import { Footer } from "./Footer";
 
@@ -98,6 +111,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [rowErrors, setRowErrors] = React.useState<Record<string, string>>({});
   const [active, setActive] = React.useState<CellAddress | null>(null);
+  // Anchor of the rectangular selection. The range spans from here to `active`;
+  // a plain click collapses it (anchor === active). Shift+click/arrow and mouse
+  // drag extend it.
+  const [anchor, setAnchor] = React.useState<CellAddress | null>(null);
+  // Mouse is held down and dragging a selection.
+  const draggingRef = React.useRef(false);
+  // A drag actually moved across cells, so the trailing click is suppressed.
+  const draggedRef = React.useRef(false);
   const [editing, setEditing] = React.useState(false);
   const [editText, setEditText] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -190,6 +211,25 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   );
   const dims = { rowCount: allRows.length, colCount: columns.length };
 
+  // The current rectangular selection: from the anchor (or the active cell when
+  // there is no anchor) to the active cell.
+  const selStart = anchor ?? active;
+  const selectionCount =
+    active && selStart ? rangeSize(selStart, active) : active ? 1 : 0;
+  const inSelection = (rowIndex: number, colIndex: number): boolean =>
+    !!active &&
+    !!selStart &&
+    rangeIncludes(selStart, active, { rowIndex, colIndex });
+
+  // A drag releases anywhere; clear the dragging flag on any mouse up.
+  React.useEffect(() => {
+    const up = () => {
+      draggingRef.current = false;
+    };
+    document.addEventListener("mouseup", up);
+    return () => document.removeEventListener("mouseup", up);
+  }, []);
+
   // Keep keyboard focus on the grid shell when not actively editing a cell.
   React.useEffect(() => {
     if (!editing && active && containerRef.current) {
@@ -213,6 +253,26 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const key = cellKey(row.recordId, col.name);
     return key in drafts ? drafts[key].display : row.display[col.name] ?? "";
   };
+
+  // Numeric aggregates for the status bar, like Excel. Only meaningful for a
+  // multi-cell selection.
+  const selectionStats: (Aggregates & { count: number }) | null =
+    React.useMemo(() => {
+      if (!active || !selStart || selectionCount <= 1) return null;
+      const b = rangeBounds(selStart, active);
+      const nums: number[] = [];
+      for (let r = b.top; r <= b.bottom; r++) {
+        const row = allRows[r];
+        if (!row) continue;
+        for (let c = b.left; c <= b.right; c++) {
+          const col = columns[c];
+          if (!col || col.kind !== "number") continue;
+          const v = valueOf(row, col);
+          if (typeof v === "number" && Number.isFinite(v)) nums.push(v);
+        }
+      }
+      return { count: selectionCount, ...aggregate(nums) };
+    }, [active, anchor, selectionCount, allRows, columns, drafts]);
 
   const setDraft = (
     recordId: string,
@@ -271,14 +331,91 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     applyValue(row.recordId, col, value);
   };
 
+  // Select a single cell, collapsing any range (anchor follows the active cell).
+  const selectCell = (addr: CellAddress) => {
+    setActive(addr);
+    setAnchor(addr);
+  };
+
   const moveBy = (from: CellAddress, nav: NavKey | null) => {
     setEditing(false);
-    if (nav) setActive(nextCell(from, nav, dims));
+    if (nav) selectCell(nextCell(from, nav, dims));
   };
 
   const beginEdit = (initial: string) => {
     setEditText(initial);
     setEditing(true);
+  };
+
+  // ---- Range selection by mouse ----
+
+  const onCellMouseDown = (e: React.MouseEvent, rowIndex: number, colIndex: number) => {
+    // While editing, let the click move out of the editor (it commits on blur).
+    if (editing) return;
+    // Shift+click extends the range; the click handler does that so the trailing
+    // click is not treated as a fresh collapse.
+    if (e.shiftKey) return;
+    draggingRef.current = true;
+    draggedRef.current = false;
+    selectCell({ rowIndex, colIndex });
+  };
+
+  const onCellMouseEnter = (rowIndex: number, colIndex: number) => {
+    if (!draggingRef.current) return;
+    draggedRef.current = true;
+    // Extend the range to the cell under the cursor (anchor stays put).
+    setActive({ rowIndex, colIndex });
+  };
+
+  const onCellClick = (
+    e: React.MouseEvent,
+    rowIndex: number,
+    colIndex: number,
+    row: GridRow,
+    col: ColumnDef,
+  ) => {
+    const isEditingCell =
+      active?.rowIndex === rowIndex && active?.colIndex === colIndex && editing;
+    if (isEditingCell) return;
+    // Suppress the click that ends a drag, so it does not collapse the range.
+    if (draggedRef.current) {
+      draggedRef.current = false;
+      return;
+    }
+    if (e.shiftKey && active) {
+      setActive({ rowIndex, colIndex });
+      setEditing(false);
+      return;
+    }
+    selectCell({ rowIndex, colIndex });
+    // Choice and boolean cells open their dropdown on a single click, like a
+    // spreadsheet pick-list.
+    if (col.editable && (col.kind === "choice" || col.kind === "boolean")) {
+      beginEdit(displayOf(row, col));
+    } else {
+      setEditing(false);
+    }
+  };
+
+  // Copy the selected range to the clipboard as TSV (and an HTML table), so it
+  // pastes straight into Excel or back into the grid.
+  const onCopy = (e: React.ClipboardEvent) => {
+    if (editing || !active || !selStart) return;
+    const b = rangeBounds(selStart, active);
+    const grid: string[][] = [];
+    for (let r = b.top; r <= b.bottom; r++) {
+      const row = allRows[r];
+      const cells: string[] = [];
+      for (let c = b.left; c <= b.right; c++) {
+        const col = columns[c];
+        cells.push(row && col ? displayOf(row, col) : "");
+      }
+      grid.push(cells);
+    }
+    if (grid.length === 0) return;
+    e.preventDefault();
+    e.clipboardData.setData("text/plain", gridToTsv(grid));
+    e.clipboardData.setData("text/html", gridToHtml(grid));
   };
 
   // Add an empty new row at the bottom and select its first editable cell.
@@ -288,7 +425,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setNewRows((nr) => [...nr, id]);
     const firstEditable = columns.findIndex((c) => c.editable);
     setEditing(false);
-    setActive({ rowIndex: allRows.length, colIndex: Math.max(firstEditable, 0) });
+    selectCell({ rowIndex: allRows.length, colIndex: Math.max(firstEditable, 0) });
   };
 
   // True when the grid already ends in an empty, unsaved row - so we do not
@@ -309,7 +446,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const firstEditable = Math.max(columns.findIndex((c) => c.editable), 0);
     if (lastRowIsEmptyNew()) {
       setEditing(false);
-      setActive({
+      selectCell({
         rowIndex: allRows.length - 1,
         colIndex: active?.colIndex ?? firstEditable,
       });
@@ -460,20 +597,29 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       return;
     }
     if (e.key === "Delete" || e.key === "Backspace") {
-      if (col.editable) {
-        e.preventDefault();
-        record();
-        if (col.kind === "lookup") {
-          commitValueAt(active.rowIndex, active.colIndex, null);
-        } else {
-          commitTextAt(active.rowIndex, active.colIndex, "");
+      e.preventDefault();
+      // Clear every editable cell in the selection, like a spreadsheet.
+      const b = rangeBounds(selStart ?? active, active);
+      record();
+      for (let r = b.top; r <= b.bottom; r++) {
+        const rr = allRows[r];
+        if (!rr) continue;
+        for (let c = b.left; c <= b.right; c++) {
+          const cc = columns[c];
+          if (!cc?.editable) continue;
+          if (cc.kind === "lookup") applyValue(rr.recordId, cc, null);
+          else applyText(rr.recordId, cc, "");
         }
       }
       return;
     }
     // ArrowDown on the last row grows the grid by a row, the way a spreadsheet
-    // keeps going.
-    if (e.key === "ArrowDown" && active.rowIndex === dims.rowCount - 1) {
+    // keeps going (but Shift+ArrowDown extends the selection instead).
+    if (
+      e.key === "ArrowDown" &&
+      !e.shiftKey &&
+      active.rowIndex === dims.rowCount - 1
+    ) {
       e.preventDefault();
       extendDown();
       return;
@@ -481,7 +627,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const nav = toNavKey(e.key, e.shiftKey);
     if (nav) {
       e.preventDefault();
-      setActive(nextCell(active, nav, dims));
+      const dest = nextCell(active, nav, dims);
+      // Shift+Arrow extends the range (anchor stays); any other move collapses.
+      if (e.key.startsWith("Arrow") && e.shiftKey) {
+        setActive(dest);
+      } else {
+        selectCell(dest);
+      }
       return;
     }
     if (isPrintable(e) && col.editable) {
@@ -709,6 +861,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         aria-label="Dataverse spreadsheet"
         onKeyDown={onGridKeyDown}
         onPaste={onPaste}
+        onCopy={onCopy}
         onWheel={onWheel}
       >
         <table className="jj-sheet-table" style={{ width: `${tableWidth}px` }}>
@@ -808,10 +961,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const isEditingCell = isActive && editing;
                     const error = errors[key];
                     const dirty = key in drafts;
+                    const selected =
+                      selectionCount > 1 && inSelection(rowIndex, colIndex);
                     const classNames = [
                       "jj-sheet-td",
                       col.editable ? "jj-sheet-td-editable" : "jj-sheet-td-readonly",
                       isActive ? "jj-sheet-td-active" : "",
+                      selected ? "jj-sheet-td-selected" : "",
                       error ? "jj-sheet-td-invalid" : "",
                       dirty ? "jj-sheet-td-dirty" : "",
                     ]
@@ -827,20 +983,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         data-row={rowIndex}
                         data-col={colIndex}
                         data-cell-key={key}
-                        onClick={() => {
-                          if (isEditingCell) return;
-                          setActive({ rowIndex, colIndex });
-                          // Choice and boolean cells open their dropdown on a
-                          // single click, like a spreadsheet pick-list.
-                          if (
-                            col.editable &&
-                            (col.kind === "choice" || col.kind === "boolean")
-                          ) {
-                            beginEdit(displayOf(row, col));
-                          } else {
-                            setEditing(false);
-                          }
-                        }}
+                        onMouseDown={(e) => onCellMouseDown(e, rowIndex, colIndex)}
+                        onMouseEnter={() => onCellMouseEnter(rowIndex, colIndex)}
+                        onClick={(e) => onCellClick(e, rowIndex, colIndex, row, col)}
                         onDoubleClick={() => openRow(row.recordId)}
                       >
                         {isEditingCell ? (
@@ -921,6 +1066,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         errorCount={errorCount}
         deleteCount={deleteCount}
         selectedCount={selectedRows.size}
+        selectionStats={selectionStats}
         onDeleteSelected={() => deleteRows(Array.from(selectedRows))}
         saving={saving}
         message={footerMessage}

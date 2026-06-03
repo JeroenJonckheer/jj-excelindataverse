@@ -658,3 +658,46 @@ describe("sorting and resizing", () => {
     expect(col.style.width).toBe("120px");
   });
 });
+
+describe("range selection", () => {
+  it("selects a range with shift+click and tints the cells", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 1));
+    fireEvent.click(cell(container, 1, 1), { shiftKey: true });
+    expect(cell(container, 0, 1).className).toContain("jj-sheet-td-selected");
+    expect(cell(container, 1, 1).className).toContain("jj-sheet-td-selected");
+  });
+
+  it("shows the Excel-style aggregate for a numeric selection", () => {
+    const { container } = renderGrid();
+    // Score column (col 1): r1 = 10, r2 = 20.
+    fireEvent.click(cell(container, 0, 1));
+    fireEvent.click(cell(container, 1, 1), { shiftKey: true });
+    const agg = container.querySelector(".jj-sheet-agg") as HTMLElement;
+    expect(agg).not.toBeNull();
+    expect(agg.textContent).toContain("Count 2");
+    expect(agg.textContent).toContain("Sum 30");
+    expect(agg.textContent).toContain("Average 15");
+  });
+
+  it("clears every editable cell in the selection on Delete", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 1));
+    fireEvent.click(cell(container, 1, 1), { shiftKey: true });
+    const grid = container.querySelector(".jj-sheet") as HTMLElement;
+    fireEvent.keyDown(grid, { key: "Delete" });
+    expect(cell(container, 0, 1).textContent).toBe("");
+    expect(cell(container, 1, 1).textContent).toBe("");
+    // Both cleared cells are pending changes.
+    expect(screen.getByText(/2 pending changes/)).toBeInTheDocument();
+  });
+
+  it("extends the selection with Shift+ArrowDown", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 1));
+    const grid = container.querySelector(".jj-sheet") as HTMLElement;
+    fireEvent.keyDown(grid, { key: "ArrowDown", shiftKey: true });
+    expect(cell(container, 0, 1).className).toContain("jj-sheet-td-selected");
+    expect(cell(container, 1, 1).className).toContain("jj-sheet-td-selected");
+  });
+});

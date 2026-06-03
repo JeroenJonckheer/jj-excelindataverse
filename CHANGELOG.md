@@ -20,6 +20,10 @@ First release of JJ - Excel in Dataverse.
 - Lookup values render as Dataverse-style links (blue, underlined on hover);
   clicking one opens the referenced record.
 - Keyboard navigation with Tab, Enter and the arrow keys.
+- Rectangular cell selection (Shift+click, Shift+Arrow, mouse drag), with an
+  Excel-style status-bar summary (count, sum, average of the numeric cells),
+  Ctrl+C copy of the range as tab-separated text and an HTML table, and Delete
+  to clear every editable cell in the selection.
 - Paste from Excel across multiple cells and rows. The clipboard's HTML table is
   used when present (robust to Excel Protected View and to copy paths that drop
   row separators), with plain-text parsing and a column-count based row
