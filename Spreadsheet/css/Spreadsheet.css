@@ -432,6 +432,82 @@
   color: var(--colorBrandBackground, #0f6cbd);
 }
 
+/* The per-column filter funnel: like the pin, sits left of it, shown on hover
+   and brand-coloured when that column has an active filter. */
+.jj-sheet-funnel {
+  display: none;
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  line-height: 0;
+  cursor: pointer;
+  color: var(--colorNeutralForeground3, #616161);
+}
+.jj-sheet-funnel svg {
+  display: block;
+  fill: currentColor;
+}
+.jj-sheet-funnel:hover {
+  color: var(--colorNeutralForeground1, #242424);
+}
+.jj-sheet-th:hover .jj-sheet-funnel {
+  display: block;
+}
+.jj-sheet-funnel-on {
+  display: block;
+  color: var(--colorBrandBackground, #0f6cbd);
+}
+
+/* The filter popover, positioned at the funnel click point. */
+.jj-sheet-filter-menu {
+  position: fixed;
+  z-index: 30;
+}
+.jj-sheet-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+  padding: 10px;
+  background: var(--colorNeutralBackground1, #ffffff);
+  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+}
+.jj-sheet-filter-range {
+  display: flex;
+  gap: 6px;
+}
+.jj-sheet-filter-date {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 24px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.jj-sheet-filter-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.jj-sheet-filter-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.jj-sheet-filter-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .jj-sheet-select-td {
   border-bottom: 1px solid var(--colorNeutralStroke3, #f0f0f0);
 }

@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-06-03
+
+### Added
+- Per-column quick filter: a funnel in the column header opens a small panel
+  ("contains" for text, from/to for numbers and dates, a checkbox list for choice
+  and yes/no). Filtering runs server-side via the dataset filtering API, so the
+  whole dataset is filtered, not just the loaded page.
+
 ## [0.7.1] - 2026-06-03
 
 ### Removed

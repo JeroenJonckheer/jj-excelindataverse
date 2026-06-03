@@ -29,6 +29,21 @@ const PIN_PATH_OUTLINE =
   "M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3-2H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3V4h1c.55 0 1-.45 1-1s-.45-1-1-1z";
 const PIN_PATH_FILLED =
   "M16 9V4l1 0c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1l1 0v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z";
+
+// Funnel icon (Material "filter_alt") for the per-column quick filter.
+const FUNNEL_PATH =
+  "M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61z";
+
+/** Column kinds that the quick filter supports (lookups are excluded). */
+const FILTERABLE_KINDS = new Set([
+  "text",
+  "multiline",
+  "number",
+  "date",
+  "datetime",
+  "choice",
+  "boolean",
+]);
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue, isEmpty, formatValue, valuesEqual } from "../services/format";
@@ -48,6 +63,8 @@ import {
   type Aggregates,
 } from "../services/selection";
 import { planColumnFill } from "../services/fill";
+import type { ColumnFilter } from "../services/filter";
+import { ColumnFilterPanel } from "./ColumnFilterPanel";
 import { CellEditor } from "./CellEditor";
 import { Footer } from "./Footer";
 
@@ -71,6 +88,8 @@ export interface SpreadsheetGridProps {
   sortDescending?: boolean;
   /** Requests a sort on a column (the host re-queries the dataset). */
   onSort?: (columnName: string) => void;
+  /** Applies the per-column quick filters server-side (host re-queries). */
+  onApplyFilter?: (filters: ColumnFilter[]) => void;
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -120,6 +139,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sortColumn,
   sortDescending,
   onSort,
+  onApplyFilter,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -155,6 +175,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [columnOrder, setColumnOrder] = React.useState<string[] | null>(null);
   // Freeze columns up to and including this display index (null = none frozen).
   const [frozenColIndex, setFrozenColIndex] = React.useState<number | null>(null);
+  // Per-column quick filters, keyed by column name, plus the open filter popover.
+  const [columnFilters, setColumnFilters] = React.useState<Record<string, ColumnFilter>>({});
+  const [filterMenu, setFilterMenu] = React.useState<
+    { x: number; y: number; columnName: string } | null
+  >(null);
   const dragColRef = React.useRef<string | null>(null);
   const [dragOverCol, setDragOverCol] = React.useState<string | null>(null);
 
@@ -245,6 +270,21 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const frozen = frozenColIndex != null;
   const toggleFreeze = (colIndex: number) => {
     setFrozenColIndex((prev) => (prev === colIndex ? null : colIndex));
+  };
+
+  const canFilter = (col: ColumnDef): boolean =>
+    !!onApplyFilter && FILTERABLE_KINDS.has(col.kind);
+  const openFilter = (e: React.MouseEvent, columnName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFilterMenu({ x: e.clientX, y: e.clientY, columnName });
+  };
+  const applyColumnFilter = (columnName: string, filter: ColumnFilter | null) => {
+    const next = { ...columnFilters };
+    if (filter) next[columnName] = filter;
+    else delete next[columnName];
+    setColumnFilters(next);
+    onApplyFilter?.(Object.values(next));
   };
 
   // Metadata default values shown on a new row (boolean and choice columns).
@@ -873,6 +913,18 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     };
   }, [menu]);
 
+  // Close the filter popover when clicking outside it.
+  React.useEffect(() => {
+    if (!filterMenu) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest && t.closest(".jj-sheet-filter-menu")) return;
+      setFilterMenu(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [filterMenu]);
+
   // Keyboard handling while a cell is selected but no editor is open.
   const onGridKeyDown = (e: React.KeyboardEvent) => {
     if (editing) return;
@@ -1265,6 +1317,24 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         aria-hidden="true"
                       />
                     )}
+                    {canFilter(c) && (
+                      <span
+                        className={
+                          columnFilters[c.name]
+                            ? "jj-sheet-funnel jj-sheet-funnel-on"
+                            : "jj-sheet-funnel"
+                        }
+                        role="button"
+                        aria-label="Filter column"
+                        title={`Filter ${c.displayName}`}
+                        draggable={false}
+                        onClick={(e) => openFilter(e, c.name)}
+                      >
+                        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                          <path d={FUNNEL_PATH} />
+                        </svg>
+                      </span>
+                    )}
                     <span
                       className={
                         isFrozen ? "jj-sheet-pin jj-sheet-pin-on" : "jj-sheet-pin"
@@ -1465,6 +1535,24 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           </tbody>
         </table>
       </div>
+      {filterMenu &&
+        (() => {
+          const col = columns.find((c) => c.name === filterMenu.columnName);
+          if (!col) return null;
+          return (
+            <div
+              className="jj-sheet-filter-menu"
+              style={{ left: filterMenu.x, top: filterMenu.y }}
+            >
+              <ColumnFilterPanel
+                column={col}
+                current={columnFilters[col.name]}
+                onApply={(f) => applyColumnFilter(col.name, f)}
+                onClose={() => setFilterMenu(null)}
+              />
+            </div>
+          );
+        })()}
       {menu && (
         <ul
           className="jj-sheet-menu"

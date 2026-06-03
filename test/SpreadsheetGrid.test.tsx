@@ -98,6 +98,7 @@ function renderGrid(overrides?: {
   onSort?: (columnName: string) => void;
   sortColumn?: string | null;
   sortDescending?: boolean;
+  onApplyFilter?: (filters: unknown[]) => void;
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -134,6 +135,7 @@ function renderGrid(overrides?: {
       onSort={overrides?.onSort}
       sortColumn={overrides?.sortColumn ?? null}
       sortDescending={overrides?.sortDescending}
+      onApplyFilter={overrides?.onApplyFilter}
     />,
   );
   return {
@@ -743,6 +745,22 @@ describe("sorting and resizing", () => {
     // proves the auto-fit override was applied to the first data column.
     const col = container.querySelectorAll("colgroup col")[1] as HTMLElement;
     expect(col.style.width).toBe("48px");
+  });
+
+  it("filters a column from the header funnel", () => {
+    const onApplyFilter = jest.fn();
+    const { container } = renderGrid({ onApplyFilter });
+    // The first funnel belongs to the first filterable column (Name).
+    const funnel = container.querySelector(".jj-sheet-funnel") as HTMLElement;
+    expect(funnel).not.toBeNull();
+    fireEvent.click(funnel);
+    const input = screen.getByLabelText("Contains") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Acme" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onApplyFilter).toHaveBeenCalledWith([
+      { columnName: "name", kind: "text", contains: "Acme" },
+    ]);
+    expect(container.querySelector(".jj-sheet-funnel-on")).not.toBeNull();
   });
 
   it("freezes columns up to the pinned one and unfreezes again", () => {

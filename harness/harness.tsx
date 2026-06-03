@@ -192,8 +192,43 @@ function sortableKey(value: CellValue): string | number {
   return String(value);
 }
 
+interface HarnessCondition {
+  attributeName: string;
+  conditionOperator: number;
+  value: unknown;
+}
+let filterState: { conditions: HarnessCondition[] } | null = null;
+
+function matchCondition(value: CellValue, op: number, condValue: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  const n = value instanceof Date ? value.getTime() : typeof value === "boolean" ? (value ? 1 : 0) : value;
+  switch (op) {
+    case 6: // Like %x%
+      return String(value)
+        .toLowerCase()
+        .includes(String(condValue).replace(/%/g, "").toLowerCase());
+    case 0: // Equal
+      return n === condValue;
+    case 8: // In
+      return Array.isArray(condValue) && condValue.includes(n);
+    case 4: // GreaterEqual
+      return typeof n === "number" && n >= Number(condValue);
+    case 5: // LessEqual
+      return typeof n === "number" && n <= Number(condValue);
+    default:
+      return true;
+  }
+}
+
+function matchesFilter(row: Record<string, CellValue>): boolean {
+  if (!filterState) return true;
+  return filterState.conditions.every((c) =>
+    matchCondition(row[c.attributeName] ?? null, c.conditionOperator, c.value),
+  );
+}
+
 function sortedOrder(store: Store): string[] {
-  const ids = [...ORDER];
+  const ids = ORDER.filter((id) => matchesFilter(store[id]));
   const sort = sortState[0];
   if (!sort) return ids;
   ids.sort((a, b) => {
@@ -242,6 +277,15 @@ function buildContext(
     sortedRecordIds: sortedOrder(store),
     records,
     sorting: [...sortState],
+    filtering: {
+      setFilter: (f: { conditions: HarnessCondition[] }) => {
+        filterState = f;
+      },
+      clearFilter: () => {
+        filterState = null;
+      },
+      getFilter: () => filterState,
+    },
     getTargetEntityType: () => "demo_account",
     refresh: () => {
       sortState = dataset.sorting || [];

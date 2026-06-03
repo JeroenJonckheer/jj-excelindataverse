@@ -185,6 +185,16 @@ test("reorders columns by dragging a header", async ({ page }) => {
   await expect(cell(page, 0, 0)).toContainText("Jane Doe");
 });
 
+test("filters rows via the column funnel", async ({ page }) => {
+  const account = page.getByRole("columnheader", { name: "Account" });
+  await account.hover();
+  await account.locator(".jj-sheet-funnel").click();
+  await page.getByLabel("Contains").fill("Initech");
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(cell(page, 0, 0)).toContainText("Initech");
+  await expect(page.getByText("Acme Corporation")).toHaveCount(0);
+});
+
 test("auto-fits a column on double-clicking its border", async ({ page }) => {
   await startEdit(page, 0, 0);
   await page.getByLabel("Account").fill("A very very very long account name indeed");
