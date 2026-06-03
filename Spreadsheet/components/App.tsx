@@ -195,39 +195,20 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     ds.refresh?.();
   }, []);
 
-  // Give the control a bounded height so the grid scrolls inside itself (and the
-  // header stays pinned) instead of growing the page. Prefer the host-allocated
-  // height; on a full-page grid that is not set, so we clamp to the space left
-  // between the control and the bottom of the viewport.
+  // Fill the host-provided container. When the host allocates a fixed height
+  // (subgrids do) use it; otherwise fill the container at 100% (a main grid is
+  // already height-bounded by the host). The min-height:0 flex chain in the CSS
+  // is what lets the grid scroll inside itself and keep the header pinned.
   const allocatedHeight = (context.mode as unknown as { allocatedHeight?: number })
     .allocatedHeight;
-  const shellRef = React.useRef<HTMLDivElement | null>(null);
-  const [measuredHeight, setMeasuredHeight] = React.useState<number | undefined>(undefined);
-
-  React.useLayoutEffect(() => {
-    const measure = () => {
-      const el = shellRef.current;
-      if (!el) return;
-      const view = el.ownerDocument?.defaultView ?? window;
-      const viewportH = el.ownerDocument?.documentElement.clientHeight ?? view.innerHeight;
-      const top = el.getBoundingClientRect().top;
-      setMeasuredHeight(Math.max(160, viewportH - top));
-    };
-    measure();
-    const view = shellRef.current?.ownerDocument?.defaultView ?? window;
-    view.addEventListener("resize", measure);
-    return () => view.removeEventListener("resize", measure);
-  }, []);
-
-  const height =
+  const shellStyle: React.CSSProperties =
     typeof allocatedHeight === "number" && allocatedHeight > 0
-      ? allocatedHeight
-      : measuredHeight;
-  const shellStyle: React.CSSProperties = height ? { height } : {};
+      ? { height: allocatedHeight }
+      : {};
 
   if (!entityName) {
     return (
-      <div ref={shellRef} className="jj-sheet-shell" style={shellStyle}>
+      <div className="jj-sheet-shell" style={shellStyle}>
         <FluentProvider theme={theme} className="jj-sheet-fluent">
           <div className="jj-sheet-message">
             Bind this control to a view or subgrid to start editing.
@@ -238,7 +219,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   }
 
   return (
-    <div ref={shellRef} className="jj-sheet-shell" style={shellStyle}>
+    <div className="jj-sheet-shell" style={shellStyle}>
       <FluentProvider theme={theme} className="jj-sheet-fluent">
         <SpreadsheetGrid
         columns={columns}
