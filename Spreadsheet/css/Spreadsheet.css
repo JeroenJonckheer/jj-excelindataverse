@@ -10,9 +10,21 @@
  * of which are required behaviours of the control.
  */
 
+/* Outer shell carries the bounded height (host-allocated or measured). The flex
+   chain below all use min-height:0 so the scroll area can shrink and scroll
+   internally instead of growing the page. */
+.jj-sheet-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .jj-sheet-fluent,
 .jj-sheet-root {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   background: transparent;
   display: flex;
@@ -36,6 +48,7 @@
 
 .jj-sheet {
   flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   overflow: auto;
   outline: none;
