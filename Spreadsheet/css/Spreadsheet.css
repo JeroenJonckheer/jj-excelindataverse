@@ -375,32 +375,57 @@
   border-right: 1px solid var(--colorNeutralStroke3, #f0f0f0);
 }
 
-/* ---- Frozen first column (and the selection column) ----
-   They stick to the left while scrolling the grid horizontally, the way the
-   header sticks to the top. The selection column sits at the very left; the
-   first data column sits right after it (the selection column is 36px wide). */
-.jj-sheet-select-th,
-.jj-sheet-select-td {
-  position: sticky;
-  left: 0;
-}
+/* ---- Frozen columns (opt-in via the header pin) ----
+   Frozen columns (and the selection column) stick to the left while scrolling
+   the grid horizontally, the way the header sticks to the top. The left offset
+   per column is set inline (it depends on the column widths). Frozen by default
+   is off; the user pins columns from the header. */
+.jj-sheet-select-frozen,
 .jj-sheet-col-frozen {
   position: sticky;
-  left: 36px;
 }
 /* Body sticky cells overlap the scrolling cells, so they need an opaque
    background; the selection outline (box-shadow) still shows on top. Headers
    keep their own (grey) background. */
-.jj-sheet-select-td,
+.jj-sheet-td.jj-sheet-select-frozen,
 .jj-sheet-td.jj-sheet-col-frozen {
   background: var(--colorNeutralBackground1, #ffffff);
   z-index: 1;
 }
 /* Header corners must stay above both the sticky header row and the frozen
    body column. */
-.jj-sheet-th.jj-sheet-select-th,
+.jj-sheet-th.jj-sheet-select-frozen,
 .jj-sheet-th.jj-sheet-col-frozen {
   z-index: 3;
+}
+/* A divider on the last frozen column marks the freeze line. */
+.jj-sheet-col-frozen-edge {
+  border-right: 2px solid var(--colorNeutralStroke1, #d1d1d1);
+}
+
+/* The freeze pin in a column header: hidden until you hover the header, shown
+   filled when that column is frozen. Positioned at the right edge (just left of
+   the resize handle) so it does not sit under a header click-to-sort. Drawn as a
+   small teardrop "pin" shape - no glyphs or emoji. */
+.jj-sheet-pin {
+  display: none;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  cursor: pointer;
+  border: 1.5px solid var(--colorNeutralForeground3, #616161);
+  border-radius: 50% 50% 50% 0;
+  transform: translateY(-50%) rotate(45deg);
+}
+.jj-sheet-th:hover .jj-sheet-pin {
+  display: block;
+}
+.jj-sheet-pin-on {
+  display: block;
+  background: var(--colorBrandBackground, #0f6cbd);
+  border-color: var(--colorBrandBackground, #0f6cbd);
 }
 
 .jj-sheet-select-td {

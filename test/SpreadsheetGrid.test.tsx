@@ -745,11 +745,22 @@ describe("sorting and resizing", () => {
     expect(col.style.width).toBe("48px");
   });
 
-  it("marks the first column (and its header) as frozen", () => {
+  it("freezes columns up to the pinned one and unfreezes again", () => {
     const { container } = renderGrid();
+    // Default: nothing frozen.
+    expect(cell(container, 0, 0).className).not.toContain("jj-sheet-col-frozen");
+
+    // Pin the third column (index 2): columns 0, 1 and 2 freeze.
+    fireEvent.click(container.querySelectorAll(".jj-sheet-pin")[2]);
     expect(cell(container, 0, 0).className).toContain("jj-sheet-col-frozen");
-    const firstHeader = container.querySelectorAll("thead th")[1] as HTMLElement;
-    expect(firstHeader.className).toContain("jj-sheet-col-frozen");
+    expect(cell(container, 0, 1).className).toContain("jj-sheet-col-frozen");
+    expect(cell(container, 0, 2).className).toContain("jj-sheet-col-frozen");
+    expect(cell(container, 0, 3).className).not.toContain("jj-sheet-col-frozen");
+    expect(cell(container, 0, 2).className).toContain("jj-sheet-col-frozen-edge");
+
+    // Clicking the same pin again unfreezes everything.
+    fireEvent.click(container.querySelectorAll(".jj-sheet-pin")[2]);
+    expect(cell(container, 0, 0).className).not.toContain("jj-sheet-col-frozen");
   });
 });
 

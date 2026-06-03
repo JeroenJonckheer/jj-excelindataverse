@@ -146,6 +146,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [widthOverrides, setWidthOverrides] = React.useState<Record<string, number>>({});
   // Manual column display order (a list of column names), null = view order.
   const [columnOrder, setColumnOrder] = React.useState<string[] | null>(null);
+  // Freeze columns up to and including this display index (null = none frozen).
+  const [frozenColIndex, setFrozenColIndex] = React.useState<number | null>(null);
   const dragColRef = React.useRef<string | null>(null);
   const [dragOverCol, setDragOverCol] = React.useState<string | null>(null);
 
@@ -221,6 +223,22 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   );
   const tableWidth =
     SELECT_COL_WIDTH + widths.reduce((a, b) => a + b, 0);
+
+  // Left offset (px) for each column when it is frozen: it sits after the
+  // selection column and any preceding columns.
+  const leftOffsets = React.useMemo(() => {
+    const offsets: number[] = [];
+    let acc = SELECT_COL_WIDTH;
+    for (let i = 0; i < widths.length; i++) {
+      offsets[i] = acc;
+      acc += widths[i];
+    }
+    return offsets;
+  }, [widths]);
+  const frozen = frozenColIndex != null;
+  const toggleFreeze = (colIndex: number) => {
+    setFrozenColIndex((prev) => (prev === colIndex ? null : colIndex));
+  };
 
   // Metadata default values shown on a new row (boolean and choice columns).
   // Shown only - the server applies them on create - so a new row that the user
@@ -1177,7 +1195,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           </colgroup>
           <thead>
             <tr>
-              <th scope="col" className="jj-sheet-th jj-sheet-select-th">
+              <th
+                scope="col"
+                className={
+                  frozen
+                    ? "jj-sheet-th jj-sheet-select-th jj-sheet-select-frozen"
+                    : "jj-sheet-th jj-sheet-select-th"
+                }
+                style={frozen ? { left: 0 } : undefined}
+              >
                 <input
                   type="checkbox"
                   aria-label="Select all rows"
@@ -1192,10 +1218,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     ? "descending"
                     : "ascending"
                   : "none";
+                const isFrozen = frozenColIndex != null && i <= frozenColIndex;
                 const thClasses = [
                   "jj-sheet-th",
                   onSort ? "jj-sheet-th-sortable" : "",
-                  i === 0 ? "jj-sheet-col-frozen" : "",
+                  isFrozen ? "jj-sheet-col-frozen" : "",
+                  frozenColIndex === i ? "jj-sheet-col-frozen-edge" : "",
                   dragOverCol === c.name ? "jj-sheet-th-dragover" : "",
                 ]
                   .filter(Boolean)
@@ -1205,6 +1233,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     key={c.name}
                     scope="col"
                     className={thClasses}
+                    style={isFrozen ? { left: `${leftOffsets[i]}px` } : undefined}
                     aria-sort={ariaSort}
                     draggable
                     onClick={() => onSort?.(c.name)}
@@ -1229,6 +1258,23 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         aria-hidden="true"
                       />
                     )}
+                    <span
+                      className={
+                        isFrozen ? "jj-sheet-pin jj-sheet-pin-on" : "jj-sheet-pin"
+                      }
+                      role="button"
+                      aria-label={
+                        isFrozen ? "Unfreeze columns" : "Freeze up to this column"
+                      }
+                      title={
+                        isFrozen ? "Unfreeze columns" : "Freeze up to this column"
+                      }
+                      draggable={false}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFreeze(i);
+                      }}
+                    />
                     <span
                       className="jj-sheet-resize-handle"
                       aria-hidden="true"
@@ -1265,7 +1311,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                   data-record-id={row.recordId}
                   onContextMenu={(e) => openMenu(e, row.recordId)}
                 >
-                  <td className="jj-sheet-select-td">
+                  <td
+                    className={
+                      frozen
+                        ? "jj-sheet-select-td jj-sheet-select-frozen"
+                        : "jj-sheet-select-td"
+                    }
+                    style={frozen ? { left: 0 } : undefined}
+                  >
                     <input
                       type="checkbox"
                       aria-label="Select row"
@@ -1305,10 +1358,16 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       !editing &&
                       rowIndex === frameBounds.bottom &&
                       colIndex === frameBounds.right;
+                    const isFrozenCell =
+                      frozenColIndex != null && colIndex <= frozenColIndex;
+                    if (isFrozenCell) {
+                      cellStyle = { ...cellStyle, left: `${leftOffsets[colIndex]}px` };
+                    }
                     const classNames = [
                       "jj-sheet-td",
                       col.editable ? "jj-sheet-td-editable" : "jj-sheet-td-readonly",
-                      colIndex === 0 ? "jj-sheet-col-frozen" : "",
+                      isFrozenCell ? "jj-sheet-col-frozen" : "",
+                      frozenColIndex === colIndex ? "jj-sheet-col-frozen-edge" : "",
                       isActive ? "jj-sheet-td-active" : "",
                       selected ? "jj-sheet-td-selected" : "",
                       fillTarget ? "jj-sheet-td-fill" : "",

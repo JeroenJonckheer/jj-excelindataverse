@@ -196,7 +196,12 @@ test("auto-fits a column on double-clicking its border", async ({ page }) => {
   expect(fits).toBe(true);
 });
 
-test("keeps the first column frozen when scrolling horizontally", async ({ page }) => {
+test("freezes pinned columns when scrolling horizontally", async ({ page }) => {
+  // Pin the Account column from its header (nothing is frozen by default).
+  const accountHeader = page.getByRole("columnheader", { name: "Account" });
+  await accountHeader.hover();
+  await accountHeader.locator(".jj-sheet-pin").click();
+
   // Widen the Score column so the grid overflows horizontally.
   const handle = page.locator("thead th").nth(3).locator(".jj-sheet-resize-handle");
   const box = await handle.boundingBox();
