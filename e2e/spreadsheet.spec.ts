@@ -185,16 +185,6 @@ test("reorders columns by dragging a header", async ({ page }) => {
   await expect(cell(page, 0, 0)).toContainText("Jane Doe");
 });
 
-test("filters rows via the column funnel", async ({ page }) => {
-  const account = page.getByRole("columnheader", { name: "Account" });
-  await account.hover();
-  await account.locator(".jj-sheet-funnel").click();
-  await page.getByLabel("Contains").fill("Initech");
-  await page.getByRole("button", { name: "Apply" }).click();
-  await expect(cell(page, 0, 0)).toContainText("Initech");
-  await expect(page.getByText("Acme Corporation")).toHaveCount(0);
-});
-
 test("auto-fits a column on double-clicking its border", async ({ page }) => {
   await startEdit(page, 0, 0);
   await page.getByLabel("Account").fill("A very very very long account name indeed");
@@ -234,6 +224,24 @@ test("freezes pinned columns when scrolling horizontally", async ({ page }) => {
   expect((farAfter?.x ?? 0)).toBeLessThan((farBefore?.x ?? 0) - 100);
   // ...but the first column stayed put (frozen).
   expect(Math.abs((frozenAfter?.x ?? 0) - (frozenBefore?.x ?? 0))).toBeLessThan(2);
+});
+
+// ---- Brok F: find and replace ----
+
+test("finds matches with Ctrl+F", async ({ page }) => {
+  await page.keyboard.press("Control+f");
+  await page.getByLabel("Find").fill("Corporation");
+  await expect(page.getByLabel("Match count")).toContainText("1/1");
+  await expect(cell(page, 0, 0)).toHaveClass(/jj-sheet-td-match/);
+});
+
+test("replaces text as a pending edit with Ctrl+H", async ({ page }) => {
+  await page.keyboard.press("Control+h");
+  await page.getByLabel("Find").fill("Corporation");
+  await page.getByLabel("Replace with").fill("Corp");
+  await page.getByRole("button", { name: "Replace all" }).click();
+  await expect(cell(page, 0, 0)).toContainText("Acme Corp");
+  await expect(page.getByText(/1 pending change/)).toBeVisible();
 });
 
 test("opens the record on double-click", async ({ page }) => {

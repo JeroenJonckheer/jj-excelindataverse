@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-06-03
+
+### Added
+- Find & replace: Ctrl+F opens a find bar (top-right), Ctrl+H opens it with
+  replace. Matches are highlighted and navigable (Enter / Shift+Enter), with
+  match-case and whole-cell options. Replace and Replace all write pending edits
+  (saved and undoable like any edit); read-only and lookup cells are found but
+  not replaced.
+
+### Removed
+- The per-column filter funnel UI (it did not earn its place); the filter logic
+  stays in the code, dormant and unit-tested, for a future iteration.
+
 ## [0.8.0] - 2026-06-03
 
 ### Added

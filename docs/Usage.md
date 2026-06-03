@@ -122,6 +122,17 @@ validated just like a typed value.
 - A **lookup value** shows as a link (blue, underlined on hover); click it to open
   that referenced record.
 
+## Find and replace
+
+- Press **Ctrl+F** to open the find bar (top-right), or **Ctrl+H** to open it with
+  replace. **Esc** closes it.
+- Type to highlight matches; **Enter** / **Shift+Enter** (or the arrows) jump to
+  the next / previous match. Toggle **match case** and **whole cell**.
+- **Replace** changes the current match; **Replace all** changes every match.
+  Replacements are **pending edits** - shown with the change marker and applied
+  only when you **Save** (and undoable with Ctrl+Z). Read-only and lookup cells
+  are found but not replaced.
+
 ## Saving
 
 - Click **Save changes** in the footer to write all pending edits to Dataverse.

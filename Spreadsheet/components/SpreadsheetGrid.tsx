@@ -29,21 +29,6 @@ const PIN_PATH_OUTLINE =
   "M14 4v5c0 1.12.37 2.16 1 3H9c.63-.84 1-1.88 1-3V4h4m3-2H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3V4h1c.55 0 1-.45 1-1s-.45-1-1-1z";
 const PIN_PATH_FILLED =
   "M16 9V4l1 0c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1l1 0v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z";
-
-// Funnel icon (Material "filter_alt") for the per-column quick filter.
-const FUNNEL_PATH =
-  "M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61z";
-
-/** Column kinds that the quick filter supports (lookups are excluded). */
-const FILTERABLE_KINDS = new Set([
-  "text",
-  "multiline",
-  "number",
-  "date",
-  "datetime",
-  "choice",
-  "boolean",
-]);
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue, isEmpty, formatValue, valuesEqual } from "../services/format";
@@ -63,8 +48,8 @@ import {
   type Aggregates,
 } from "../services/selection";
 import { planColumnFill } from "../services/fill";
-import type { ColumnFilter } from "../services/filter";
-import { ColumnFilterPanel } from "./ColumnFilterPanel";
+import { cellMatches, replaceInText } from "../services/search";
+import { FindReplaceBar } from "./FindReplaceBar";
 import { CellEditor } from "./CellEditor";
 import { Footer } from "./Footer";
 
@@ -88,8 +73,6 @@ export interface SpreadsheetGridProps {
   sortDescending?: boolean;
   /** Requests a sort on a column (the host re-queries the dataset). */
   onSort?: (columnName: string) => void;
-  /** Applies the per-column quick filters server-side (host re-queries). */
-  onApplyFilter?: (filters: ColumnFilter[]) => void;
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -139,7 +122,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sortColumn,
   sortDescending,
   onSort,
-  onApplyFilter,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -175,11 +157,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [columnOrder, setColumnOrder] = React.useState<string[] | null>(null);
   // Freeze columns up to and including this display index (null = none frozen).
   const [frozenColIndex, setFrozenColIndex] = React.useState<number | null>(null);
-  // Per-column quick filters, keyed by column name, plus the open filter popover.
-  const [columnFilters, setColumnFilters] = React.useState<Record<string, ColumnFilter>>({});
-  const [filterMenu, setFilterMenu] = React.useState<
-    { x: number; y: number; columnName: string } | null
-  >(null);
+  // Find & replace bar state.
+  const [findOpen, setFindOpen] = React.useState(false);
+  const [findReplace, setFindReplace] = React.useState(false);
+  const [findQuery, setFindQuery] = React.useState("");
+  const [findReplaceWith, setFindReplaceWith] = React.useState("");
+  const [findMatchCase, setFindMatchCase] = React.useState(false);
+  const [findWholeCell, setFindWholeCell] = React.useState(false);
+  const [findIndex, setFindIndex] = React.useState(0);
   const dragColRef = React.useRef<string | null>(null);
   const [dragOverCol, setDragOverCol] = React.useState<string | null>(null);
 
@@ -272,20 +257,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setFrozenColIndex((prev) => (prev === colIndex ? null : colIndex));
   };
 
-  const canFilter = (col: ColumnDef): boolean =>
-    !!onApplyFilter && FILTERABLE_KINDS.has(col.kind);
-  const openFilter = (e: React.MouseEvent, columnName: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setFilterMenu({ x: e.clientX, y: e.clientY, columnName });
-  };
-  const applyColumnFilter = (columnName: string, filter: ColumnFilter | null) => {
-    const next = { ...columnFilters };
-    if (filter) next[columnName] = filter;
-    else delete next[columnName];
-    setColumnFilters(next);
-    onApplyFilter?.(Object.values(next));
-  };
 
   // Metadata default values shown on a new row (boolean and choice columns).
   // Shown only - the server applies them on create - so a new row that the user
@@ -433,6 +404,27 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       }
       return { count: selectionCount, ...aggregate(nums) };
     }, [active, anchor, selectionCount, allRows, columns, drafts]);
+
+  // Find & replace: the cells whose display text matches the query.
+  const matches = React.useMemo(() => {
+    if (!findOpen || findQuery === "") return [] as CellAddress[];
+    const opts = { matchCase: findMatchCase, wholeCell: findWholeCell };
+    const out: CellAddress[] = [];
+    for (let r = 0; r < allRows.length; r++) {
+      const row = allRows[r];
+      for (let c = 0; c < columns.length; c++) {
+        if (cellMatches(displayOf(row, columns[c]), findQuery, opts)) {
+          out.push({ rowIndex: r, colIndex: c });
+        }
+      }
+    }
+    return out;
+  }, [findOpen, findQuery, findMatchCase, findWholeCell, allRows, columns, drafts]);
+  const matchKeys = React.useMemo(
+    () => new Set(matches.map((m) => `${m.rowIndex},${m.colIndex}`)),
+    [matches],
+  );
+  const safeFindIndex = matches.length === 0 ? 0 : findIndex % matches.length;
 
   const setDraft = (
     recordId: string,
@@ -913,18 +905,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     };
   }, [menu]);
 
-  // Close the filter popover when clicking outside it.
-  React.useEffect(() => {
-    if (!filterMenu) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && t.closest && t.closest(".jj-sheet-filter-menu")) return;
-      setFilterMenu(null);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [filterMenu]);
-
   // Keyboard handling while a cell is selected but no editor is open.
   const onGridKeyDown = (e: React.KeyboardEvent) => {
     if (editing) return;
@@ -1229,11 +1209,108 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setSaving(false);
   };
 
+  // ---- Find & replace ----
+
+  const openFind = (replace: boolean) => {
+    setFindOpen(true);
+    setFindReplace((r) => r || replace);
+    setFindIndex(0);
+  };
+  const goToMatch = (i: number) => {
+    if (matches.length === 0) return;
+    const idx = ((i % matches.length) + matches.length) % matches.length;
+    setFindIndex(idx);
+    const m = matches[idx];
+    selectCell(m);
+    const el = containerRef.current?.querySelector(
+      `td[data-row="${m.rowIndex}"][data-col="${m.colIndex}"]`,
+    );
+    (el as HTMLElement | null)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  };
+  const replaceCurrent = () => {
+    if (matches.length === 0) return;
+    const m = matches[safeFindIndex];
+    const col = columns[m.colIndex];
+    const row = allRows[m.rowIndex];
+    if (!col || !row || !col.editable || col.kind === "lookup") return;
+    record();
+    applyText(
+      row.recordId,
+      col,
+      replaceInText(displayOf(row, col), findQuery, findReplaceWith, {
+        matchCase: findMatchCase,
+        wholeCell: findWholeCell,
+      }),
+    );
+  };
+  const replaceAll = () => {
+    const targets = matches.filter((m) => {
+      const col = columns[m.colIndex];
+      return !!col && col.editable && col.kind !== "lookup";
+    });
+    if (targets.length === 0) return;
+    record();
+    for (const m of targets) {
+      const col = columns[m.colIndex];
+      const row = allRows[m.rowIndex];
+      if (!col || !row) continue;
+      applyText(
+        row.recordId,
+        col,
+        replaceInText(displayOf(row, col), findQuery, findReplaceWith, {
+          matchCase: findMatchCase,
+          wholeCell: findWholeCell,
+        }),
+      );
+    }
+  };
+
+  // Open find (Ctrl+F) and replace (Ctrl+H) from anywhere in the control.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "f") {
+        e.preventDefault();
+        openFind(false);
+      } else if (k === "h") {
+        e.preventDefault();
+        openFind(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   const footerMessage =
     Object.values(rowErrors)[0] ?? Object.values(errors)[0] ?? pasteNotice ?? null;
 
   return (
     <div className="jj-sheet-root">
+      {findOpen && (
+        <FindReplaceBar
+          replace={findReplace}
+          query={findQuery}
+          replaceWith={findReplaceWith}
+          matchCase={findMatchCase}
+          wholeCell={findWholeCell}
+          count={matches.length}
+          current={matches.length === 0 ? 0 : safeFindIndex + 1}
+          onQuery={(v) => {
+            setFindQuery(v);
+            setFindIndex(0);
+          }}
+          onReplaceWith={setFindReplaceWith}
+          onToggleCase={() => setFindMatchCase((v) => !v)}
+          onToggleWhole={() => setFindWholeCell((v) => !v)}
+          onToggleReplace={() => setFindReplace((v) => !v)}
+          onPrev={() => goToMatch(safeFindIndex - 1)}
+          onNext={() => goToMatch(safeFindIndex + 1)}
+          onReplace={replaceCurrent}
+          onReplaceAll={replaceAll}
+          onClose={() => setFindOpen(false)}
+        />
+      )}
       <div
         className="jj-sheet"
         ref={containerRef}
@@ -1316,24 +1393,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         }
                         aria-hidden="true"
                       />
-                    )}
-                    {canFilter(c) && (
-                      <span
-                        className={
-                          columnFilters[c.name]
-                            ? "jj-sheet-funnel jj-sheet-funnel-on"
-                            : "jj-sheet-funnel"
-                        }
-                        role="button"
-                        aria-label="Filter column"
-                        title={`Filter ${c.displayName}`}
-                        draggable={false}
-                        onClick={(e) => openFilter(e, c.name)}
-                      >
-                        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-                          <path d={FUNNEL_PATH} />
-                        </svg>
-                      </span>
                     )}
                     <span
                       className={
@@ -1449,6 +1508,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     if (isFrozenCell) {
                       cellStyle = { ...cellStyle, left: `${leftOffsets[colIndex]}px` };
                     }
+                    const matchKey = `${rowIndex},${colIndex}`;
+                    const isMatch = matchKeys.has(matchKey);
+                    const isCurrentMatch =
+                      isMatch &&
+                      matches[safeFindIndex]?.rowIndex === rowIndex &&
+                      matches[safeFindIndex]?.colIndex === colIndex;
                     const classNames = [
                       "jj-sheet-td",
                       col.editable ? "jj-sheet-td-editable" : "jj-sheet-td-readonly",
@@ -1457,6 +1522,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       isActive ? "jj-sheet-td-active" : "",
                       selected ? "jj-sheet-td-selected" : "",
                       fillTarget ? "jj-sheet-td-fill" : "",
+                      isMatch ? "jj-sheet-td-match" : "",
+                      isCurrentMatch ? "jj-sheet-td-match-current" : "",
                       error ? "jj-sheet-td-invalid" : "",
                       dirty ? "jj-sheet-td-dirty" : "",
                     ]
@@ -1535,24 +1602,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           </tbody>
         </table>
       </div>
-      {filterMenu &&
-        (() => {
-          const col = columns.find((c) => c.name === filterMenu.columnName);
-          if (!col) return null;
-          return (
-            <div
-              className="jj-sheet-filter-menu"
-              style={{ left: filterMenu.x, top: filterMenu.y }}
-            >
-              <ColumnFilterPanel
-                column={col}
-                current={columnFilters[col.name]}
-                onApply={(f) => applyColumnFilter(col.name, f)}
-                onClose={() => setFilterMenu(null)}
-              />
-            </div>
-          );
-        })()}
       {menu && (
         <ul
           className="jj-sheet-menu"

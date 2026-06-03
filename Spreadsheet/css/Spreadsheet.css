@@ -23,6 +23,7 @@
 
 .jj-sheet-fluent,
 .jj-sheet-root {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
@@ -432,81 +433,6 @@
   color: var(--colorBrandBackground, #0f6cbd);
 }
 
-/* The per-column filter funnel: like the pin, sits left of it, shown on hover
-   and brand-coloured when that column has an active filter. */
-.jj-sheet-funnel {
-  display: none;
-  position: absolute;
-  right: 30px;
-  top: 50%;
-  transform: translateY(-50%);
-  line-height: 0;
-  cursor: pointer;
-  color: var(--colorNeutralForeground3, #616161);
-}
-.jj-sheet-funnel svg {
-  display: block;
-  fill: currentColor;
-}
-.jj-sheet-funnel:hover {
-  color: var(--colorNeutralForeground1, #242424);
-}
-.jj-sheet-th:hover .jj-sheet-funnel {
-  display: block;
-}
-.jj-sheet-funnel-on {
-  display: block;
-  color: var(--colorBrandBackground, #0f6cbd);
-}
-
-/* The filter popover, positioned at the funnel click point. */
-.jj-sheet-filter-menu {
-  position: fixed;
-  z-index: 30;
-}
-.jj-sheet-filter-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 200px;
-  padding: 10px;
-  background: var(--colorNeutralBackground1, #ffffff);
-  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
-}
-.jj-sheet-filter-range {
-  display: flex;
-  gap: 6px;
-}
-.jj-sheet-filter-date {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 24px;
-  font-family: inherit;
-  font-size: 13px;
-}
-.jj-sheet-filter-options {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 180px;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.jj-sheet-filter-options label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-.jj-sheet-filter-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
 
 .jj-sheet-select-td {
   border-bottom: 1px solid var(--colorNeutralStroke3, #f0f0f0);
@@ -576,4 +502,44 @@
    No z-index here: a stacking context would poke above the host's modal dim. */
 .jj-sheet-td.jj-sheet-td-active {
   box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
+}
+
+/* ---- Find & replace ---- */
+
+.jj-sheet-find {
+  position: absolute;
+  top: 6px;
+  right: 18px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--colorNeutralBackground1, #ffffff);
+  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+}
+.jj-sheet-find-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.jj-sheet-find-input {
+  width: 180px;
+}
+.jj-sheet-find-count {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--colorNeutralForeground3, #616161);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Matched cells while the find bar is open; the current match is stronger. */
+.jj-sheet-td-match {
+  background: rgba(255, 196, 0, 0.3);
+}
+.jj-sheet-td-match-current {
+  background: rgba(255, 160, 0, 0.55);
 }

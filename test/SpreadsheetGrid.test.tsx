@@ -98,7 +98,6 @@ function renderGrid(overrides?: {
   onSort?: (columnName: string) => void;
   sortColumn?: string | null;
   sortDescending?: boolean;
-  onApplyFilter?: (filters: unknown[]) => void;
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -135,7 +134,6 @@ function renderGrid(overrides?: {
       onSort={overrides?.onSort}
       sortColumn={overrides?.sortColumn ?? null}
       sortDescending={overrides?.sortDescending}
-      onApplyFilter={overrides?.onApplyFilter}
     />,
   );
   return {
@@ -747,22 +745,6 @@ describe("sorting and resizing", () => {
     expect(col.style.width).toBe("48px");
   });
 
-  it("filters a column from the header funnel", () => {
-    const onApplyFilter = jest.fn();
-    const { container } = renderGrid({ onApplyFilter });
-    // The first funnel belongs to the first filterable column (Name).
-    const funnel = container.querySelector(".jj-sheet-funnel") as HTMLElement;
-    expect(funnel).not.toBeNull();
-    fireEvent.click(funnel);
-    const input = screen.getByLabelText("Contains") as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "Acme" } });
-    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-    expect(onApplyFilter).toHaveBeenCalledWith([
-      { columnName: "name", kind: "text", contains: "Acme" },
-    ]);
-    expect(container.querySelector(".jj-sheet-funnel-on")).not.toBeNull();
-  });
-
   it("freezes columns up to the pinned one and unfreezes again", () => {
     const { container } = renderGrid();
     // Default: nothing frozen.
@@ -860,6 +842,27 @@ describe("defaults and duplicate (brok D)", () => {
     fireEvent.click(screen.getByText("Duplicate row"));
     expect(cell(container, 2, 0).textContent).toContain("Acme");
     expect(screen.getByText(/pending change/)).toBeInTheDocument();
+  });
+});
+
+describe("find and replace (brok F)", () => {
+  it("opens find with Ctrl+F and highlights matches", () => {
+    const { container } = renderGrid();
+    fireEvent.keyDown(document, { key: "f", ctrlKey: true });
+    const input = screen.getByLabelText("Find") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Acme" } });
+    expect(cell(container, 0, 0).className).toContain("jj-sheet-td-match");
+    expect(screen.getByLabelText("Match count").textContent).toContain("1/1");
+  });
+
+  it("replaces the current match as a pending edit (Ctrl+H)", () => {
+    const { container } = renderGrid();
+    fireEvent.keyDown(document, { key: "h", ctrlKey: true });
+    fireEvent.change(screen.getByLabelText("Find"), { target: { value: "Acme" } });
+    fireEvent.change(screen.getByLabelText("Replace with"), { target: { value: "Zeta" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Replace$/ }));
+    expect(cell(container, 0, 0).textContent).toContain("Zeta");
+    expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
   });
 });
 

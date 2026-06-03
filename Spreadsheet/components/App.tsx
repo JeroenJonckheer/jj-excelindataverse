@@ -21,7 +21,6 @@ import {
   type GridRow,
 } from "../services/dataset";
 import { DataverseService, type IDataverseService } from "../services/DataverseService";
-import { buildDatasetFilter, type ColumnFilter } from "../services/filter";
 import { CONTROL_VERSION } from "../services/version";
 import { SpreadsheetGrid } from "./SpreadsheetGrid";
 
@@ -171,22 +170,6 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   const sortColumn = sorting && sorting.length > 0 ? sorting[0].name : null;
   const sortDescending = !!(sorting && sorting.length > 0 && sorting[0].sortDirection === 1);
 
-  // Apply the per-column quick filters server-side via the dataset filtering
-  // API, then re-query so the whole dataset is filtered (not just the page).
-  const onApplyFilter = React.useCallback((filters: ColumnFilter[]) => {
-    const ds = ctxRef.current.parameters.records as unknown as {
-      filtering?: {
-        setFilter?: (f: unknown) => void;
-        clearFilter?: () => void;
-      };
-      refresh?: () => void;
-    };
-    const filter = buildDatasetFilter(filters);
-    if (filter) ds.filtering?.setFilter?.(filter);
-    else ds.filtering?.clearFilter?.();
-    ds.refresh?.();
-  }, []);
-
   // Toggle the sort on a column. The host re-queries the dataset (server-side
   // sort), so it respects the view filter and works on large datasets.
   const onSort = React.useCallback((columnName: string) => {
@@ -250,7 +233,6 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         sortColumn={sortColumn}
         sortDescending={sortDescending}
         onSort={onSort}
-        onApplyFilter={onApplyFilter}
         resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}
