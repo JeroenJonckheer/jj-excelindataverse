@@ -310,6 +310,12 @@ function createService(store: Store): IDataverseService {
       // The harness has no host form; surface the intent for the demo and tests.
       console.info(`JJ - Excel in Dataverse: open record ${recordId}`);
     },
+    savePersonalView: (_entity, name, columns, _sort) => {
+      console.info(
+        `JJ - Excel in Dataverse: saved personal view '${name}' with ${columns.length} columns`,
+      );
+      return Promise.resolve();
+    },
   };
 }
 

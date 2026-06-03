@@ -71,6 +71,12 @@ export interface SpreadsheetGridProps {
   sortDescending?: boolean;
   /** Requests a sort on a column (the host re-queries the dataset). */
   onSort?: (columnName: string) => void;
+  /** Saves the current column layout and sort as a personal Dataverse view. */
+  onSaveView?: (
+    name: string,
+    columns: { name: string; width: number }[],
+    sort: { name: string; descending: boolean }[],
+  ) => Promise<void>;
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -120,6 +126,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sortColumn,
   sortDescending,
   onSort,
+  onSaveView,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -1177,6 +1184,24 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setSaving(false);
   };
 
+  // The layout differs from the view when the user has reordered, resized or
+  // frozen columns - the cue to offer "save as a personal view".
+  const layoutChanged =
+    columnOrder !== null ||
+    Object.keys(widthOverrides).length > 0 ||
+    frozenColIndex !== null;
+  const saveViewAs = async (name: string) => {
+    if (!onSaveView) return;
+    const cols = columns.map((c, i) => ({
+      name: c.name,
+      width: Math.round(widths[i]),
+    }));
+    const sort = sortColumn
+      ? [{ name: sortColumn, descending: !!sortDescending }]
+      : [];
+    await onSaveView(name, cols, sort);
+  };
+
   const footerMessage =
     Object.values(rowErrors)[0] ?? Object.values(errors)[0] ?? pasteNotice ?? null;
 
@@ -1505,6 +1530,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         saving={saving}
         message={footerMessage}
         onSave={handleSave}
+        canSaveView={!!onSaveView && layoutChanged}
+        onSaveView={saveViewAs}
       />
     </div>
   );

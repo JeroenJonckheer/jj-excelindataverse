@@ -40,12 +40,34 @@ export interface IDataverseService {
   deleteRecord(entityName: string, recordId: string): Promise<void>;
   /** Opens the standard form for a record in the host app. */
   openRecord(entityName: string, recordId: string): void;
+  /**
+   * Saves the current column layout and sort as a personal view (a Dataverse
+   * userquery), so it appears for this user in the view selector.
+   */
+  savePersonalView(
+    entityName: string,
+    name: string,
+    columns: ViewColumn[],
+    sort: ViewSort[],
+  ): Promise<void>;
 }
 
 interface EntityMeta {
   primaryNameAttribute: string;
   primaryIdAttribute: string;
   entitySetName: string;
+  objectTypeCode: number;
+}
+
+/** A column to write into a personal view's layout. */
+export interface ViewColumn {
+  name: string;
+  width: number;
+}
+/** A sort order to write into a personal view's query. */
+export interface ViewSort {
+  name: string;
+  descending: boolean;
 }
 
 interface RelationshipMeta {
@@ -359,6 +381,36 @@ export class DataverseService implements IDataverseService {
     }
   }
 
+  async savePersonalView(
+    entityName: string,
+    name: string,
+    columns: ViewColumn[],
+    sort: ViewSort[],
+  ): Promise<void> {
+    const meta = await this.getEntityMeta(entityName);
+    const attributes = columns.map((c) => `<attribute name="${c.name}" />`).join("");
+    const orders = sort
+      .map((s) => `<order attribute="${s.name}" descending="${s.descending}" />`)
+      .join("");
+    const fetchxml =
+      `<fetch version="1.0" mapping="logical" returntotalrecordcount="true">` +
+      `<entity name="${entityName}">${attributes}${orders}</entity></fetch>`;
+    const cells = columns
+      .map((c) => `<cell name="${c.name}" width="${Math.round(c.width)}" />`)
+      .join("");
+    const layoutxml =
+      `<grid name="resultset" object="${meta.objectTypeCode}" jump="${meta.primaryNameAttribute}" ` +
+      `select="1" icon="1" preview="1"><row name="result" id="${meta.primaryIdAttribute}">` +
+      `${cells}</row></grid>`;
+    await this.webApi.createRecord("userquery", {
+      name,
+      returnedtypecode: entityName,
+      fetchxml,
+      layoutxml,
+      querytype: 0,
+    });
+  }
+
   private async buildPayload(
     entityName: string,
     edits: PendingEdit[],
@@ -402,12 +454,13 @@ export class DataverseService implements IDataverseService {
     const cached = this.entityMetaCache.get(entityName);
     if (cached) return cached;
     const result = await this.fetchOData(
-      `EntityDefinitions(LogicalName='${entityName}')?$select=PrimaryNameAttribute,PrimaryIdAttribute,EntitySetName`,
+      `EntityDefinitions(LogicalName='${entityName}')?$select=PrimaryNameAttribute,PrimaryIdAttribute,EntitySetName,ObjectTypeCode`,
     );
     const meta: EntityMeta = {
       primaryNameAttribute: result.PrimaryNameAttribute,
       primaryIdAttribute: result.PrimaryIdAttribute,
       entitySetName: result.EntitySetName,
+      objectTypeCode: result.ObjectTypeCode,
     };
     this.entityMetaCache.set(entityName, meta);
     return meta;

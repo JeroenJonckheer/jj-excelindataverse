@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-06-03
+
+### Added
+- Save as personal view: after reordering, resizing or freezing columns, a
+  "Save as personal view" button appears in the footer. Naming it creates a
+  Dataverse personal view (userquery) with the column order, widths and sort
+  (fetchxml + layoutxml), so it shows up for the user in the view selector.
+
 ## [0.6.3] - 2026-06-03
 
 ### Changed

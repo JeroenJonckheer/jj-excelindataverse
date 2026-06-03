@@ -98,6 +98,11 @@ function renderGrid(overrides?: {
   onSort?: (columnName: string) => void;
   sortColumn?: string | null;
   sortDescending?: boolean;
+  onSaveView?: (
+    name: string,
+    columns: { name: string; width: number }[],
+    sort: { name: string; descending: boolean }[],
+  ) => Promise<void>;
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -134,6 +139,7 @@ function renderGrid(overrides?: {
       onSort={overrides?.onSort}
       sortColumn={overrides?.sortColumn ?? null}
       sortDescending={overrides?.sortDescending}
+      onSaveView={overrides?.onSaveView}
     />,
   );
   return {
@@ -743,6 +749,37 @@ describe("sorting and resizing", () => {
     // proves the auto-fit override was applied to the first data column.
     const col = container.querySelectorAll("colgroup col")[1] as HTMLElement;
     expect(col.style.width).toBe("48px");
+  });
+
+  it("offers to save the layout as a personal view after a reorder", async () => {
+    const onSaveView = jest.fn(
+      (
+        _name: string,
+        _columns: { name: string; width: number }[],
+        _sort: { name: string; descending: boolean }[],
+      ) => Promise.resolve(),
+    );
+    const { container } = renderGrid({ onSaveView });
+    // No layout change yet: no save-view button.
+    expect(screen.queryByRole("button", { name: /personal view/i })).toBeNull();
+
+    // Reorder Owner before Name to change the layout.
+    const ths = container.querySelectorAll("thead th");
+    const dt = { setData: jest.fn(), getData: jest.fn(), effectAllowed: "", dropEffect: "" };
+    fireEvent.dragStart(ths[4], { dataTransfer: dt });
+    fireEvent.dragOver(ths[1], { dataTransfer: dt });
+    fireEvent.drop(ths[1], { dataTransfer: dt });
+
+    fireEvent.click(screen.getByRole("button", { name: /Save as personal view/i }));
+    const input = screen.getByLabelText("Personal view name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "My layout" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save view/i }));
+
+    await waitFor(() => expect(onSaveView).toHaveBeenCalledTimes(1));
+    const [name, cols] = onSaveView.mock.calls[0];
+    expect(name).toBe("My layout");
+    // The saved column order starts with Owner after the reorder.
+    expect(cols[0].name).toBe("owner");
   });
 
   it("freezes columns up to the pinned one and unfreezes again", () => {

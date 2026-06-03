@@ -344,6 +344,13 @@
   flex: 0 0 auto;
 }
 
+/* The inline "save as personal view" name field and its buttons. */
+.jj-sheet-saveview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .jj-sheet-version {
   color: var(--colorNeutralForeground4, #707070);
   white-space: nowrap;

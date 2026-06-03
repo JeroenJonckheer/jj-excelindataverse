@@ -154,6 +154,15 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse],
   );
 
+  const onSaveView = React.useCallback(
+    (
+      name: string,
+      viewColumns: { name: string; width: number }[],
+      sort: { name: string; descending: boolean }[],
+    ) => dataverse.savePersonalView(entityName, name, viewColumns, sort),
+    [dataverse, entityName],
+  );
+
   // Stable callback that reads the current dataset from the ref, so syncing the
   // selection to the host does not re-create the callback on every render.
   const onSelectionChange = React.useCallback((recordIds: string[]) => {
@@ -233,6 +242,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         sortColumn={sortColumn}
         sortDescending={sortDescending}
         onSort={onSort}
+        onSaveView={onSaveView}
         resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}

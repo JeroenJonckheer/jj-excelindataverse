@@ -48,6 +48,50 @@ describe("escapeODataString", () => {
   });
 });
 
+describe("savePersonalView", () => {
+  it("creates a userquery with fetchxml and layoutxml", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions",
+        body: {
+          PrimaryNameAttribute: "name",
+          PrimaryIdAttribute: "accountid",
+          EntitySetName: "accounts",
+          ObjectTypeCode: 1,
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const createRecord = jest.fn(() => Promise.resolve({ id: "v1" } as never));
+    const svc = new DataverseService(makeContext({ createRecord }));
+
+    await svc.savePersonalView(
+      "account",
+      "My layout",
+      [
+        { name: "name", width: 200 },
+        { name: "telephone1", width: 120 },
+      ],
+      [{ name: "name", descending: false }],
+    );
+
+    expect(createRecord).toHaveBeenCalledTimes(1);
+    const [entity, payload] = createRecord.mock.calls[0] as unknown as [
+      string,
+      Record<string, string | number>,
+    ];
+    expect(entity).toBe("userquery");
+    expect(payload.name).toBe("My layout");
+    expect(payload.returnedtypecode).toBe("account");
+    expect(payload.querytype).toBe(0);
+    expect(payload.fetchxml).toContain('<entity name="account">');
+    expect(payload.fetchxml).toContain('<attribute name="name" />');
+    expect(payload.fetchxml).toContain('<order attribute="name" descending="false" />');
+    expect(payload.layoutxml).toContain('object="1"');
+    expect(payload.layoutxml).toContain('<cell name="name" width="200" />');
+    expect(payload.layoutxml).toContain('<cell name="telephone1" width="120" />');
+  });
+});
+
 describe("enrichColumns", () => {
   it("reads string metadata into the column", async () => {
     global.fetch = mockFetch([

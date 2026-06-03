@@ -104,6 +104,10 @@ validated just like a typed value.
 - The grid takes its **columns and filter from the bound view**. Change the view
   (or its column layout or filter, or pick another view in the selector) and the
   grid updates to match.
+- **Save as personal view**: once you reorder, resize or freeze columns, a
+  **Save as personal view** button appears in the footer. Give it a name to
+  create a personal Dataverse view (a *userquery*) with your column order, widths
+  and sort - it then shows up for you in the view selector.
 
 ## Selecting, deleting and opening records
 
