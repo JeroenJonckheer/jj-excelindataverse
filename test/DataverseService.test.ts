@@ -65,6 +65,36 @@ describe("enrichColumns", () => {
     expect(enriched.required).toBe("required");
   });
 
+  it("marks a calculated/rollup column read-only (IsValidForUpdate false)", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "DecimalAttributeMetadata",
+        body: { RequiredLevel: { Value: "None" }, IsValidForUpdate: false },
+      },
+    ]) as unknown as typeof fetch;
+
+    const svc = new DataverseService(makeContext({}));
+    const [enriched] = await svc.enrichColumns("account", [
+      col({ name: "calculatedscore", kind: "number", dataType: "Decimal" }),
+    ]);
+    expect(enriched.editable).toBe(false);
+  });
+
+  it("keeps a normal column editable (IsValidForUpdate true)", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "DecimalAttributeMetadata",
+        body: { RequiredLevel: { Value: "None" }, IsValidForUpdate: true },
+      },
+    ]) as unknown as typeof fetch;
+
+    const svc = new DataverseService(makeContext({}));
+    const [enriched] = await svc.enrichColumns("account", [
+      col({ name: "score", kind: "number", dataType: "Decimal" }),
+    ]);
+    expect(enriched.editable).toBe(true);
+  });
+
   it("reads choice options", async () => {
     global.fetch = mockFetch([
       {

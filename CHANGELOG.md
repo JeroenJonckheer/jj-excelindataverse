@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-06-03
+
+### Added
+- Read-only columns are derived from metadata: a column whose metadata reports it
+  cannot be updated (calculated, rollup or otherwise server-computed) is shown
+  read-only instead of being editable.
+- Required fields are validated before a new row is sent: a new row with an empty
+  required field is blocked with an inline error instead of failing at the server.
+
+### Changed
+- A rejected save now shows the server's message inline on the row (business rule,
+  plugin or duplicate detection), instead of a generic or "[object Object]" text.
+
 ## [0.2.0] - 2026-06-03
 
 First release of JJ - Excel in Dataverse. The footer shows the version, which is

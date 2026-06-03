@@ -53,6 +53,19 @@ interface RelationshipMeta {
   referencedEntity: string;
 }
 
+/**
+ * A column is read-only when Dataverse says it cannot be updated. This covers
+ * calculated and rollup fields (and any other server-computed column), so the
+ * grid greys them out instead of letting the user edit something that would be
+ * rejected or overwritten.
+ */
+function editableFromMeta(
+  column: ColumnDef,
+  meta: { IsValidForUpdate?: boolean } | null | undefined,
+): boolean {
+  return meta?.IsValidForUpdate === false ? false : column.editable;
+}
+
 /** Maps the Dataverse RequiredLevel value to our requirement level. */
 function mapRequiredLevel(value: string | undefined): RequiredLevel {
   switch (value) {
@@ -117,10 +130,11 @@ export class DataverseService implements IDataverseService {
       case "text":
       case "multiline": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.StringAttributeMetadata?$select=MaxLength,RequiredLevel,Format`,
+          `${base}/Microsoft.Dynamics.CRM.StringAttributeMetadata?$select=MaxLength,RequiredLevel,Format,IsValidForUpdate`,
         );
         return {
           ...column,
+          editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           maxLength:
             typeof meta?.MaxLength === "number" ? meta.MaxLength : column.maxLength,
@@ -129,10 +143,11 @@ export class DataverseService implements IDataverseService {
       case "number": {
         const typeName = numericMetadataType(column.dataType);
         const meta = await this.fetchOData(
-          `${base}/${typeName}?$select=MinValue,MaxValue,Precision,RequiredLevel`,
+          `${base}/${typeName}?$select=MinValue,MaxValue,Precision,RequiredLevel,IsValidForUpdate`,
         );
         return {
           ...column,
+          editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           minValue: typeof meta?.MinValue === "number" ? meta.MinValue : undefined,
           maxValue: typeof meta?.MaxValue === "number" ? meta.MaxValue : undefined,
@@ -146,7 +161,7 @@ export class DataverseService implements IDataverseService {
       }
       case "choice": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=RequiredLevel&$expand=OptionSet`,
+          `${base}/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=RequiredLevel,IsValidForUpdate&$expand=OptionSet`,
         );
         const options = (meta?.OptionSet?.Options ?? []).map((o: any) => ({
           value: o.Value,
@@ -154,13 +169,14 @@ export class DataverseService implements IDataverseService {
         }));
         return {
           ...column,
+          editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           options,
         };
       }
       case "boolean": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=RequiredLevel&$expand=OptionSet`,
+          `${base}/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=RequiredLevel,IsValidForUpdate&$expand=OptionSet`,
         );
         const os = meta?.OptionSet;
         const options = [
@@ -169,16 +185,18 @@ export class DataverseService implements IDataverseService {
         ];
         return {
           ...column,
+          editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           options,
         };
       }
       case "lookup": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,RequiredLevel`,
+          `${base}/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,RequiredLevel,IsValidForUpdate`,
         );
         return {
           ...column,
+          editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           lookupTargets: Array.isArray(meta?.Targets) ? meta.Targets : column.lookupTargets,
         };
@@ -186,9 +204,13 @@ export class DataverseService implements IDataverseService {
       case "date":
       case "datetime": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.DateTimeAttributeMetadata?$select=RequiredLevel`,
+          `${base}/Microsoft.Dynamics.CRM.DateTimeAttributeMetadata?$select=RequiredLevel,IsValidForUpdate`,
         );
-        return { ...column, required: mapRequiredLevel(meta?.RequiredLevel?.Value) };
+        return {
+          ...column,
+          editable: editableFromMeta(column, meta),
+          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
+        };
       }
       default:
         return column;

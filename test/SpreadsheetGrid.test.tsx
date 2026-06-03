@@ -253,6 +253,46 @@ describe("validation", () => {
     expect(cell(container, 0, 0).className).toContain("jj-sheet-td-invalid");
     expect(screen.getByText("This field is required.")).toBeInTheDocument();
   });
+
+  // ---- Brok C: validation ----
+
+  it("blocks saving a new row that has an empty required field", () => {
+    const onCreate: Harness["onCreate"] = jest.fn((_edits: PendingEdit[]) =>
+      Promise.resolve(),
+    );
+    const { container } = renderGrid({ onCreate });
+    // Add a new row, then fill only the (non-required) Score, leaving Name empty.
+    fireEvent.click(cell(container, 1, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
+    fireEvent.click(cell(container, 2, 1));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "5" });
+    const input = screen.getByLabelText("Score") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "50" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(cell(container, 2, 0).className).toContain("jj-sheet-td-invalid");
+    expect(screen.getByText("This field is required.")).toBeInTheDocument();
+  });
+
+  it("shows the server error inline and keeps the change on a failed save", async () => {
+    const onSave: Harness["onSave"] = jest.fn(
+      (_recordId: string, _edits: PendingEdit[]) =>
+        Promise.reject({ message: "Business rule blocked this" }),
+    );
+    const { container } = renderGrid({ onSave });
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "X" });
+    const input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "New Name" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await screen.findByText("Business rule blocked this");
+    const row = cell(container, 0, 0).closest("tr") as HTMLElement;
+    expect(row.className).toContain("jj-sheet-row-error");
+  });
 });
 
 describe("saving", () => {

@@ -95,6 +95,16 @@ const META: ColumnDef[] = [
     required: "none",
     lookupTargets: ["contact"],
   },
+  {
+    // A calculated/rollup-style column: read-only, like a field whose metadata
+    // reports IsValidForUpdate = false.
+    name: "forecast",
+    displayName: "Forecast",
+    dataType: "Currency",
+    kind: "number",
+    editable: false,
+    required: "none",
+  },
 ];
 
 const COL_BY_NAME = new Map(META.map((c) => [c.name, c]));
@@ -118,6 +128,7 @@ function initialStore(): Store {
       active: true,
       duedate: new Date(2026, 5, 15),
       owner: CONTACTS[0],
+      forecast: 72500,
     },
     r2: {
       name: "Globex",
@@ -127,6 +138,7 @@ function initialStore(): Store {
       active: false,
       duedate: new Date(2026, 6, 1),
       owner: CONTACTS[1],
+      forecast: 40000,
     },
     r3: {
       name: "Initech",
@@ -136,6 +148,7 @@ function initialStore(): Store {
       active: true,
       duedate: new Date(2026, 4, 20),
       owner: CONTACTS[2],
+      forecast: 88000,
     },
     r4: {
       name: "Hooli",
@@ -145,6 +158,7 @@ function initialStore(): Store {
       active: false,
       duedate: new Date(2026, 7, 9),
       owner: CONTACTS[3],
+      forecast: 15000,
     },
     r5: {
       name: "Stark Industries",
@@ -154,6 +168,7 @@ function initialStore(): Store {
       active: true,
       duedate: new Date(2026, 8, 2),
       owner: CONTACTS[0],
+      forecast: 64000,
     },
   };
 }
@@ -213,6 +228,7 @@ function buildContext(
     active: 80,
     duedate: 130,
     owner: 180,
+    forecast: 120,
   };
   const dataset = {
     columns: META.map((c, i) => ({
@@ -264,6 +280,11 @@ function createService(store: Store): IDataverseService {
       );
     },
     saveRecord: (_entity, recordId, edits: PendingEdit[]) => {
+      // Mimic a server-side rejection (business rule / plugin) so the inline
+      // error path can be exercised: refuse the sentinel name "REJECT".
+      if (edits.some((e) => e.columnName === "name" && e.value === "REJECT")) {
+        return Promise.reject({ message: "Server refused this record" });
+      }
       for (const edit of edits) {
         store[recordId][edit.columnName] = edit.value;
       }

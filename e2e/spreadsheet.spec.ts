@@ -259,3 +259,40 @@ test("fills a numeric series with the fill handle", async ({ page }) => {
   await expect(cell(page, 2, 2)).toHaveText("3");
   await expect(cell(page, 3, 2)).toHaveText("4");
 });
+
+// ---- Brok C: validation ----
+
+test("does not let you edit a read-only (calculated) column", async ({ page }) => {
+  // Forecast (col 7) is read-only, like a calculated/rollup field.
+  await expect(cell(page, 0, 7)).toHaveClass(/jj-sheet-td-readonly/);
+  await expect(cell(page, 0, 7)).toContainText("72500");
+  await cell(page, 0, 7).click();
+  await page.keyboard.press("Enter");
+  // No editor opens for a read-only column.
+  await expect(page.getByLabel("Forecast")).toHaveCount(0);
+});
+
+test("blocks saving a new row when a required field is empty", async ({ page }) => {
+  // Add a new row and fill only the non-required Score, leaving Account empty.
+  await cell(page, 4, 0).click();
+  await page.keyboard.press("ArrowDown");
+  await cell(page, 5, 2).click();
+  await page.keyboard.press("Enter");
+  await page.getByLabel("Score").fill("50");
+  await page.getByLabel("Score").press("Enter");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(cell(page, 5, 0)).toHaveClass(/jj-sheet-td-invalid/);
+  await expect(page.getByText("This field is required.")).toBeVisible();
+});
+
+test("surfaces a server error inline when a save is rejected", async ({ page }) => {
+  // The harness rejects saving the account named exactly "REJECT".
+  await startEdit(page, 0, 0);
+  await page.getByLabel("Account").fill("REJECT");
+  await page.getByLabel("Account").press("Enter");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Server refused this record")).toBeVisible();
+  await expect(
+    page.locator("tr", { hasText: "REJECT" }).first(),
+  ).toHaveClass(/jj-sheet-row-error/);
+});

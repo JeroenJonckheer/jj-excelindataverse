@@ -19,7 +19,8 @@ import { computeColumnWidths } from "../services/columns";
 const SELECT_COL_WIDTH = 36;
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
-import { isLookupValue } from "../services/format";
+import { isLookupValue, isEmpty } from "../services/format";
+import { serverErrorMessage } from "../services/errors";
 import {
   parseClipboard,
   parseHtmlClipboard,
@@ -902,6 +903,27 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const handleSave = async () => {
     if ((dirtyCount === 0 && deleteCount === 0) || errorCount > 0 || saving) return;
+
+    // Proactive, metadata-driven validation before sending: a new row being
+    // created must have its required fields filled. (Edited cells are already
+    // validated as they are entered; an untouched required cell on a new row
+    // would otherwise only be caught by a server rejection.)
+    const requiredErrors: Record<string, string> = {};
+    for (const id of newRows) {
+      const hasAnyDraft = columns.some((c) => cellKey(id, c.name) in drafts);
+      if (!hasAnyDraft) continue; // an empty new row is ignored, not created
+      for (const col of columns) {
+        if (!col.editable || col.required !== "required") continue;
+        const key = cellKey(id, col.name);
+        const value = key in drafts ? drafts[key].value : null;
+        if (isEmpty(value)) requiredErrors[key] = "This field is required.";
+      }
+    }
+    if (Object.keys(requiredErrors).length > 0) {
+      setErrors((e) => ({ ...e, ...requiredErrors }));
+      return; // the invalid cells now block saving until they are filled
+    }
+
     setSaving(true);
 
     // Group the pending edits per record.
@@ -938,8 +960,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           }
           savedRecords.push(recordId);
         } catch (err) {
-          failures[recordId] =
-            err instanceof Error ? err.message : String(err);
+          failures[recordId] = serverErrorMessage(err);
         }
       }),
     );
@@ -952,7 +973,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           await onDelete(recordId);
           deletedRecords.push(recordId);
         } catch (err) {
-          failures[recordId] = err instanceof Error ? err.message : String(err);
+          failures[recordId] = serverErrorMessage(err);
         }
       }),
     );
