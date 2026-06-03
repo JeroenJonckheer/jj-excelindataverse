@@ -195,10 +195,19 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     ds.refresh?.();
   }, []);
 
+  // Give the control the height the host allocates so the grid scrolls inside
+  // itself (and the header can stay pinned) instead of growing the page.
+  const allocatedHeight = (context.mode as unknown as { allocatedHeight?: number })
+    .allocatedHeight;
+  const rootStyle: React.CSSProperties | undefined =
+    typeof allocatedHeight === "number" && allocatedHeight > 0
+      ? { height: allocatedHeight }
+      : undefined;
+
   if (!entityName) {
     return React.createElement(
       FluentProvider,
-      { theme, className: "jj-sheet-root" },
+      { theme, className: "jj-sheet-root", style: rootStyle },
       <div className="jj-sheet-message">
         Bind this control to a view or subgrid to start editing.
       </div>,
@@ -206,7 +215,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   }
 
   return (
-    <FluentProvider theme={theme} className="jj-sheet-fluent">
+    <FluentProvider theme={theme} className="jj-sheet-fluent" style={rootStyle}>
       <SpreadsheetGrid
         columns={columns}
         rows={rows}
