@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.2] - 2026-06-03
+
+### Changed
+- The freeze control is now a clear thumbtack (pin) icon drawn as inline SVG,
+  instead of the earlier teardrop shape.
+
 ## [0.6.1] - 2026-06-03
 
 ### Changed

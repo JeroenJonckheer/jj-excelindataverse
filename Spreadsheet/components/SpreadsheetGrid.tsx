@@ -1274,7 +1274,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         e.stopPropagation();
                         toggleFreeze(i);
                       }}
-                    />
+                    >
+                      <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+                        {/* A thumbtack: round head and a straight needle. */}
+                        <circle cx="8" cy="5" r="3.3" />
+                        <rect x="7.3" y="7.8" width="1.4" height="6" rx="0.7" />
+                      </svg>
+                    </span>
                     <span
                       className="jj-sheet-resize-handle"
                       aria-hidden="true"

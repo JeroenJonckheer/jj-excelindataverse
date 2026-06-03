@@ -403,29 +403,33 @@
   border-right: 2px solid var(--colorNeutralStroke1, #d1d1d1);
 }
 
-/* The freeze pin in a column header: hidden until you hover the header, shown
-   filled when that column is frozen. Positioned at the right edge (just left of
-   the resize handle) so it does not sit under a header click-to-sort. Drawn as a
-   small teardrop "pin" shape - no glyphs or emoji. */
+/* The freeze pin in a column header: an inline-SVG thumbtack. Hidden until you
+   hover the header, brand-coloured when that column is frozen. Positioned at the
+   right edge (just left of the resize handle) so it does not sit under a header
+   click-to-sort. No glyphs or emoji. */
 .jj-sheet-pin {
   display: none;
   position: absolute;
   right: 12px;
   top: 50%;
-  width: 9px;
-  height: 9px;
+  transform: translateY(-50%);
+  line-height: 0;
   cursor: pointer;
-  border: 1.5px solid var(--colorNeutralForeground3, #616161);
-  border-radius: 50% 50% 50% 0;
-  transform: translateY(-50%) rotate(45deg);
+  color: var(--colorNeutralForeground3, #616161);
+}
+.jj-sheet-pin svg {
+  display: block;
+  fill: currentColor;
+}
+.jj-sheet-pin:hover {
+  color: var(--colorNeutralForeground1, #242424);
 }
 .jj-sheet-th:hover .jj-sheet-pin {
   display: block;
 }
 .jj-sheet-pin-on {
   display: block;
-  background: var(--colorBrandBackground, #0f6cbd);
-  border-color: var(--colorBrandBackground, #0f6cbd);
+  color: var(--colorBrandBackground, #0f6cbd);
 }
 
 .jj-sheet-select-td {
