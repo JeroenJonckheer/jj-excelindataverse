@@ -744,6 +744,13 @@ describe("sorting and resizing", () => {
     const col = container.querySelectorAll("colgroup col")[1] as HTMLElement;
     expect(col.style.width).toBe("48px");
   });
+
+  it("marks the first column (and its header) as frozen", () => {
+    const { container } = renderGrid();
+    expect(cell(container, 0, 0).className).toContain("jj-sheet-col-frozen");
+    const firstHeader = container.querySelectorAll("thead th")[1] as HTMLElement;
+    expect(firstHeader.className).toContain("jj-sheet-col-frozen");
+  });
 });
 
 describe("range selection", () => {

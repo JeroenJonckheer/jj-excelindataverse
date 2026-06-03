@@ -93,6 +93,9 @@ validated just like a typed value.
   widens (or narrows) to fit the header and the visible cell contents.
 - **Reorder** columns by dragging a column header onto another; a blue line shows
   where it will land.
+- The **first column stays frozen** when you scroll the grid horizontally, so the
+  leading column (and the row checkboxes) remain in view - like a spreadsheet's
+  frozen first column.
 - **Column widths** follow the view: each column uses its configured pixel
   width. When the columns do not all fit, the grid scrolls horizontally; when
   there is room to spare they stretch proportionally to fill the width (a narrow

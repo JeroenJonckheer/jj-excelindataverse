@@ -92,7 +92,7 @@
      with position:relative. */
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
 }
 
 .jj-sheet-th-sortable {
@@ -373,6 +373,34 @@
   vertical-align: middle;
   padding: 0;
   border-right: 1px solid var(--colorNeutralStroke3, #f0f0f0);
+}
+
+/* ---- Frozen first column (and the selection column) ----
+   They stick to the left while scrolling the grid horizontally, the way the
+   header sticks to the top. The selection column sits at the very left; the
+   first data column sits right after it (the selection column is 36px wide). */
+.jj-sheet-select-th,
+.jj-sheet-select-td {
+  position: sticky;
+  left: 0;
+}
+.jj-sheet-col-frozen {
+  position: sticky;
+  left: 36px;
+}
+/* Body sticky cells overlap the scrolling cells, so they need an opaque
+   background; the selection outline (box-shadow) still shows on top. Headers
+   keep their own (grey) background. */
+.jj-sheet-select-td,
+.jj-sheet-td.jj-sheet-col-frozen {
+  background: var(--colorNeutralBackground1, #ffffff);
+  z-index: 1;
+}
+/* Header corners must stay above both the sticky header row and the frozen
+   body column. */
+.jj-sheet-th.jj-sheet-select-th,
+.jj-sheet-th.jj-sheet-col-frozen {
+  z-index: 3;
 }
 
 .jj-sheet-select-td {

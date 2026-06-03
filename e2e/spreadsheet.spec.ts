@@ -196,6 +196,31 @@ test("auto-fits a column on double-clicking its border", async ({ page }) => {
   expect(fits).toBe(true);
 });
 
+test("keeps the first column frozen when scrolling horizontally", async ({ page }) => {
+  // Widen the Score column so the grid overflows horizontally.
+  const handle = page.locator("thead th").nth(3).locator(".jj-sheet-resize-handle");
+  const box = await handle.boundingBox();
+  if (!box) throw new Error("no resize handle");
+  await page.mouse.move(box.x + 3, box.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 900, box.y + 5, { steps: 8 });
+  await page.mouse.up();
+
+  const frozenBefore = await cell(page, 0, 0).boundingBox();
+  const farBefore = await cell(page, 0, 5).boundingBox();
+  await page.locator(".jj-sheet").evaluate((el) => {
+    el.scrollLeft = 400;
+  });
+  await page.waitForTimeout(50);
+  const frozenAfter = await cell(page, 0, 0).boundingBox();
+  const farAfter = await cell(page, 0, 5).boundingBox();
+
+  // The far column scrolled left (the scroll really happened)...
+  expect((farAfter?.x ?? 0)).toBeLessThan((farBefore?.x ?? 0) - 100);
+  // ...but the first column stayed put (frozen).
+  expect(Math.abs((frozenAfter?.x ?? 0) - (frozenBefore?.x ?? 0))).toBeLessThan(2);
+});
+
 test("opens the record on double-click", async ({ page }) => {
   const messages: string[] = [];
   page.on("console", (m) => messages.push(m.text()));

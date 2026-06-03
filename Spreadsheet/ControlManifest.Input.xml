@@ -7,7 +7,7 @@
 <manifest>
   <control namespace="Grids"
            constructor="Spreadsheet"
-           version="0.5.0"
+           version="0.6.0"
            display-name-key="Spreadsheet_Display"
            description-key="Spreadsheet_Desc"
            control-type="virtual">

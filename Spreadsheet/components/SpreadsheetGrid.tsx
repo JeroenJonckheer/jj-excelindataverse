@@ -1195,6 +1195,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                 const thClasses = [
                   "jj-sheet-th",
                   onSort ? "jj-sheet-th-sortable" : "",
+                  i === 0 ? "jj-sheet-col-frozen" : "",
                   dragOverCol === c.name ? "jj-sheet-th-dragover" : "",
                 ]
                   .filter(Boolean)
@@ -1307,6 +1308,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const classNames = [
                       "jj-sheet-td",
                       col.editable ? "jj-sheet-td-editable" : "jj-sheet-td-readonly",
+                      colIndex === 0 ? "jj-sheet-col-frozen" : "",
                       isActive ? "jj-sheet-td-active" : "",
                       selected ? "jj-sheet-td-selected" : "",
                       fillTarget ? "jj-sheet-td-fill" : "",
