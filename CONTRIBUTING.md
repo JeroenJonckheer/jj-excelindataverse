@@ -42,6 +42,21 @@ runs in GitHub Actions on every push and pull request.
 | `npm run test:e2e` | Playwright end-to-end tests against the harness |
 | `npm run verify` | All of the above plus the build, in order |
 
+## Tests travel with the change
+
+Every functional addition or change ships with repeatable test steps for that
+change, at the level that proves it:
+
+- pure logic gets a unit test (for example `selection.ts`, `fill.ts`);
+- component behaviour gets a React Testing Library test;
+- anything that depends on real browser events - mouse drag, the fill handle,
+  clipboard copy/paste - gets a Playwright end-to-end test in `e2e/`.
+
+The whole suite is repeatable and runs from one command (`npm run verify`), so a
+feature is not done until its tests are in and green. Also bump the version (see
+[version.ts](Spreadsheet/services/version.ts) and the manifest) on every
+deployed change, so the footer makes the live build obvious.
+
 ## Pull requests
 
 1. Fork the repo and create a topic branch (`feature/...` or `fix/...`).

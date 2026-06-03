@@ -27,6 +27,33 @@ function pasteInto(page: Page, text: string) {
   }, text);
 }
 
+// Dispatches a copy event with a recording clipboardData and returns what the
+// control wrote, so we can assert the copied TSV/HTML without OS clipboard.
+function copySelection(page: Page) {
+  return page.evaluate(() => {
+    const grid = document.querySelector('[role="grid"]') as HTMLElement;
+    const data: Record<string, string> = {};
+    const event = new Event("copy", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { setData: (type: string, value: string) => (data[type] = value) },
+    });
+    grid.dispatchEvent(event);
+    return data;
+  });
+}
+
+// Drags from the centre of one cell to another, holding the primary button so
+// the selection extends the way a real drag does.
+async function dragCells(page: Page, from: [number, number], to: [number, number]) {
+  const a = await cell(page, from[0], from[1]).boundingBox();
+  const b = await cell(page, to[0], to[1]).boundingBox();
+  if (!a || !b) throw new Error("cell not found for drag");
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 8 });
+  await page.mouse.up();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
   await expect(cell(page, 0, 0)).toContainText("Acme Corporation");
@@ -143,4 +170,92 @@ test("opens the record on double-click", async ({ page }) => {
   await expect
     .poll(() => messages.some((t) => t.includes("open record")))
     .toBeTruthy();
+});
+
+// ---- Brok A: range selection, copy, aggregates, range delete ----
+
+test("selects a range with shift+click and frames the whole block", async ({ page }) => {
+  await cell(page, 0, 1).click();
+  await cell(page, 2, 2).click({ modifiers: ["Shift"] });
+  // Every cell in the 3x2 rectangle is part of the selection.
+  await expect(cell(page, 0, 1)).toHaveClass(/jj-sheet-td-selected/);
+  await expect(cell(page, 2, 2)).toHaveClass(/jj-sheet-td-selected/);
+  await expect(cell(page, 1, 1)).toHaveClass(/jj-sheet-td-selected/);
+});
+
+test("selects a range by dragging the mouse", async ({ page }) => {
+  await dragCells(page, [0, 0], [2, 0]);
+  await expect(cell(page, 0, 0)).toHaveClass(/jj-sheet-td-selected/);
+  await expect(cell(page, 2, 0)).toHaveClass(/jj-sheet-td-selected/);
+});
+
+test("shows an Excel-style aggregate for a numeric selection", async ({ page }) => {
+  // Score column (col 2): row 1 = 40, row 2 = 88.
+  await cell(page, 1, 2).click();
+  await cell(page, 2, 2).click({ modifiers: ["Shift"] });
+  await expect(page.getByText(/Count 2.*Sum 128.*Average 64/)).toBeVisible();
+});
+
+test("copies the selected range as TSV and HTML", async ({ page }) => {
+  await cell(page, 0, 0).click();
+  await cell(page, 1, 0).click({ modifiers: ["Shift"] });
+  const data = await copySelection(page);
+  expect(data["text/plain"]).toBe("Acme Corporation\r\nGlobex");
+  expect(data["text/html"]).toContain("<table>");
+});
+
+test("clears a selected range with Delete and stays responsive", async ({ page }) => {
+  await cell(page, 0, 2).click();
+  await cell(page, 1, 2).click({ modifiers: ["Shift"] });
+  await page.keyboard.press("Delete");
+  await expect(cell(page, 0, 2)).toHaveText("");
+  await expect(cell(page, 1, 2)).toHaveText("");
+  await expect(page.getByText(/2 pending changes/)).toBeVisible();
+  // The grid is not stuck: a fresh click still selects another cell.
+  await cell(page, 3, 0).click();
+  await expect(cell(page, 3, 0)).toHaveClass(/jj-sheet-td-active/);
+});
+
+// ---- Brok B: fill handle ----
+
+test("fills a value down with the fill handle", async ({ page }) => {
+  await cell(page, 1, 2).click(); // Score = 40
+  const handle = cell(page, 1, 2).locator(".jj-sheet-fill-handle");
+  await expect(handle).toBeVisible();
+  const h = await handle.boundingBox();
+  const target = await cell(page, 3, 2).boundingBox();
+  if (!h || !target) throw new Error("missing fill handle or target");
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect(cell(page, 2, 2)).toHaveText("40");
+  await expect(cell(page, 3, 2)).toHaveText("40");
+});
+
+test("fills a numeric series with the fill handle", async ({ page }) => {
+  // Make a clean 1, 2 series in the Score column.
+  await startEdit(page, 0, 2);
+  await page.getByLabel("Score").fill("1");
+  await page.getByLabel("Score").press("Enter");
+  await startEdit(page, 1, 2);
+  await page.getByLabel("Score").fill("2");
+  await page.getByLabel("Score").press("Enter");
+  // Select both and drag the handle down two rows.
+  await cell(page, 0, 2).click();
+  await cell(page, 1, 2).click({ modifiers: ["Shift"] });
+  const handle = cell(page, 1, 2).locator(".jj-sheet-fill-handle");
+  const h = await handle.boundingBox();
+  const target = await cell(page, 3, 2).boundingBox();
+  if (!h || !target) throw new Error("missing fill handle or target");
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await expect(cell(page, 2, 2)).toHaveText("3");
+  await expect(cell(page, 3, 2)).toHaveText("4");
 });
