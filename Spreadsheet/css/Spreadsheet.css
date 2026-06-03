@@ -84,14 +84,12 @@
   text-overflow: ellipsis;
   /* Sticks to the top while scrolling the grid. Safe to use z-index because the
      grid container (.jj-sheet) isolates its stacking context, so this does not
-     float above the host's modal dim. */
+     float above the host's modal dim. position:sticky is itself a positioned
+     element, so the absolute resize handle anchors to it - do not override this
+     with position:relative. */
   position: sticky;
   top: 0;
   z-index: 1;
-}
-
-.jj-sheet-th {
-  position: relative;
 }
 
 .jj-sheet-th-sortable {
