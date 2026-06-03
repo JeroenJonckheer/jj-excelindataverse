@@ -90,6 +90,18 @@ test("offers lookup autocomplete and selects an existing record", async ({ page 
   await expect(cell(page, 0, 6)).toContainText("Mary Major");
 });
 
+test("clears the pending mark when a cell is set back to its original value", async ({ page }) => {
+  await startEdit(page, 0, 0);
+  await page.getByLabel("Account").fill("Temporary");
+  await page.getByLabel("Account").press("Enter");
+  await expect(page.getByText(/1 pending change/)).toBeVisible();
+  await startEdit(page, 0, 0);
+  await page.getByLabel("Account").fill("Acme Corporation");
+  await page.getByLabel("Account").press("Enter");
+  await expect(page.getByText(/No pending changes/)).toBeVisible();
+  await expect(cell(page, 0, 0)).not.toHaveClass(/jj-sheet-td-dirty/);
+});
+
 test("blocks invalid input and disables saving", async ({ page }) => {
   await startEdit(page, 0, 2);
   const input = page.getByLabel("Score");

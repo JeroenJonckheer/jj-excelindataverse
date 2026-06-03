@@ -30,6 +30,25 @@ export function isEmpty(value: CellValue): boolean {
   return false;
 }
 
+/**
+ * Compares two cell values for equality, handling the kinds a cell can hold
+ * (lookups by id, dates by time, choice arrays by members). Used to recognise an
+ * edit that returns a cell to its original value, so it is no longer marked as a
+ * pending change.
+ */
+export function valuesEqual(a: CellValue, b: CellValue): boolean {
+  if (isEmpty(a) && isEmpty(b)) return true;
+  if (isEmpty(a) !== isEmpty(b)) return false;
+  if (isLookupValue(a) && isLookupValue(b)) {
+    return a.id === b.id && a.entityType === b.entityType;
+  }
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => v === b[i]);
+  }
+  return a === b;
+}
+
 /** Pads a number to two digits, used when formatting dates. */
 function pad2(n: number): string {
   return n < 10 ? "0" + n : String(n);

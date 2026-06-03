@@ -255,6 +255,26 @@ describe("validation", () => {
     expect(screen.getByText("This field is required.")).toBeInTheDocument();
   });
 
+  it("drops the pending change when a cell is returned to its original value", () => {
+    const { container } = renderGrid();
+    // r1 Name starts as "Acme"; change it, then change it back.
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "O" });
+    let input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Other" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
+    expect(cell(container, 0, 0).className).toContain("jj-sheet-td-dirty");
+
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "A" });
+    input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Acme" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText(/No pending changes/)).toBeInTheDocument();
+    expect(cell(container, 0, 0).className).not.toContain("jj-sheet-td-dirty");
+  });
+
   // ---- Brok C: validation ----
 
   it("blocks saving a new row that has an empty required field", () => {

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-06-03
+
+### Changed
+- An edit that returns a cell to its original saved value is no longer kept as a
+  pending change: the dirty marker, the pending count and the save all drop the
+  no-op edit (invalid cells and pending lookups are still kept).
+
 ## [0.4.1] - 2026-06-03
 
 ### Changed

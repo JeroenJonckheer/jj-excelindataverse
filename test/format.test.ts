@@ -14,6 +14,7 @@ import {
   parseDate,
   parseInput,
   parseNumber,
+  valuesEqual,
 } from "../Spreadsheet/services/format";
 import type { ColumnDef } from "../Spreadsheet/services/types";
 
@@ -28,6 +29,29 @@ function col(partial: Partial<ColumnDef>): ColumnDef {
     ...partial,
   };
 }
+
+describe("valuesEqual", () => {
+  it("treats different kinds of empty as equal", () => {
+    expect(valuesEqual(null, "")).toBe(true);
+    expect(valuesEqual("   ", null)).toBe(true);
+  });
+  it("compares primitives", () => {
+    expect(valuesEqual(5, 5)).toBe(true);
+    expect(valuesEqual(5, 6)).toBe(false);
+    expect(valuesEqual("Acme", "Acme")).toBe(true);
+    expect(valuesEqual("Acme", "Other")).toBe(false);
+  });
+  it("compares lookups by id and table", () => {
+    const a = { id: "1", name: "Jane", entityType: "contact" };
+    expect(valuesEqual(a, { id: "1", name: "Jane Doe", entityType: "contact" })).toBe(true);
+    expect(valuesEqual(a, { id: "2", name: "Jane", entityType: "contact" })).toBe(false);
+  });
+  it("compares dates by time and empty vs filled", () => {
+    expect(valuesEqual(new Date(2026, 0, 1), new Date(2026, 0, 1))).toBe(true);
+    expect(valuesEqual(new Date(2026, 0, 1), new Date(2026, 0, 2))).toBe(false);
+    expect(valuesEqual(null, 5)).toBe(false);
+  });
+});
 
 describe("isEmpty", () => {
   it("treats null, undefined, blank strings and empty arrays as empty", () => {

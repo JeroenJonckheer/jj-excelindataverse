@@ -19,7 +19,7 @@ import { computeColumnWidths } from "../services/columns";
 const SELECT_COL_WIDTH = 36;
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
-import { isLookupValue, isEmpty, formatValue } from "../services/format";
+import { isLookupValue, isEmpty, formatValue, valuesEqual } from "../services/format";
 import { serverErrorMessage } from "../services/errors";
 import {
   parseClipboard,
@@ -319,6 +319,20 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     return key in drafts ? drafts[key].display : row.display[col.name] ?? "";
   };
 
+  // The original (saved) rows by id, so a committed edit can be compared against
+  // the starting value and a no-op edit can be dropped instead of staying dirty.
+  const originalById = React.useMemo(() => {
+    const map = new Map<string, GridRow>();
+    for (const r of rows) map.set(r.recordId, r);
+    return map;
+  }, [rows]);
+  const originalOf = (recordId: string, col: ColumnDef): CellValue => {
+    const orig = originalById.get(recordId);
+    if (orig) return orig.raw[col.name];
+    // A new row starts from its metadata defaults (shown but not yet a change).
+    return newRowDefaults.raw[col.name] ?? null;
+  };
+
   // Numeric aggregates for the status bar, like Excel. Only meaningful for a
   // multi-cell selection.
   const selectionStats: (Aggregates & { count: number }) | null =
@@ -347,7 +361,16 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     error: string | null,
   ) => {
     const key = cellKey(recordId, col.name);
-    setDrafts((d) => ({ ...d, [key]: { value, display } }));
+    // An edit that returns the cell to its original (saved) value is not a
+    // change: drop the draft instead of leaving it marked as pending. Cells with
+    // an error (invalid, or a pending lookup) are always kept.
+    const isNoOp = !error && valuesEqual(value, originalOf(recordId, col));
+    setDrafts((d) => {
+      const next = { ...d };
+      if (isNoOp) delete next[key];
+      else next[key] = { value, display };
+      return next;
+    });
     setErrors((e) => {
       const nextErrors = { ...e };
       if (error) nextErrors[key] = error;
