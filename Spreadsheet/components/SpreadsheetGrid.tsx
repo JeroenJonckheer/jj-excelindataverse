@@ -34,6 +34,7 @@ import {
   rangeSize,
   type Aggregates,
 } from "../services/selection";
+import { planColumnFill } from "../services/fill";
 import { CellEditor } from "./CellEditor";
 import { Footer } from "./Footer";
 
@@ -117,6 +118,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [anchor, setAnchor] = React.useState<CellAddress | null>(null);
   // Mouse is held down and dragging a selection.
   const draggingRef = React.useRef(false);
+  // Fill handle drag: filling true while dragging the corner handle; fillTo is
+  // the cell the cursor is over (drives the preview and the applied fill).
+  const fillingRef = React.useRef(false);
+  const fillToRef = React.useRef<CellAddress | null>(null);
+  const [fillTo, setFillTo] = React.useState<CellAddress | null>(null);
   const [editing, setEditing] = React.useState(false);
   const [editText, setEditText] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -218,15 +224,36 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     !!active &&
     !!selStart &&
     rangeIncludes(selStart, active, { rowIndex, colIndex });
+  const selBounds = active && selStart ? rangeBounds(selStart, active) : null;
 
-  // A drag releases anywhere; clear the dragging flag on any mouse up.
+  // A drag (selection or fill) releases anywhere. The handler is kept in a ref
+  // so the single document listener always runs against the latest state.
+  const onDocumentMouseUpRef = React.useRef<() => void>(() => undefined);
   React.useEffect(() => {
-    const up = () => {
-      draggingRef.current = false;
-    };
+    const up = () => onDocumentMouseUpRef.current();
     document.addEventListener("mouseup", up);
     return () => document.removeEventListener("mouseup", up);
   }, []);
+
+  // The cells a fill drag would write to (beyond the source selection), for the
+  // preview outline. Null when not filling or the cursor is back inside it.
+  const fillPreview = React.useMemo(() => {
+    if (!fillTo || !active || !selStart) return null;
+    const b = rangeBounds(selStart, active);
+    if (fillTo.rowIndex > b.bottom) {
+      return { top: b.bottom + 1, bottom: fillTo.rowIndex, left: b.left, right: b.right };
+    }
+    if (fillTo.rowIndex < b.top) {
+      return { top: fillTo.rowIndex, bottom: b.top - 1, left: b.left, right: b.right };
+    }
+    return null;
+  }, [fillTo, active, selStart]);
+  const inFillPreview = (rowIndex: number, colIndex: number): boolean =>
+    !!fillPreview &&
+    rowIndex >= fillPreview.top &&
+    rowIndex <= fillPreview.bottom &&
+    colIndex >= fillPreview.left &&
+    colIndex <= fillPreview.right;
 
   // Keep keyboard focus on the grid shell when not actively editing a cell.
   React.useEffect(() => {
@@ -369,15 +396,111 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     rowIndex: number,
     colIndex: number,
   ) => {
-    if (!draggingRef.current) return;
     // Self-heal a drag whose mouse-up was missed (for example released outside
-    // the host iframe): if the primary button is no longer down, stop dragging
-    // instead of letting plain hover keep extending the selection.
-    if ((e.buttons & 1) === 0) {
+    // the host iframe): if the primary button is no longer down, stop instead
+    // of letting plain hover keep extending.
+    const buttonUp = (e.buttons & 1) === 0;
+    if (fillingRef.current) {
+      if (buttonUp) {
+        fillingRef.current = false;
+        setFillTo(null);
+        return;
+      }
+      const to = { rowIndex, colIndex };
+      fillToRef.current = to;
+      setFillTo(to);
+      return;
+    }
+    if (!draggingRef.current) return;
+    if (buttonUp) {
       draggingRef.current = false;
       return;
     }
     setActive({ rowIndex, colIndex });
+  };
+
+  // Start dragging the fill handle from the selection's bottom-right corner.
+  const onFillStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!active || !selStart) return;
+    fillingRef.current = true;
+    const b = rangeBounds(selStart, active);
+    const corner = { rowIndex: b.bottom, colIndex: b.right };
+    fillToRef.current = corner;
+    setFillTo(corner);
+  };
+
+  // Apply the fill: continue each selected column down or up to the cursor row.
+  const applyFill = () => {
+    if (!active || !selStart) return;
+    const to = fillToRef.current;
+    if (!to) return;
+    const b = rangeBounds(selStart, active);
+    const downExtent = to.rowIndex - b.bottom;
+    const upExtent = b.top - to.rowIndex;
+    if (downExtent <= 0 && upExtent <= 0) return;
+    const direction = downExtent >= upExtent ? "forward" : "backward";
+    const targetRows: number[] = [];
+    if (direction === "forward") {
+      for (let r = b.bottom + 1; r <= to.rowIndex; r++) targetRows.push(r);
+    } else {
+      for (let r = b.top - 1; r >= to.rowIndex; r--) targetRows.push(r);
+    }
+    if (targetRows.length === 0) return;
+
+    record();
+    for (let c = b.left; c <= b.right; c++) {
+      const col = columns[c];
+      if (!col?.editable) continue;
+      const sourceCells: { value: CellValue; display: string; error: string | null }[] = [];
+      for (let r = b.top; r <= b.bottom; r++) {
+        const row = allRows[r];
+        sourceCells.push(
+          row
+            ? {
+                value: valueOf(row, col),
+                display: displayOf(row, col),
+                error: errors[cellKey(row.recordId, col.name)] ?? null,
+              }
+            : { value: null, display: "", error: null },
+        );
+      }
+      const sourceNumbers = sourceCells.map((s) =>
+        typeof s.value === "number" && Number.isFinite(s.value) ? s.value : null,
+      );
+      const plan = planColumnFill(
+        sourceNumbers,
+        targetRows.length,
+        direction,
+        col.kind === "number",
+      );
+      targetRows.forEach((tr, i) => {
+        const row = allRows[tr];
+        if (!row) return;
+        const item = plan[i];
+        if (item.value !== null) {
+          applyValue(row.recordId, col, item.value);
+        } else {
+          const src = sourceCells[item.sourceIndex] ?? sourceCells[0];
+          if (col.kind === "lookup") {
+            applyValue(row.recordId, col, src.value);
+          } else {
+            setDraft(row.recordId, col, src.value, src.display, src.error);
+          }
+        }
+      });
+    }
+  };
+
+  // Reassigned every render so the document mouse-up listener sees fresh state.
+  onDocumentMouseUpRef.current = () => {
+    draggingRef.current = false;
+    if (fillingRef.current) {
+      fillingRef.current = false;
+      applyFill();
+      setFillTo(null);
+    }
   };
 
   const onCellClick = (
@@ -971,11 +1094,18 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const dirty = key in drafts;
                     const selected =
                       selectionCount > 1 && inSelection(rowIndex, colIndex);
+                    const fillTarget = inFillPreview(rowIndex, colIndex);
+                    const isFillCorner =
+                      !!selBounds &&
+                      !editing &&
+                      rowIndex === selBounds.bottom &&
+                      colIndex === selBounds.right;
                     const classNames = [
                       "jj-sheet-td",
                       col.editable ? "jj-sheet-td-editable" : "jj-sheet-td-readonly",
                       isActive ? "jj-sheet-td-active" : "",
                       selected ? "jj-sheet-td-selected" : "",
+                      fillTarget ? "jj-sheet-td-fill" : "",
                       error ? "jj-sheet-td-invalid" : "",
                       dirty ? "jj-sheet-td-dirty" : "",
                     ]
@@ -1036,6 +1166,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                           <span className="jj-sheet-cell-text">
                             {displayOf(row, col)}
                           </span>
+                        )}
+                        {isFillCorner && (
+                          <span
+                            className="jj-sheet-fill-handle"
+                            aria-hidden="true"
+                            onMouseDown={onFillStart}
+                          />
                         )}
                       </td>
                     );

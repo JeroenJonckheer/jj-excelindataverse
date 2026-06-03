@@ -31,6 +31,9 @@ While editing, Enter and Tab commit the value and move on; Escape discards the c
 - **Ctrl+C** copies the selected range to the clipboard (tabs and line breaks,
   so it pastes straight into Excel or back into the grid).
 - **Delete** or **Backspace** clears every editable cell in the selection.
+- **Fill handle:** drag the small square at the bottom-right of the selection up
+  or down to fill the column. Numbers extrapolate (1, 2 becomes 3, 4, 5; a single
+  number is copied); other columns repeat the selected values.
 - The footer shows an Excel-style summary of the selection: the cell **count**,
   and the **sum** and **average** of the numeric cells.
 

@@ -719,3 +719,28 @@ describe("range selection", () => {
     expect(cell(container, 1, 1).className).not.toContain("jj-sheet-td-selected");
   });
 });
+
+describe("fill handle", () => {
+  it("shows a fill handle on the active cell", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 1));
+    expect(
+      cell(container, 0, 1).querySelector(".jj-sheet-fill-handle"),
+    ).not.toBeNull();
+  });
+
+  it("fills a value down when dragging the handle", () => {
+    const { container } = renderGrid();
+    // Select the Score cell of r1 (= 10).
+    fireEvent.click(cell(container, 0, 1));
+    const handle = cell(container, 0, 1).querySelector(
+      ".jj-sheet-fill-handle",
+    ) as HTMLElement;
+    fireEvent.mouseDown(handle);
+    fireEvent.mouseEnter(cell(container, 1, 1), { buttons: 1 });
+    fireEvent.mouseUp(document);
+    // r2's Score now copies r1's value.
+    expect(cell(container, 1, 1).textContent).toBe("10");
+    expect(screen.getByText(/pending change/)).toBeInTheDocument();
+  });
+});

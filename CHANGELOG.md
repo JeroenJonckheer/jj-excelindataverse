@@ -20,6 +20,9 @@ First release of JJ - Excel in Dataverse.
 - Lookup values render as Dataverse-style links (blue, underlined on hover);
   clicking one opens the referenced record.
 - Keyboard navigation with Tab, Enter and the arrow keys.
+- Fill handle: drag the bottom-right corner of the selection up or down to fill
+  the column - numbers extrapolate as a series (a single number copies), other
+  column types repeat the selected values.
 - Rectangular cell selection (Shift+click, Shift+Arrow, mouse drag), with an
   Excel-style status-bar summary (count, sum, average of the numeric cells),
   Ctrl+C copy of the range as tab-separated text and an HTML table, and Delete

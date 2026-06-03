@@ -206,6 +206,26 @@
   background: rgba(15, 108, 189, 0.14);
 }
 
+/* Cells a fill drag would write to, shown while dragging the fill handle. */
+.jj-sheet-td-fill {
+  background: rgba(15, 108, 189, 0.06);
+  box-shadow: inset 0 0 0 1px var(--colorBrandStroke2, #6cb8f6);
+}
+
+/* The little square at the bottom-right of the selection; drag to fill the
+   column down or up, like Excel. */
+.jj-sheet-fill-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 7px;
+  height: 7px;
+  background: var(--colorBrandBackground, #0f6cbd);
+  border: 1px solid #ffffff;
+  cursor: crosshair;
+  z-index: 3;
+}
+
 /* The required red border for an invalid cell. */
 .jj-sheet-td-invalid {
   box-shadow: inset 0 0 0 2px var(--colorPaletteRedBorderActive, #d13438);
