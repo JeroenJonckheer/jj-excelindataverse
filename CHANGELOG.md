@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-06-03
+
+### Added
+- New rows show the default values from the column metadata (choice and yes/no
+  columns); the server applies them on create, so they are display-only and an
+  untouched new row is still ignored.
+- Duplicate row: a right-click menu action that starts a new, unsaved row
+  pre-filled with the source row's editable values (read-only columns skipped).
+
 ## [0.3.0] - 2026-06-03
 
 ### Added

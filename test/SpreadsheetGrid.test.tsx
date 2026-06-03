@@ -38,6 +38,7 @@ function columns(): ColumnDef[] {
       kind: "choice",
       editable: true,
       required: "none",
+      defaultValue: 1,
       options: [
         { value: 1, label: "Open" },
         { value: 2, label: "Closed" },
@@ -757,6 +758,26 @@ describe("range selection", () => {
     // button held must not keep extending the selection.
     fireEvent.mouseEnter(cell(container, 1, 1), { buttons: 0 });
     expect(cell(container, 1, 1).className).not.toContain("jj-sheet-td-selected");
+  });
+});
+
+describe("defaults and duplicate (brok D)", () => {
+  it("shows the metadata default on a new row without marking it dirty", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 1, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
+    // Status (col 2) shows its default option label on the new row.
+    expect(cell(container, 2, 2).textContent).toContain("Open");
+    // Defaults are display-only, so there is no pending change yet.
+    expect(screen.getByText(/No pending changes/)).toBeInTheDocument();
+  });
+
+  it("duplicates a row into a new pre-filled row via the context menu", () => {
+    const { container } = renderGrid();
+    fireEvent.contextMenu(cell(container, 0, 0));
+    fireEvent.click(screen.getByText("Duplicate row"));
+    expect(cell(container, 2, 0).textContent).toContain("Acme");
+    expect(screen.getByText(/pending change/)).toBeInTheDocument();
   });
 });
 

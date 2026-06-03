@@ -49,6 +49,10 @@ last row - a new empty row appears, the way a spreadsheet keeps going. Pasting
 more rows than the grid currently has also adds the extra rows. New rows are
 created in Dataverse when you Save; an empty row you never fill in is ignored.
 
+A new row shows the **default values** from the column metadata (for choice and
+yes/no columns); the server applies them on create. **Right-click a row** and
+choose **Duplicate row** to start a new row pre-filled with that row's values.
+
 ## Pasting into lookup columns
 
 A spreadsheet cell only holds text, while a lookup stores a reference to a record.

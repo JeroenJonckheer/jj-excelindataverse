@@ -95,6 +95,56 @@ describe("enrichColumns", () => {
     expect(enriched.editable).toBe(true);
   });
 
+  it("reads the choice default value (DefaultFormValue)", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "PicklistAttributeMetadata",
+        body: {
+          RequiredLevel: { Value: "None" },
+          DefaultFormValue: 2,
+          OptionSet: { Options: [] },
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({}));
+    const [enriched] = await svc.enrichColumns("account", [
+      col({ name: "statuscode", kind: "choice" }),
+    ]);
+    expect(enriched.defaultValue).toBe(2);
+  });
+
+  it("treats a DefaultFormValue of -1 as no default", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "PicklistAttributeMetadata",
+        body: {
+          RequiredLevel: { Value: "None" },
+          DefaultFormValue: -1,
+          OptionSet: { Options: [] },
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({}));
+    const [enriched] = await svc.enrichColumns("account", [
+      col({ name: "statuscode", kind: "choice" }),
+    ]);
+    expect(enriched.defaultValue).toBeUndefined();
+  });
+
+  it("reads the boolean default value", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "BooleanAttributeMetadata",
+        body: { RequiredLevel: { Value: "None" }, DefaultValue: true, OptionSet: {} },
+      },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({}));
+    const [enriched] = await svc.enrichColumns("account", [
+      col({ name: "isvip", kind: "boolean", dataType: "TwoOptions" }),
+    ]);
+    expect(enriched.defaultValue).toBe(true);
+  });
+
   it("reads choice options", async () => {
     global.fetch = mockFetch([
       {

@@ -59,6 +59,7 @@ const META: ColumnDef[] = [
     kind: "choice",
     editable: true,
     required: "none",
+    defaultValue: 1,
     options: [
       { value: 1, label: "Lead" },
       { value: 2, label: "Qualified" },

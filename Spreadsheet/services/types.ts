@@ -87,6 +87,11 @@ export interface ColumnDef {
   lookupTargets?: string[];
   /** Relative width hint from the view (visual size factor). */
   visualSizeFactor?: number;
+  /**
+   * Default value from the column metadata, shown on a new row (boolean and
+   * choice columns). The server applies it on create, so it is display-only.
+   */
+  defaultValue?: CellValue;
 }
 
 /** Address of a single cell in the grid. */

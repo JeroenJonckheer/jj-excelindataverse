@@ -19,7 +19,7 @@ import { computeColumnWidths } from "../services/columns";
 const SELECT_COL_WIDTH = 36;
 import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
-import { isLookupValue, isEmpty } from "../services/format";
+import { isLookupValue, isEmpty, formatValue } from "../services/format";
 import { serverErrorMessage } from "../services/errors";
 import {
   parseClipboard,
@@ -206,13 +206,31 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const tableWidth =
     SELECT_COL_WIDTH + widths.reduce((a, b) => a + b, 0);
 
+  // Metadata default values shown on a new row (boolean and choice columns).
+  // Shown only - the server applies them on create - so a new row that the user
+  // never fills stays "empty" and is ignored.
+  const newRowDefaults = React.useMemo(() => {
+    const raw: Record<string, CellValue> = {};
+    const display: Record<string, string> = {};
+    for (const col of columns) {
+      if (col.defaultValue === undefined || col.defaultValue === null) continue;
+      raw[col.name] = col.defaultValue;
+      display[col.name] = formatValue(col.defaultValue, col);
+    }
+    return { raw, display };
+  }, [columns]);
+
   // The rendered rows are the bound dataset rows plus any unsaved new rows.
   const allRows: GridRow[] = React.useMemo(
     () => [
       ...rows,
-      ...newRows.map((id) => ({ recordId: id, raw: {}, display: {} })),
+      ...newRows.map((id) => ({
+        recordId: id,
+        raw: { ...newRowDefaults.raw },
+        display: { ...newRowDefaults.display },
+      })),
     ],
-    [rows, newRows],
+    [rows, newRows, newRowDefaults],
   );
   const dims = { rowCount: allRows.length, colCount: columns.length };
 
@@ -673,6 +691,25 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     if (!isNewRow(recordId)) onOpenRecord(recordId);
   };
 
+  // Duplicate a row into a new, unsaved row pre-filled with its editable values
+  // (created in Dataverse on save). Read-only columns are skipped.
+  const duplicateRow = (recordId: string) => {
+    setMenu(null);
+    const src = allRows.find((r) => r.recordId === recordId);
+    if (!src) return;
+    record();
+    const id = `${NEW_ROW_PREFIX}${++newRowIdRef.current}`;
+    setNewRows((nr) => [...nr, id]);
+    for (const col of columns) {
+      if (!col.editable) continue;
+      const value = valueOf(src, col);
+      if (isEmpty(value)) continue;
+      applyValue(id, col, value);
+    }
+    const firstEditable = Math.max(columns.findIndex((c) => c.editable), 0);
+    selectCell({ rowIndex: allRows.length, colIndex: firstEditable });
+  };
+
   const openMenu = (e: React.MouseEvent, recordId: string) => {
     e.preventDefault();
     setMenu({ x: e.clientX, y: e.clientY, recordId });
@@ -915,7 +952,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       for (const col of columns) {
         if (!col.editable || col.required !== "required") continue;
         const key = cellKey(id, col.name);
-        const value = key in drafts ? drafts[key].value : null;
+        // A required field counts as filled if it has a draft or a metadata
+        // default the server will apply on create.
+        const value = key in drafts ? drafts[key].value : col.defaultValue ?? null;
         if (isEmpty(value)) requiredErrors[key] = "This field is required.";
       }
     }
@@ -1235,6 +1274,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
               Open record
             </li>
           )}
+          <li
+            role="menuitem"
+            className="jj-sheet-menu-item"
+            onClick={() => duplicateRow(menu.recordId)}
+          >
+            Duplicate row
+          </li>
           <li role="menuitem" className="jj-sheet-menu-item" onClick={menuDelete}>
             {selectedRows.size > 1 && selectedRows.has(menu.recordId)
               ? `Delete ${selectedRows.size} rows`

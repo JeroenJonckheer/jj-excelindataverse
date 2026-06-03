@@ -296,3 +296,20 @@ test("surfaces a server error inline when a save is rejected", async ({ page }) 
     page.locator("tr", { hasText: "REJECT" }).first(),
   ).toHaveClass(/jj-sheet-row-error/);
 });
+
+// ---- Brok D: defaults on new rows and duplicate row ----
+
+test("shows the metadata default value on a new row", async ({ page }) => {
+  await cell(page, 4, 0).click();
+  await page.keyboard.press("ArrowDown");
+  // Status (col 3) shows its default option on the new row.
+  await expect(cell(page, 5, 3)).toContainText("Lead");
+});
+
+test("duplicates a row from the context menu", async ({ page }) => {
+  await cell(page, 0, 0).click({ button: "right" });
+  await page.getByText("Duplicate row").click();
+  // The new row at the bottom copies the source Account name.
+  await expect(cell(page, 5, 0)).toContainText("Acme Corporation");
+  await expect(page.getByText(/pending change/)).toBeVisible();
+});

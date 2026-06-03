@@ -161,22 +161,28 @@ export class DataverseService implements IDataverseService {
       }
       case "choice": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=RequiredLevel,IsValidForUpdate&$expand=OptionSet`,
+          `${base}/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=RequiredLevel,IsValidForUpdate,DefaultFormValue&$expand=OptionSet`,
         );
         const options = (meta?.OptionSet?.Options ?? []).map((o: any) => ({
           value: o.Value,
           label: o.Label?.UserLocalizedLabel?.Label ?? String(o.Value),
         }));
+        // DefaultFormValue is the option set's default; -1 means "no default".
+        const defaultValue =
+          typeof meta?.DefaultFormValue === "number" && meta.DefaultFormValue >= 0
+            ? meta.DefaultFormValue
+            : undefined;
         return {
           ...column,
           editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           options,
+          defaultValue,
         };
       }
       case "boolean": {
         const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=RequiredLevel,IsValidForUpdate&$expand=OptionSet`,
+          `${base}/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=RequiredLevel,IsValidForUpdate,DefaultValue&$expand=OptionSet`,
         );
         const os = meta?.OptionSet;
         const options = [
@@ -188,6 +194,8 @@ export class DataverseService implements IDataverseService {
           editable: editableFromMeta(column, meta),
           required: mapRequiredLevel(meta?.RequiredLevel?.Value),
           options,
+          defaultValue:
+            typeof meta?.DefaultValue === "boolean" ? meta.DefaultValue : undefined,
         };
       }
       case "lookup": {
