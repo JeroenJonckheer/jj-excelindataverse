@@ -59,15 +59,26 @@ interface ButtonProps {
   disabled?: boolean;
   appearance?: string;
   size?: string;
+  title?: string;
+  "aria-label"?: string;
+  "aria-pressed"?: boolean;
   onClick?: () => void;
 }
 
 export const Button: React.FC<ButtonProps> = ({
   children,
   disabled,
+  title,
   onClick,
+  ...rest
 }) => (
-  <button disabled={disabled} onClick={onClick}>
+  <button
+    disabled={disabled}
+    title={title}
+    aria-label={rest["aria-label"]}
+    aria-pressed={rest["aria-pressed"]}
+    onClick={onClick}
+  >
     {children}
   </button>
 );

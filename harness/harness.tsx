@@ -227,6 +227,20 @@ function matchesFilter(row: Record<string, CellValue>): boolean {
   );
 }
 
+// Paging, so the harness can exercise the footer paging controls. The page size
+// can be set from the URL (?pageSize=2) for the paging e2e test; it defaults to
+// showing everything on one page so the other tests see all rows.
+function readUrlPageSize(): number {
+  try {
+    const v = Number(new URLSearchParams(window.location.search).get("pageSize"));
+    return Number.isFinite(v) && v > 0 ? v : 100;
+  } catch {
+    return 100;
+  }
+}
+let pageSize = readUrlPageSize();
+let pageStart = 0;
+
 function sortedOrder(store: Store): string[] {
   const ids = ORDER.filter((id) => matchesFilter(store[id]));
   const sort = sortState[0];
@@ -266,6 +280,8 @@ function buildContext(
     owner: 180,
     forecast: 120,
   };
+  const allIds = sortedOrder(store);
+  const visibleIds = allIds.slice(pageStart, pageStart + pageSize);
   const dataset = {
     columns: META.map((c, i) => ({
       name: c.name,
@@ -274,9 +290,30 @@ function buildContext(
       order: i,
       visualSizeFactor: COL_PX[c.name] ?? 150,
     })),
-    sortedRecordIds: sortedOrder(store),
+    sortedRecordIds: visibleIds,
     records,
     sorting: [...sortState],
+    paging: {
+      pageSize,
+      totalResultCount: allIds.length,
+      hasNextPage: pageStart + pageSize < allIds.length,
+      hasPreviousPage: pageStart > 0,
+      loadNextPage: () => {
+        pageStart += pageSize;
+        force();
+      },
+      loadPreviousPage: () => {
+        pageStart = Math.max(0, pageStart - pageSize);
+        force();
+      },
+      setPageSize: (n: number) => {
+        pageSize = n;
+        pageStart = 0;
+      },
+      reset: () => {
+        pageStart = 0;
+      },
+    },
     filtering: {
       setFilter: (f: { conditions: HarnessCondition[] }) => {
         filterState = f;
@@ -295,7 +332,7 @@ function buildContext(
     loading: false,
   };
   return {
-    parameters: { records: dataset, pageSize: { raw: 100 } },
+    parameters: { records: dataset, pageSize: { raw: pageSize } },
     mode: { trackContainerResize: () => undefined, allocatedWidth: 1100 },
   } as unknown as ComponentFramework.Context<IInputs>;
 }

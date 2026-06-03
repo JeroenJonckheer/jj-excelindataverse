@@ -133,6 +133,14 @@ validated just like a typed value.
   only when you **Save** (and undoable with Ctrl+Z). Read-only and lookup cells
   are found but not replaced.
 
+## Paging through large views
+
+When the view has more records than fit on one page, paging controls appear in
+the footer: **‹** and **›** move to the previous and next page, with a count of
+the loaded rows out of the total. The page size comes from the control's
+**Page size** property (set by the maker). Pending edits are kept while you page,
+and saved together.
+
 ## Saving
 
 - Click **Save changes** in the footer to write all pending edits to Dataverse.

@@ -226,6 +226,20 @@ test("freezes pinned columns when scrolling horizontally", async ({ page }) => {
   expect(Math.abs((frozenAfter?.x ?? 0) - (frozenBefore?.x ?? 0))).toBeLessThan(2);
 });
 
+// ---- Brok G: dataset paging ----
+
+test("pages through records with the footer paging", async ({ page }) => {
+  // A small page size (via the harness URL) gives more than one page.
+  await page.goto("/?pageSize=2");
+  await expect(cell(page, 0, 0)).toContainText("Acme Corporation");
+  await expect(cell(page, 2, 0)).toHaveCount(0); // only two rows on a page
+  await expect(page.getByLabel("Page info")).toContainText("2 of 5");
+  await page.getByRole("button", { name: "Next page" }).click();
+  await expect(cell(page, 0, 0)).toContainText("Initech");
+  await page.getByRole("button", { name: "Previous page" }).click();
+  await expect(cell(page, 0, 0)).toContainText("Acme Corporation");
+});
+
 // ---- Brok F: find and replace ----
 
 test("finds matches with Ctrl+F", async ({ page }) => {

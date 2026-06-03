@@ -21,6 +21,15 @@ export interface FooterProps {
   message: string | null;
   onSave: () => void;
   onDeleteSelected: () => void;
+  /** Dataset paging: navigate pages when the view has more than one. */
+  paging?: {
+    hasPrevious: boolean;
+    hasNext: boolean;
+    total: number;
+    loaded: number;
+    onPrevious: () => void;
+    onNext: () => void;
+  };
 }
 
 /** Formats an aggregate number: integers as-is, otherwise up to two decimals. */
@@ -47,6 +56,7 @@ export const Footer: React.FC<FooterProps> = ({
   message,
   onSave,
   onDeleteSelected,
+  paging,
 }) => {
   const pending = dirtyCount + deleteCount;
   const canSave = pending > 0 && errorCount === 0 && !saving;
@@ -87,6 +97,33 @@ export const Footer: React.FC<FooterProps> = ({
         <span>{status}</span>
       </div>
       <div className="jj-sheet-footer-right">
+        {paging && (paging.hasPrevious || paging.hasNext) && (
+          <span className="jj-sheet-paging">
+            <Button
+              size="small"
+              appearance="subtle"
+              aria-label="Previous page"
+              title="Previous page"
+              disabled={!paging.hasPrevious}
+              onClick={paging.onPrevious}
+            >
+              {"‹"}
+            </Button>
+            <span className="jj-sheet-paging-info" aria-label="Page info">
+              {paging.total >= 0 ? `${paging.loaded} of ${paging.total}` : `${paging.loaded}`}
+            </span>
+            <Button
+              size="small"
+              appearance="subtle"
+              aria-label="Next page"
+              title="Next page"
+              disabled={!paging.hasNext}
+              onClick={paging.onNext}
+            >
+              {"›"}
+            </Button>
+          </span>
+        )}
         {aggregateText && (
           <span className="jj-sheet-agg" aria-label="Selection summary">
             {aggregateText}

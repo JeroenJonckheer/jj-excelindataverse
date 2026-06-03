@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-06-03
+
+### Added
+- Dataset paging: footer controls (previous / next, with a loaded-of-total count)
+  to move through views with more records than one page, wired to the dataset
+  paging API. The maker's Page size property is applied to the dataset. Pending
+  edits are kept across page navigation.
+
 ## [0.9.0] - 2026-06-03
 
 ### Added

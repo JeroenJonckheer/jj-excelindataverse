@@ -98,6 +98,14 @@ function renderGrid(overrides?: {
   onSort?: (columnName: string) => void;
   sortColumn?: string | null;
   sortDescending?: boolean;
+  paging?: {
+    hasPrevious: boolean;
+    hasNext: boolean;
+    total: number;
+    loaded: number;
+    onPrevious: () => void;
+    onNext: () => void;
+  };
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -134,6 +142,7 @@ function renderGrid(overrides?: {
       onSort={overrides?.onSort}
       sortColumn={overrides?.sortColumn ?? null}
       sortDescending={overrides?.sortDescending}
+      paging={overrides?.paging}
     />,
   );
   return {
@@ -842,6 +851,28 @@ describe("defaults and duplicate (brok D)", () => {
     fireEvent.click(screen.getByText("Duplicate row"));
     expect(cell(container, 2, 0).textContent).toContain("Acme");
     expect(screen.getByText(/pending change/)).toBeInTheDocument();
+  });
+});
+
+describe("paging (brok G)", () => {
+  it("shows the page info and navigates", () => {
+    const onNext = jest.fn();
+    const onPrevious = jest.fn();
+    renderGrid({
+      paging: { hasPrevious: false, hasNext: true, total: 5, loaded: 2, onPrevious, onNext },
+    });
+    expect(screen.getByLabelText("Page info").textContent).toContain("2 of 5");
+    const prev = screen.getByRole("button", { name: "Previous page" });
+    expect(prev).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides paging when there is a single page", () => {
+    renderGrid({
+      paging: { hasPrevious: false, hasNext: false, total: 3, loaded: 3, onPrevious: jest.fn(), onNext: jest.fn() },
+    });
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
   });
 });
 

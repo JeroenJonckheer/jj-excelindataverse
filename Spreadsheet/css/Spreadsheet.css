@@ -350,6 +350,20 @@
   white-space: nowrap;
 }
 
+/* Dataset paging controls in the footer. */
+.jj-sheet-paging {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.jj-sheet-paging-info {
+  color: var(--colorNeutralForeground3, #616161);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 56px;
+  text-align: center;
+}
+
 /* Excel-style selection summary (Count / Sum / Average) in the footer. */
 .jj-sheet-agg {
   color: var(--colorNeutralForeground3, #616161);

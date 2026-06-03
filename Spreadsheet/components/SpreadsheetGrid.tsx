@@ -73,6 +73,15 @@ export interface SpreadsheetGridProps {
   sortDescending?: boolean;
   /** Requests a sort on a column (the host re-queries the dataset). */
   onSort?: (columnName: string) => void;
+  /** Dataset paging info and navigation, surfaced in the footer. */
+  paging?: {
+    hasPrevious: boolean;
+    hasNext: boolean;
+    total: number;
+    loaded: number;
+    onPrevious: () => void;
+    onNext: () => void;
+  };
 }
 
 /** Prefix that marks an as-yet-unsaved new row. */
@@ -122,6 +131,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sortColumn,
   sortDescending,
   onSort,
+  paging,
 }) => {
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -1642,6 +1652,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         saving={saving}
         message={footerMessage}
         onSave={handleSave}
+        paging={paging}
       />
     </div>
   );

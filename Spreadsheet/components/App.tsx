@@ -94,6 +94,51 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     return buildRows(ids, records, columns);
   }, [columns, dataset.sortedRecordIds, dataset.records]);
 
+  // Apply the maker-configured page size to the dataset once (and on change), so
+  // the host pages the query rather than the control trying to load everything.
+  const desiredPageSize = (
+    context.parameters as unknown as { pageSize?: { raw?: number } }
+  ).pageSize?.raw;
+  React.useEffect(() => {
+    const ds = ctxRef.current.parameters.records as unknown as {
+      paging?: { pageSize?: number; setPageSize?: (n: number) => void };
+      refresh?: () => void;
+    };
+    if (
+      ds.paging?.setPageSize &&
+      typeof desiredPageSize === "number" &&
+      desiredPageSize > 0 &&
+      ds.paging.pageSize !== desiredPageSize
+    ) {
+      ds.paging.setPageSize(desiredPageSize);
+      ds.refresh?.();
+    }
+  }, [desiredPageSize]);
+
+  // Paging info and navigation for the footer.
+  const pagingApi = (dataset as unknown as {
+    paging?: {
+      hasPreviousPage?: boolean;
+      hasNextPage?: boolean;
+      totalResultCount?: number;
+      loadPreviousPage?: () => void;
+      loadNextPage?: () => void;
+    };
+  }).paging;
+  const paging = pagingApi
+    ? {
+        hasPrevious: !!pagingApi.hasPreviousPage,
+        hasNext: !!pagingApi.hasNextPage,
+        total:
+          typeof pagingApi.totalResultCount === "number"
+            ? pagingApi.totalResultCount
+            : -1,
+        loaded: (dataset.sortedRecordIds ?? []).length,
+        onPrevious: () => pagingApi.loadPreviousPage?.(),
+        onNext: () => pagingApi.loadNextPage?.(),
+      }
+    : undefined;
+
   const theme: Theme = React.useMemo(() => {
     const dark = !!(context as unknown as {
       fluentDesignLanguage?: { isDarkTheme?: boolean };
@@ -233,6 +278,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         sortColumn={sortColumn}
         sortDescending={sortDescending}
         onSort={onSort}
+        paging={paging}
         resolveLookup={resolveLookup}
         onSave={onSave}
         searchLookup={searchLookup}
