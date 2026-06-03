@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-06-03
+
+### Removed
+- The footer "Save as personal view" button. A PCF control cannot add to the
+  host's view selector or show the modified-view star, so the in-footer save felt
+  out of place. The underlying capability (DataverseService.savePersonalView)
+  stays in place but is no longer surfaced.
+
 ## [0.7.0] - 2026-06-03
 
 ### Added

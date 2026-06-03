@@ -185,28 +185,6 @@ test("reorders columns by dragging a header", async ({ page }) => {
   await expect(cell(page, 0, 0)).toContainText("Jane Doe");
 });
 
-test("saves the changed layout as a personal view", async ({ page }) => {
-  const messages: string[] = [];
-  page.on("console", (m) => messages.push(m.text()));
-  // No layout change yet -> no save-view button.
-  await expect(
-    page.getByRole("button", { name: "Save as personal view" }),
-  ).toHaveCount(0);
-
-  // Reorder a column to change the layout.
-  await page
-    .getByRole("columnheader", { name: "Owner" })
-    .dragTo(page.getByRole("columnheader", { name: "Account" }));
-
-  await page.getByRole("button", { name: "Save as personal view" }).click();
-  await page.getByLabel("Personal view name").fill("My account layout");
-  await page.getByRole("button", { name: "Save view" }).click();
-
-  await expect
-    .poll(() => messages.some((t) => t.includes("saved personal view 'My account layout'")))
-    .toBeTruthy();
-});
-
 test("auto-fits a column on double-clicking its border", async ({ page }) => {
   await startEdit(page, 0, 0);
   await page.getByLabel("Account").fill("A very very very long account name indeed");

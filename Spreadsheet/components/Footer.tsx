@@ -5,7 +5,7 @@
  */
 
 import * as React from "react";
-import { Button, Input, Spinner } from "@fluentui/react-components";
+import { Button, Spinner } from "@fluentui/react-components";
 import type { Aggregates } from "../services/selection";
 
 export interface FooterProps {
@@ -21,10 +21,6 @@ export interface FooterProps {
   message: string | null;
   onSave: () => void;
   onDeleteSelected: () => void;
-  /** Whether the column layout has changed and can be saved as a personal view. */
-  canSaveView?: boolean;
-  /** Saves the current layout as a personal view with the given name. */
-  onSaveView?: (name: string) => Promise<void>;
 }
 
 /** Formats an aggregate number: integers as-is, otherwise up to two decimals. */
@@ -51,28 +47,9 @@ export const Footer: React.FC<FooterProps> = ({
   message,
   onSave,
   onDeleteSelected,
-  canSaveView,
-  onSaveView,
 }) => {
   const pending = dirtyCount + deleteCount;
   const canSave = pending > 0 && errorCount === 0 && !saving;
-
-  // Inline "save as personal view" flow: a button reveals a name field.
-  const [namingView, setNamingView] = React.useState(false);
-  const [viewName, setViewName] = React.useState("");
-  const [savingView, setSavingView] = React.useState(false);
-  const commitView = async () => {
-    const name = viewName.trim();
-    if (!name || !onSaveView) return;
-    setSavingView(true);
-    try {
-      await onSaveView(name);
-      setNamingView(false);
-      setViewName("");
-    } finally {
-      setSavingView(false);
-    }
-  };
 
   // The Excel-style status-bar aggregate for the current selection.
   let aggregateText: string | null = null;
@@ -115,49 +92,6 @@ export const Footer: React.FC<FooterProps> = ({
             {aggregateText}
           </span>
         )}
-        {canSaveView &&
-          onSaveView &&
-          (namingView ? (
-            <span className="jj-sheet-saveview">
-              <Input
-                size="small"
-                value={viewName}
-                placeholder="Personal view name"
-                aria-label="Personal view name"
-                disabled={savingView}
-                autoFocus
-                onChange={(_e, data) => setViewName(data.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void commitView();
-                  if (e.key === "Escape") setNamingView(false);
-                }}
-              />
-              <Button
-                appearance="primary"
-                size="small"
-                disabled={savingView || viewName.trim().length === 0}
-                onClick={() => void commitView()}
-              >
-                {savingView ? "Saving..." : "Save view"}
-              </Button>
-              <Button
-                appearance="subtle"
-                size="small"
-                disabled={savingView}
-                onClick={() => setNamingView(false)}
-              >
-                Cancel
-              </Button>
-            </span>
-          ) : (
-            <Button
-              appearance="secondary"
-              size="small"
-              onClick={() => setNamingView(true)}
-            >
-              Save as personal view
-            </Button>
-          ))}
         {selectedCount > 0 && (
           <Button
             appearance="secondary"
