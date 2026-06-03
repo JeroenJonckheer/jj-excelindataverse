@@ -178,10 +178,6 @@
   cursor: default;
 }
 
-.jj-sheet-td-active {
-  box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
-}
-
 /* Unsaved change marker: a small corner triangle, like the standard Dynamics
    grid - not a full background tint. */
 .jj-sheet-td-dirty::before {
@@ -204,6 +200,14 @@
 }
 .jj-sheet-row:hover .jj-sheet-td-selected {
   background: rgba(15, 108, 189, 0.14);
+}
+
+/* The active cell stays white inside the selection block (like Excel's white
+   active cell), overriding the selection tint. The block's outline is drawn
+   per-edge as an inline box-shadow on the cells along the selection border. */
+.jj-sheet-td-active,
+.jj-sheet-row:hover .jj-sheet-td-active {
+  background: var(--colorNeutralBackground1, #ffffff);
 }
 
 /* Cells a fill drag would write to, shown while dragging the fill handle. */

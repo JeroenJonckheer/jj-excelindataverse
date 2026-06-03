@@ -1094,6 +1094,21 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const dirty = key in drafts;
                     const selected =
                       selectionCount > 1 && inSelection(rowIndex, colIndex);
+                    // Draw the selection outline only along the block's edges,
+                    // so the whole selection is framed once (like Excel) instead
+                    // of bordering just the active cell. Skipped for an invalid
+                    // cell so its red border stays visible.
+                    const inSel = inSelection(rowIndex, colIndex);
+                    let cellStyle: React.CSSProperties | undefined;
+                    if (inSel && selBounds && !error) {
+                      const c = "var(--colorBrandStroke1, #0f6cbd)";
+                      const edges: string[] = [];
+                      if (rowIndex === selBounds.top) edges.push(`inset 0 2px 0 0 ${c}`);
+                      if (rowIndex === selBounds.bottom) edges.push(`inset 0 -2px 0 0 ${c}`);
+                      if (colIndex === selBounds.left) edges.push(`inset 2px 0 0 0 ${c}`);
+                      if (colIndex === selBounds.right) edges.push(`inset -2px 0 0 0 ${c}`);
+                      if (edges.length > 0) cellStyle = { boxShadow: edges.join(", ") };
+                    }
                     const fillTarget = inFillPreview(rowIndex, colIndex);
                     const isFillCorner =
                       !!selBounds &&
@@ -1115,6 +1130,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       <td
                         key={col.name}
                         className={classNames}
+                        style={cellStyle}
                         role="gridcell"
                         aria-invalid={error ? true : undefined}
                         title={error ?? undefined}
