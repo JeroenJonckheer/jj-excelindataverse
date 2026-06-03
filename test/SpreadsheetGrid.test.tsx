@@ -718,6 +718,32 @@ describe("sorting and resizing", () => {
     const col = container.querySelectorAll("colgroup col")[1] as HTMLElement;
     expect(col.style.width).toBe("120px");
   });
+
+  it("reorders columns by dragging a header", () => {
+    const { container } = renderGrid();
+    const dataHeaders = () =>
+      Array.from(container.querySelectorAll("thead th"))
+        .slice(1)
+        .map((th) => th.querySelector("span")?.textContent);
+    expect(dataHeaders()).toEqual(["Name", "Score", "Status", "Owner"]);
+
+    const ths = container.querySelectorAll("thead th");
+    const dt = { setData: jest.fn(), getData: jest.fn(), effectAllowed: "", dropEffect: "" };
+    fireEvent.dragStart(ths[4], { dataTransfer: dt }); // Owner
+    fireEvent.dragOver(ths[1], { dataTransfer: dt }); // over Name
+    fireEvent.drop(ths[1], { dataTransfer: dt });
+    expect(dataHeaders()).toEqual(["Owner", "Name", "Score", "Status"]);
+  });
+
+  it("auto-fits a column on double-clicking its border", () => {
+    const { container } = renderGrid();
+    const handle = container.querySelectorAll(".jj-sheet-resize-handle")[0] as HTMLElement;
+    fireEvent.doubleClick(handle);
+    // jsdom reports a content width of 0, so the fit clamps to the minimum - this
+    // proves the auto-fit override was applied to the first data column.
+    const col = container.querySelectorAll("colgroup col")[1] as HTMLElement;
+    expect(col.style.width).toBe("48px");
+  });
 });
 
 describe("range selection", () => {

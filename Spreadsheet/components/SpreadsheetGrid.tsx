@@ -13,7 +13,12 @@ import type {
   PendingEdit,
 } from "../services/types";
 import type { GridRow } from "../services/dataset";
-import { computeColumnWidths } from "../services/columns";
+import {
+  computeColumnWidths,
+  fitColumnWidth,
+  moveColumn,
+  orderColumns,
+} from "../services/columns";
 
 /** Width (px) of the leading row-selection column. */
 const SELECT_COL_WIDTH = 36;
@@ -94,7 +99,7 @@ function isPrintable(e: React.KeyboardEvent): boolean {
  * props so the whole component can be exercised without a host context.
  */
 export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
-  columns,
+  columns: inputColumns,
   rows,
   version,
   onSave,
@@ -139,6 +144,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [menu, setMenu] = React.useState<{ x: number; y: number; recordId: string } | null>(null);
   // Manual per-column width overrides (pixels), keyed by column name.
   const [widthOverrides, setWidthOverrides] = React.useState<Record<string, number>>({});
+  // Manual column display order (a list of column names), null = view order.
+  const [columnOrder, setColumnOrder] = React.useState<string[] | null>(null);
+  const dragColRef = React.useRef<string | null>(null);
+  const [dragOverCol, setDragOverCol] = React.useState<string | null>(null);
+
+  // The columns in their display order. Everything below works off this, so a
+  // reorder flows through the header, body, widths, paste and navigation alike.
+  const columns = React.useMemo(
+    () => orderColumns(inputColumns, columnOrder),
+    [inputColumns, columnOrder],
+  );
 
   // Undo/redo history. Each user action (a committed edit, a delete or a paste)
   // records one snapshot of the pending state, so Ctrl+Z reverts the whole
@@ -687,6 +703,52 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     document.addEventListener("mouseup", up);
   };
 
+  // Double-click the column border to auto-fit the column to its widest content
+  // (header and visible cells), the way a spreadsheet does.
+  const autoFitColumn = (columnName: string, colIndex: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const widths: number[] = [];
+    const headerCells = el.querySelectorAll("thead th");
+    const headerSpan = headerCells[colIndex + 1]?.querySelector("span");
+    if (headerSpan) widths.push((headerSpan as HTMLElement).scrollWidth);
+    el.querySelectorAll(`td[data-col="${colIndex}"] .jj-sheet-cell-text`).forEach(
+      (s) => widths.push((s as HTMLElement).scrollWidth),
+    );
+    setWidthOverrides((prev) => ({ ...prev, [columnName]: fitColumnWidth(widths) }));
+  };
+
+  // ---- Column reorder by dragging a header ----
+
+  const onColDragStart = (e: React.DragEvent, columnName: string) => {
+    dragColRef.current = columnName;
+    e.dataTransfer.effectAllowed = "move";
+    // Firefox needs data set for the drag to start.
+    e.dataTransfer.setData("text/plain", columnName);
+  };
+  const onColDragOver = (e: React.DragEvent, columnName: string) => {
+    if (!dragColRef.current || dragColRef.current === columnName) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverCol !== columnName) setDragOverCol(columnName);
+  };
+  const onColDrop = (e: React.DragEvent, columnName: string) => {
+    e.preventDefault();
+    const drag = dragColRef.current;
+    dragColRef.current = null;
+    setDragOverCol(null);
+    if (!drag || drag === columnName) return;
+    setColumnOrder(moveColumn(columns.map((c) => c.name), drag, columnName));
+    // Column indices change, so collapse the selection to avoid a stale range.
+    setActive(null);
+    setAnchor(null);
+    setEditing(false);
+  };
+  const onColDragEnd = () => {
+    dragColRef.current = null;
+    setDragOverCol(null);
+  };
+
   // ---- Row selection, deletion and opening ----
 
   const toggleRowSelected = (recordId: string) => {
@@ -1123,20 +1185,32 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                   onChange={toggleSelectAll}
                 />
               </th>
-              {columns.map((c) => {
+              {columns.map((c, i) => {
                 const sorted = sortColumn === c.name;
                 const ariaSort = sorted
                   ? sortDescending
                     ? "descending"
                     : "ascending"
                   : "none";
+                const thClasses = [
+                  "jj-sheet-th",
+                  onSort ? "jj-sheet-th-sortable" : "",
+                  dragOverCol === c.name ? "jj-sheet-th-dragover" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <th
                     key={c.name}
                     scope="col"
-                    className={onSort ? "jj-sheet-th jj-sheet-th-sortable" : "jj-sheet-th"}
+                    className={thClasses}
                     aria-sort={ariaSort}
+                    draggable
                     onClick={() => onSort?.(c.name)}
+                    onDragStart={(e) => onColDragStart(e, c.name)}
+                    onDragOver={(e) => onColDragOver(e, c.name)}
+                    onDrop={(e) => onColDrop(e, c.name)}
+                    onDragEnd={onColDragEnd}
                   >
                     <span>{c.displayName}</span>
                     {c.required === "required" && (
@@ -1159,6 +1233,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       aria-hidden="true"
                       onMouseDown={(e) => onResizeStart(e, c.name)}
                       onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        autoFitColumn(c.name, i);
+                      }}
                     />
                   </th>
                 );

@@ -9,7 +9,10 @@ import {
   deriveKind,
   deriveTextFormat,
   distributeWidths,
+  fitColumnWidth,
   isEditableKind,
+  moveColumn,
+  orderColumns,
 } from "../Spreadsheet/services/columns";
 
 describe("deriveKind", () => {
@@ -119,5 +122,51 @@ describe("computeColumnWidths", () => {
     expect(widths[0]).toBe(120);
     expect(widths[0] + widths[1]).toBe(800);
     expect(widths[1]).toBe(680);
+  });
+});
+
+describe("orderColumns", () => {
+  const cols = (...names: string[]) => names.map((name) => ({ name }));
+  it("returns columns unchanged with no order", () => {
+    expect(orderColumns(cols("a", "b", "c"), null).map((c) => c.name)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+  it("reorders by the saved name order", () => {
+    expect(
+      orderColumns(cols("a", "b", "c"), ["c", "a", "b"]).map((c) => c.name),
+    ).toEqual(["c", "a", "b"]);
+  });
+  it("drops unknown names and appends columns missing from the order", () => {
+    expect(
+      orderColumns(cols("a", "b", "c"), ["c", "x"]).map((c) => c.name),
+    ).toEqual(["c", "a", "b"]);
+  });
+});
+
+describe("moveColumn", () => {
+  it("moves a column to sit before the target", () => {
+    expect(moveColumn(["a", "b", "c", "d"], "d", "b")).toEqual([
+      "a",
+      "d",
+      "b",
+      "c",
+    ]);
+  });
+  it("is a no-op for the same column or an unknown target", () => {
+    expect(moveColumn(["a", "b"], "a", "a")).toEqual(["a", "b"]);
+    expect(moveColumn(["a", "b"], "a", "z")).toEqual(["a", "b"]);
+  });
+});
+
+describe("fitColumnWidth", () => {
+  it("fits the widest content plus padding", () => {
+    expect(fitColumnWidth([40, 120, 80], { padding: 10, min: 48, max: 600 })).toBe(130);
+  });
+  it("clamps to the minimum and maximum", () => {
+    expect(fitColumnWidth([10], { min: 48, padding: 0 })).toBe(48);
+    expect(fitColumnWidth([5000], { max: 600 })).toBe(600);
   });
 });

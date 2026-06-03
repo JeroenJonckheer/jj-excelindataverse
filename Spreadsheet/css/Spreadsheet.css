@@ -123,6 +123,11 @@
   border-top: 5px solid currentColor;
 }
 
+/* Insertion indicator while dragging a column header to reorder. */
+.jj-sheet-th-dragover {
+  box-shadow: inset 3px 0 0 0 var(--colorBrandStroke1, #0f6cbd);
+}
+
 /* Drag handle on the right edge of a header to resize the column. */
 .jj-sheet-resize-handle {
   position: absolute;

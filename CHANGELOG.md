@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-06-03
+
+### Added
+- Reorder columns by dragging a column header onto another (a blue line marks
+  where it lands). The new order flows through the header, cells, widths, paste
+  and navigation.
+- Auto-fit a column by double-clicking the right edge of its header: it sizes to
+  the header and the visible cell contents.
+
 ## [0.4.2] - 2026-06-03
 
 ### Changed

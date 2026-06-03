@@ -175,6 +175,27 @@ test("sorts the grid when a column header is clicked", async ({ page }) => {
   await expect(cell(page, 0, 0)).toContainText("Hooli");
 });
 
+// ---- Brok E1: column reorder and auto-fit ----
+
+test("reorders columns by dragging a header", async ({ page }) => {
+  // Drag Owner (col 6) onto Account (col 0); Owner becomes the first column.
+  await page
+    .getByRole("columnheader", { name: "Owner" })
+    .dragTo(page.getByRole("columnheader", { name: "Account" }));
+  await expect(cell(page, 0, 0)).toContainText("Jane Doe");
+});
+
+test("auto-fits a column on double-clicking its border", async ({ page }) => {
+  await startEdit(page, 0, 0);
+  await page.getByLabel("Account").fill("A very very very long account name indeed");
+  await page.getByLabel("Account").press("Enter");
+  await page.locator("thead th").nth(1).locator(".jj-sheet-resize-handle").dblclick();
+  const fits = await cell(page, 0, 0)
+    .locator(".jj-sheet-cell-text")
+    .evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+  expect(fits).toBe(true);
+});
+
 test("opens the record on double-click", async ({ page }) => {
   const messages: string[] = [];
   page.on("console", (m) => messages.push(m.text()));

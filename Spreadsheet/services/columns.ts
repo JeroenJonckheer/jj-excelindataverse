@@ -132,6 +132,61 @@ export const DEFAULT_COLUMN_WIDTH = 150;
 export const MIN_COLUMN_WIDTH = 48;
 
 /**
+ * Applies a saved display order (a list of column names) to the columns. Names
+ * that no longer exist are skipped; columns missing from the order (for example
+ * a newly added view column) keep their original relative position at the end.
+ */
+export function orderColumns<T extends { name: string }>(
+  columns: T[],
+  order: string[] | null | undefined,
+): T[] {
+  if (!order || order.length === 0) return columns;
+  const byName = new Map(columns.map((c) => [c.name, c]));
+  const result: T[] = [];
+  for (const name of order) {
+    const c = byName.get(name);
+    if (c) {
+      result.push(c);
+      byName.delete(name);
+    }
+  }
+  for (const c of columns) if (byName.has(c.name)) result.push(c);
+  return result;
+}
+
+/**
+ * Moves a column so it sits just before the target column, returning the new
+ * order of names. A no-op when the names are equal or the target is unknown.
+ */
+export function moveColumn(
+  names: string[],
+  dragName: string,
+  targetName: string,
+): string[] {
+  if (dragName === targetName) return names;
+  const without = names.filter((n) => n !== dragName);
+  const index = without.indexOf(targetName);
+  if (index < 0) return names;
+  without.splice(index, 0, dragName);
+  return without;
+}
+
+/**
+ * The width (px) that fits the widest content, clamped to a sensible range and
+ * with a little padding - what a double-click on the column border applies.
+ */
+export function fitColumnWidth(
+  contentWidths: number[],
+  opts: { min?: number; max?: number; padding?: number } = {},
+): number {
+  const min = opts.min ?? MIN_COLUMN_WIDTH;
+  const max = opts.max ?? 600;
+  const padding = opts.padding ?? 24;
+  const widest = contentWidths.length > 0 ? Math.max(...contentWidths) : 0;
+  return Math.min(Math.max(Math.round(widest) + padding, min), max);
+}
+
+/**
  * Computes each column's width in pixels, the way the standard Dynamics grid
  * does it. Each column starts at the pixel width configured in the view
  * (`visualSizeFactor` is that width in pixels), or a manual resize override.

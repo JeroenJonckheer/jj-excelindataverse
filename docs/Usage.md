@@ -89,6 +89,10 @@ validated just like a typed value.
   the dataset (server-side), so it respects the view filter and large datasets.
 - **Resize** a column by dragging the right edge of its header. A resized column
   keeps its width; the others share any remaining space.
+- **Auto-fit** a column by double-clicking the right edge of its header - it
+  widens (or narrows) to fit the header and the visible cell contents.
+- **Reorder** columns by dragging a column header onto another; a blue line shows
+  where it will land.
 - **Column widths** follow the view: each column uses its configured pixel
   width. When the columns do not all fit, the grid scrolls horizontally; when
   there is room to spare they stretch proportionally to fill the width (a narrow
