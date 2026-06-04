@@ -298,6 +298,9 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [scrollTop, setScrollTop] = React.useState(0);
   const [rowHeight, setRowHeight] = React.useState(ROW_HEIGHT_FALLBACK);
   const scrollRafRef = React.useRef(0);
+  // Set when a new row is appended so the layout effect scrolls it into view in
+  // the same gesture (otherwise a virtualized grid needs a second scroll).
+  const scrollBottomRef = React.useRef(false);
   const onScroll = () => {
     const el = containerRef.current;
     if (!el) return;
@@ -488,6 +491,16 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     ) as HTMLElement | null;
     if (firstRow && firstRow.offsetHeight > 0) {
       setRowHeight((prev) => (prev === firstRow.offsetHeight ? prev : firstRow.offsetHeight));
+    }
+    // A row was just appended: scroll it into view now (and sync the virtual
+    // window) so the user sees it without scrolling again.
+    if (scrollBottomRef.current) {
+      scrollBottomRef.current = false;
+      const el = containerRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+        setScrollTop((prev) => (prev === el.scrollTop ? prev : el.scrollTop));
+      }
     }
   });
 
@@ -1008,6 +1021,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const firstEditable = columns.findIndex((c) => c.editable);
     setEditing(false);
     selectCell({ rowIndex: allRows.length, colIndex: Math.max(firstEditable, 0) });
+    scrollBottomRef.current = true;
   };
 
   // True when the grid already ends in an empty, unsaved row - so we do not
@@ -1032,6 +1046,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         rowIndex: allRows.length - 1,
         colIndex: active?.colIndex ?? firstEditable,
       });
+      scrollBottomRef.current = true;
       return;
     }
     addRow();

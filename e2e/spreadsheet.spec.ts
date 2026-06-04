@@ -144,6 +144,20 @@ test("grows the grid with ArrowDown and creates the new record on save", async (
   await expect(page.getByText("Brand New BV")).toBeVisible();
 });
 
+test("a new bottom row scrolls into view in the same action on a large grid", async ({
+  page,
+}) => {
+  await page.goto("/?rows=200&pageSize=200");
+  await cell(page, 0, 0).click(); // focus the grid
+  await page.locator(".jj-sheet").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await cell(page, 199, 0).click();
+  await page.keyboard.press("ArrowDown");
+  // The appended row (index 200) is rendered and visible without scrolling again.
+  await expect(cell(page, 200, 0)).toBeVisible();
+});
+
 test("resolves a pasted lookup name to an existing record", async ({ page }) => {
   await cell(page, 0, 6).click();
   await pasteInto(page, "Mary Major");

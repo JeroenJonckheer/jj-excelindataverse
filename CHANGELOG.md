@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.3] - 2026-06-04
+
+### Fixed
+- A new row added at the bottom (by scrolling or pressing Down past the last
+  row) now scrolls into view immediately, in the same action, instead of needing
+  a second scroll to appear on a virtualized grid.
+
+### Changed
+- README leads with the product's purpose - winning Excel-bound users over to
+  Dynamics - and calls out paste-from-Excel as the key feature.
+
 ## [0.15.2] - 2026-06-04
 
 ### Fixed

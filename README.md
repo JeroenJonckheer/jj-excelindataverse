@@ -21,22 +21,32 @@ get the fast, familiar grid they keep escaping to Excel for - without ever leavi
 
 ## Why
 
-Power Apps and Dynamics 365 users work with lists all day, yet the same pattern keeps repeating:
-export to Excel, edit there, import back. The reason is the grid experience, not Dataverse itself.
-A spreadsheet gives speed, direct entry and familiar behaviour that the standard grid lacks.
+**This is how you win the Excel-addicted user over to Dynamics.**
 
-JJ - Excel in Dataverse brings that experience straight into the Model-Driven App. The moment a user
-thinks "let me just export this to Excel", the application has lost. This control makes sure that
-thought never comes up.
+Every Dynamics 365 / Dataverse rollout hits the same wall: a group of users who keep living in Excel.
+They export, edit there, and import back - or never come into the app at all - because the standard
+grid does not feel like the tool they are fast in. You cannot argue them out of Excel; you have to
+give them Excel *inside* Dynamics. That is exactly what this control does.
+
+The single most important feature for that is **paste from Excel**. The day a power user can select
+a block in their spreadsheet, paste it straight onto a Dataverse view, and have it saved - lookups
+resolved by name, new rows created, validation applied - is the day they stop maintaining a shadow
+copy in Excel. Combined with inline editing, fill-handle series, copy back to Excel and undo/redo,
+the moment a user thinks "let me just export this to Excel" the application has already lost - and
+this control makes sure that thought never comes up.
+
+The reason was always the grid experience, not Dataverse itself. Bring the spreadsheet in, and the
+data finally lives where it belongs.
 
 ## What it does
 
 A condensed overview - see [Features](#features) below for the full list.
 
+- **Paste straight from Excel** across cells and rows - the key feature: lookups resolve by name,
+  rows past the end are created, and everything is validated and saved to Dataverse.
 - **Inline editing** of every common column type, with keyboard navigation that matches a
   spreadsheet.
-- **Rectangular selection**, copy as Excel-ready text, **paste from Excel** across cells and rows,
-  and a **fill handle** to extend a series.
+- **Rectangular selection**, copy as Excel-ready text, and a **fill handle** to extend a series.
 - **Move a block** of cells by dragging its border, like Excel.
 - **Find & replace** across the loaded grid, with match-case and whole-cell options.
 - **Undo and redo** (Ctrl+Z / Ctrl+Y) for edits, deletes, pastes and moves.
