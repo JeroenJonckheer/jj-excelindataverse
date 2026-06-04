@@ -732,23 +732,26 @@ let batchCounter = 0;
  * anything else carries the server's error message from the JSON body.
  */
 export function mapBatchResponse(text: string, ops: BatchOp[]): BatchResult[] {
-  const statusRe = /HTTP\/1\.1\s+(\d{3})/g;
-  const statuses: { code: number; at: number }[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = statusRe.exec(text)) !== null) {
-    statuses.push({ code: Number(m[1]), at: m.index });
-  }
+  // Each changeset sub-response is an `application/http` part whose FIRST line is
+  // the real `HTTP/1.1 <status>`. Anchor on those part headers, so a status-like
+  // string echoed inside an error body cannot shift the mapping and clear a
+  // failed row's draft (or keep a saved row dirty).
+  const parts = text.split(/content-type:\s*application\/http/i).slice(1);
   return ops.map((op, k) => {
-    const s = statuses[k];
-    if (!s) {
+    const part = parts[k];
+    if (part === undefined) {
       return { recordId: op.recordId, ok: false, error: "No response for this operation." };
     }
-    if (s.code >= 200 && s.code < 300) return { recordId: op.recordId, ok: true };
-    const segment = text.slice(s.at, statuses[k + 1]?.at ?? text.length);
+    const m = /HTTP\/1\.1\s+(\d{3})/.exec(part);
+    if (!m) {
+      return { recordId: op.recordId, ok: false, error: "No response for this operation." };
+    }
+    const code = Number(m[1]);
+    if (code >= 200 && code < 300) return { recordId: op.recordId, ok: true };
     return {
       recordId: op.recordId,
       ok: false,
-      error: extractErrorMessage(segment) ?? `Save failed (HTTP ${s.code}).`,
+      error: extractErrorMessage(part) ?? `Save failed (HTTP ${code}).`,
     };
   });
 }

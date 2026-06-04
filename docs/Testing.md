@@ -16,17 +16,41 @@ environment.
 
 ## Repeatable cycle
 
+"Test everything" is a single command:
+
 ```bash
-npm run lint           # lint check
-npm run typecheck      # TypeScript check
-npm run test           # unit and component tests
-npm run test:coverage  # tests with the enforced coverage threshold
-npm run test:e2e       # Playwright tests against the harness
-npm run verify         # all of the above plus the build, in order
+npm run test:all       # alias for npm run verify - the full gate
+```
+
+Individual steps:
+
+```bash
+npm run lint            # lint check (zero warnings)
+npm run typecheck       # TypeScript check
+npm run test            # unit and component tests
+npm run test:coverage   # tests with the enforced coverage threshold
+npm run test:e2e        # Playwright tests against the harness
+npm run test:adversarial# only the hostile-user / destructive e2e suite
+npm run verify          # all of the above plus the build, in order
 ```
 
 `npm run verify` succeeds or fails deterministically and is the single gate used before building the
 solution and publishing a release.
+
+## Adversarial / destructive suite
+
+`e2e/adversarial.spec.ts` is the repeatable hostile-power-user battery and is part of `npm run verify`.
+It covers: HTML/script/SQL-like input treated as literal text (no execution), unicode and emoji,
+over-long text rejected by max-length validation, empty / whitespace / malformed clipboard pastes,
+copy never mutating data, rapid undo/redo spam, a fast double-click on Save not double-submitting,
+edit/paste undo-redo round-trips, and viewport resize. When a new defect is found, add a reproducing
+test here (or at the layer that proves it) before fixing it.
+
+### Harness knobs (URL query params)
+
+`?rows=N`, `?pageSize=N` (total is capped at 5000 like Dataverse), `?ghost=N` / `?ghoststick=1`
+(records deleted outside the control), `?addcol=1` (+ `?healtest=1`) (add a column at runtime,
+optionally returning zero rows to exercise the self-heal), `?firstcol=createdon`.
 
 ## Coverage threshold
 

@@ -1,6 +1,6 @@
 {
   "name": "jj-excelindataverse",
-  "version": "0.15.3",
+  "version": "0.15.4",
   "description": "JJ - Excel in Dataverse - the spreadsheet experience Dataverse always should have had. A PCF dataset control for inline editing in Model-Driven Apps.",
   "private": true,
   "author": "Jeroen Jonckheer",
@@ -20,6 +20,8 @@
     "test:coverage": "jest --coverage",
     "harness:build": "node harness/build.js",
     "test:e2e": "playwright test",
+    "test:adversarial": "playwright test e2e/adversarial.spec.ts",
+    "test:all": "npm run verify",
     "verify": "npm run refreshTypes && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:e2e"
   },
   "dependencies": {

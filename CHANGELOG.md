@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.4] - 2026-06-04
+
+### Fixed
+- Undo no longer crosses a save: after records are created/updated/deleted on
+  the server, the undo/redo history is cleared, so Ctrl+Z can no longer
+  resurrect a just-deleted record (a delete of a non-existent id) or re-mark a
+  saved value as pending. The undo snapshot now also tracks the optimistic
+  removed-rows set.
+- Batched-save response mapping is anchored on each changeset sub-response part
+  instead of a global status-line scan, so a status line echoed inside an error
+  message can no longer shift the mapping and clear a failed row's draft or keep
+  a saved row dirty.
+
+### Changed
+- A large paste now applies all its plain-text cells in a single state update
+  instead of one per cell (which copied the whole pending-edits map each time),
+  removing a main-thread slowdown that grew with the paste size.
+
+### Added
+- Repeatable adversarial / destructive e2e suite (`e2e/adversarial.spec.ts`,
+  `npm run test:adversarial`), part of `npm run verify`: HTML/script/SQL-like
+  input as literal text, unicode/emoji, over-long text, empty/malformed
+  clipboard, copy immutability, rapid undo/redo, double-click Save, paste undo,
+  resize. `npm run test:all` is the single "test everything" entry point.
+
 ## [0.15.3] - 2026-06-04
 
 ### Fixed

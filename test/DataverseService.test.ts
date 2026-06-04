@@ -647,7 +647,11 @@ describe("writeBatch", () => {
     const fetchMock = jest.fn((url: string, init?: { body?: string }) => {
       if (String(url).includes("/$batch")) {
         const n = (String(init?.body).match(/Content-ID:/g) || []).length;
-        const text = Array.from({ length: n }, () => "HTTP/1.1 204 No Content").join("\r\n");
+        // One application/http sub-response part per op, as Dataverse returns.
+        const text = Array.from(
+          { length: n },
+          () => "Content-Type: application/http\r\n\r\nHTTP/1.1 204 No Content",
+        ).join("\r\n");
         return Promise.resolve({ ok: true, json: () => Promise.resolve({}), text: () => Promise.resolve(text) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve(METABODY), text: () => Promise.resolve("") });
@@ -660,6 +664,54 @@ describe("writeBatch", () => {
     expect(results.every((r) => r.ok)).toBe(true);
     const batchCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("/$batch"));
     expect(batchCalls.length).toBe(2);
+  });
+
+  it("does not mismap when an error body itself contains an HTTP status line", async () => {
+    // The first op fails with an error message that echoes a request line
+    // ("HTTP/1.1 200 ..."). A naive global scan would shift the mapping and
+    // mark the SECOND op as failed. Anchoring on the sub-response parts must
+    // keep op1=failed, op2=succeeded.
+    const resp = [
+      "--b",
+      "Content-Type: multipart/mixed; boundary=cs",
+      "",
+      "--cs",
+      "Content-Type: application/http",
+      "",
+      "HTTP/1.1 400 Bad Request",
+      "Content-Type: application/json",
+      "",
+      '{"error":{"code":"x","message":"Rejected near HTTP/1.1 200 OK marker"}}',
+      "--cs--",
+      "--b",
+      "Content-Type: multipart/mixed; boundary=cs",
+      "",
+      "--cs",
+      "Content-Type: application/http",
+      "",
+      "HTTP/1.1 204 No Content",
+      "",
+      "--cs--",
+      "--b--",
+    ].join("\r\n");
+    const fetchMock = jest.fn((url: string) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(METABODY),
+        text: () => Promise.resolve(String(url).includes("/$batch") ? resp : ""),
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const ops: BatchOp[] = [
+      { recordId: "r1", kind: "update", edits: [edit("r1", "A")] },
+      { recordId: "r2", kind: "update", edits: [edit("r2", "B")] },
+    ];
+    const results = await svc.writeBatch("contact", ops);
+    expect(results).toEqual([
+      { recordId: "r1", ok: false, error: "Rejected near HTTP/1.1 200 OK marker" },
+      { recordId: "r2", ok: true },
+    ]);
   });
 });
 

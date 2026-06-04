@@ -501,6 +501,10 @@ function createService(store: Store): IDataverseService {
       return Promise.resolve();
     },
     writeBatch: (_entity, ops) => {
+      // Count batch calls so an e2e can prove a fast double-click on Save does
+      // not double-submit.
+      const w = window as unknown as { __jjBatchCalls?: number };
+      w.__jjBatchCalls = (w.__jjBatchCalls ?? 0) + 1;
       // Mirror the per-record store mutations, with the same "REJECT" rejection
       // so the inline server-error path is exercised through the batch too.
       const rejects = (edits: PendingEdit[] | undefined) =>

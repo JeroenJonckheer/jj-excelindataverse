@@ -1108,3 +1108,43 @@ describe("move selection by dragging the border", () => {
     expect(container.querySelector(".jj-sheet-move-left")).toBeNull();
   });
 });
+
+describe("undo does not cross a save boundary", () => {
+  it("Ctrl+Z after a committed delete does not resurrect the deletion", async () => {
+    const onDelete = jest.fn((_id: string) => Promise.resolve());
+    const { container } = renderGrid({ onDelete });
+    // Select the first row, mark it for deletion, and save.
+    const boxes = container.querySelectorAll('input[aria-label="Select row"]');
+    fireEvent.click(boxes[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Delete selected/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(screen.getByText(/No pending changes/)).toBeInTheDocument(),
+    );
+    expect(onDelete).toHaveBeenCalledWith("r1");
+
+    // Undo must be a no-op across the save: the deleted record must not come
+    // back as a pending deletion (which would delete a non-existent record).
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    expect(screen.getByText(/No pending changes/)).toBeInTheDocument();
+    expect(screen.queryByText(/pending deletion/)).toBeNull();
+  });
+
+  it("Ctrl+Z after a committed edit does not re-mark it pending", async () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "A" });
+    const input = screen.getByLabelText("Name") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Saved Value" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(screen.getByText(/No pending changes/)).toBeInTheDocument(),
+    );
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    // The saved value is not resurrected as a pending change.
+    expect(screen.getByText(/No pending changes/)).toBeInTheDocument();
+    expect(screen.queryByText(/\d+ pending change/)).toBeNull();
+  });
+});

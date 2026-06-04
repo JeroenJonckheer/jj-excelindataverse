@@ -121,6 +121,7 @@ interface Snapshot {
   rowErrors: Record<string, string>;
   newRows: string[];
   pendingDeletes: string[];
+  removedIds: string[];
 }
 
 const SEP = "";
@@ -242,6 +243,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     rowErrors,
     newRows,
     pendingDeletes: Array.from(pendingDeletes),
+    removedIds: Array.from(removedIds),
   });
   const restore = (s: Snapshot) => {
     setDrafts(s.drafts);
@@ -249,6 +251,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setRowErrors(s.rowErrors);
     setNewRows(s.newRows);
     setPendingDeletes(new Set(s.pendingDeletes));
+    setRemovedIds(new Set(s.removedIds));
   };
   const record = () => {
     setPast((p) => [...p, snapshot()]);
@@ -663,6 +666,51 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     if (!col.editable || col.kind === "lookup") return;
     const resolved = resolveText(text, col);
     setDraft(recordId, col, resolved.value, resolved.display, resolved.error);
+  };
+
+  // Applies many text cells in ONE state update. A paste used to call setDraft
+  // per cell, each spreading the whole drafts/errors objects - O(cells x drafts)
+  // and a multi-second main-thread freeze on a large paste. This resolves every
+  // cell first, then merges once.
+  const applyTextBatch = (
+    entries: { recordId: string; col: ColumnDef; text: string }[],
+  ) => {
+    const resolved = entries
+      .filter((e) => e.col.editable && e.col.kind !== "lookup")
+      .map((e) => {
+        const r = resolveText(e.text, e.col);
+        const key = cellKey(e.recordId, e.col.name);
+        const isNoOp = !r.error && valuesEqual(r.value, originalOf(e.recordId, e.col));
+        return { key, recordId: e.recordId, value: r.value, display: r.display, error: r.error, isNoOp };
+      });
+    if (resolved.length === 0) return;
+    setDrafts((d) => {
+      const next = { ...d };
+      for (const r of resolved) {
+        if (r.isNoOp) delete next[r.key];
+        else next[r.key] = { value: r.value, display: r.display };
+      }
+      return next;
+    });
+    setErrors((e) => {
+      const next = { ...e };
+      for (const r of resolved) {
+        if (r.error) next[r.key] = r.error;
+        else delete next[r.key];
+      }
+      return next;
+    });
+    setRowErrors((re) => {
+      let changed = false;
+      const copy = { ...re };
+      for (const r of resolved) {
+        if (r.recordId in copy) {
+          delete copy[r.recordId];
+          changed = true;
+        }
+      }
+      return changed ? copy : re;
+    });
   };
 
   const commitTextAt = (
@@ -1387,6 +1435,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
     let createdRows = 0;
     const lookupCells: { recordId: string; col: ColumnDef; text: string }[] = [];
+    const textCells: { recordId: string; col: ColumnDef; text: string }[] = [];
     for (let r = 0; r < grid.length; r++) {
       const rowIndex = active.rowIndex + r;
       const row = effectiveRows[rowIndex];
@@ -1410,10 +1459,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           );
           lookupCells.push({ recordId: row.recordId, col, text: cells[c] });
         } else {
-          applyText(row.recordId, col, cells[c]);
+          textCells.push({ recordId: row.recordId, col, text: cells[c] });
         }
       }
     }
+    // Apply every plain-text cell in a single state update (a large paste used
+    // to spread the whole drafts object once per cell).
+    applyTextBatch(textCells);
     setPasteNotice(
       createdRows > 0
         ? `Pasted into ${createdRows} new row${createdRows === 1 ? "" : "s"}. Review and Save to create ${createdRows === 1 ? "it" : "them"}, or press Ctrl+Z to undo.`
@@ -1598,9 +1650,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setRowErrors((re) => ({ ...re, ...failures }));
     setSaving(false);
 
-    // One refresh, after every save/create/delete has resolved, so the dataset
-    // reports a single consistent state instead of an intermediate one.
+    // Undo history must not cross a commit boundary: once records are created,
+    // updated or deleted on the server, an old snapshot would resurrect a
+    // just-deleted record (a delete of a non-existent id) or re-mark a saved
+    // value as pending. Clear it after anything committed.
     if (savedRecords.length > 0 || deletedRecords.length > 0) {
+      setPast([]);
+      setFuture([]);
+      // One refresh, after every save/create/delete has resolved, so the dataset
+      // reports a single consistent state instead of an intermediate one.
       onCommitted?.();
     }
   };
