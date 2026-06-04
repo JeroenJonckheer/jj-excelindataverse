@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.2] - 2026-06-04
+
+### Changed
+- The footer record count "1-N of Total" is now always shown (also when fully
+  loaded, e.g. "1-262 of 262", and for small views); the Load more button only
+  appears while more can be loaded.
+
 ## [0.13.1] - 2026-06-04
 
 ### Changed

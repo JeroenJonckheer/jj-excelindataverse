@@ -95,22 +95,24 @@ export const Footer: React.FC<FooterProps> = ({
         <span>{status}</span>
       </div>
       <div className="jj-sheet-footer-right">
-        {paging && paging.hasMore && (
+        {paging && (
           <span className="jj-sheet-paging">
             <span className="jj-sheet-paging-info" aria-label="Loaded rows">
               {paging.total >= 0
                 ? `1–${paging.loaded} of ${paging.total}`
                 : `${paging.loaded} loaded`}
             </span>
-            <Button
-              size="small"
-              appearance="subtle"
-              aria-label="Load more rows"
-              title="Load more rows"
-              onClick={paging.onLoadMore}
-            >
-              Load more
-            </Button>
+            {paging.hasMore && (
+              <Button
+                size="small"
+                appearance="subtle"
+                aria-label="Load more rows"
+                title="Load more rows"
+                onClick={paging.onLoadMore}
+              >
+                Load more
+              </Button>
+            )}
           </span>
         )}
         {aggregateText && (

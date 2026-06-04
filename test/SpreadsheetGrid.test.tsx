@@ -887,8 +887,9 @@ describe("paging (brok G)", () => {
     expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
 
-  it("hides the load-more control when everything is loaded", () => {
+  it("keeps the count but hides Load more when everything is loaded", () => {
     renderGrid({ paging: { loaded: 3, total: 3, hasMore: false, onLoadMore: jest.fn() } });
+    expect(screen.getByLabelText("Loaded rows").textContent).toMatch(/1.3 of 3/);
     expect(screen.queryByRole("button", { name: "Load more rows" })).toBeNull();
   });
 });
