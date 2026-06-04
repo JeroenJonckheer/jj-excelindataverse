@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-06-04
+
+### Changed
+- Metadata enrichment now batches by attribute type: at most one request per
+  type (string, the numeric types, choice, yes/no, lookup, date) regardless of
+  the number of columns, instead of one request per column. A wide view loads in
+  a handful of requests; results are cached per entity and type.
+
 ## [0.10.3] - 2026-06-04
 
 ### Fixed

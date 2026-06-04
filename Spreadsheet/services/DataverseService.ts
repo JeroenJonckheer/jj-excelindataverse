@@ -88,6 +88,113 @@ function editableFromMeta(
   return meta?.IsValidForUpdate === false ? false : column.editable;
 }
 
+/** Attribute metadata cast type names, by column kind. */
+const CAST_STRING = "Microsoft.Dynamics.CRM.StringAttributeMetadata";
+const CAST_PICKLIST = "Microsoft.Dynamics.CRM.PicklistAttributeMetadata";
+const CAST_BOOLEAN = "Microsoft.Dynamics.CRM.BooleanAttributeMetadata";
+const CAST_LOOKUP = "Microsoft.Dynamics.CRM.LookupAttributeMetadata";
+const CAST_DATETIME = "Microsoft.Dynamics.CRM.DateTimeAttributeMetadata";
+
+interface CastConfig {
+  cast: string;
+  select: string;
+  expand?: string;
+}
+
+/** The metadata cast (and the fields to read) for a column, or null. */
+function castForColumn(column: ColumnDef): CastConfig | null {
+  switch (column.kind) {
+    case "text":
+    case "multiline":
+      return { cast: CAST_STRING, select: "MaxLength,RequiredLevel,Format,IsValidForUpdate" };
+    case "number":
+      return {
+        cast: numericMetadataType(column.dataType),
+        select: "MinValue,MaxValue,Precision,RequiredLevel,IsValidForUpdate",
+      };
+    case "choice":
+      return {
+        cast: CAST_PICKLIST,
+        select: "RequiredLevel,IsValidForUpdate,DefaultFormValue",
+        expand: "OptionSet",
+      };
+    case "boolean":
+      return {
+        cast: CAST_BOOLEAN,
+        select: "RequiredLevel,IsValidForUpdate,DefaultValue",
+        expand: "OptionSet",
+      };
+    case "lookup":
+      return { cast: CAST_LOOKUP, select: "Targets,RequiredLevel,IsValidForUpdate" };
+    case "date":
+    case "datetime":
+      return { cast: CAST_DATETIME, select: "RequiredLevel,IsValidForUpdate" };
+    default:
+      return null;
+  }
+}
+
+/** Applies one attribute's metadata to a column (no network access). */
+function enrichFromMeta(column: ColumnDef, meta: any): ColumnDef {
+  const base: ColumnDef = {
+    ...column,
+    editable: editableFromMeta(column, meta),
+    required: mapRequiredLevel(meta?.RequiredLevel?.Value),
+  };
+  switch (column.kind) {
+    case "text":
+    case "multiline":
+      return {
+        ...base,
+        maxLength: typeof meta?.MaxLength === "number" ? meta.MaxLength : column.maxLength,
+      };
+    case "number":
+      return {
+        ...base,
+        minValue: typeof meta?.MinValue === "number" ? meta.MinValue : undefined,
+        maxValue: typeof meta?.MaxValue === "number" ? meta.MaxValue : undefined,
+        precision:
+          typeof meta?.Precision === "number"
+            ? meta.Precision
+            : column.dataType === "Whole.None"
+              ? 0
+              : undefined,
+      };
+    case "choice": {
+      const options = (meta?.OptionSet?.Options ?? []).map((o: any) => ({
+        value: o.Value,
+        label: o.Label?.UserLocalizedLabel?.Label ?? String(o.Value),
+      }));
+      return {
+        ...base,
+        options,
+        defaultValue:
+          typeof meta?.DefaultFormValue === "number" && meta.DefaultFormValue >= 0
+            ? meta.DefaultFormValue
+            : undefined,
+      };
+    }
+    case "boolean": {
+      const os = meta?.OptionSet;
+      return {
+        ...base,
+        options: [
+          { value: 0, label: os?.FalseOption?.Label?.UserLocalizedLabel?.Label ?? "No" },
+          { value: 1, label: os?.TrueOption?.Label?.UserLocalizedLabel?.Label ?? "Yes" },
+        ],
+        defaultValue: typeof meta?.DefaultValue === "boolean" ? meta.DefaultValue : undefined,
+      };
+    }
+    case "lookup":
+      return {
+        ...base,
+        lookupTargets: Array.isArray(meta?.Targets) ? meta.Targets : column.lookupTargets,
+      };
+    default:
+      return base;
+  }
+}
+
 /** Maps the Dataverse RequiredLevel value to our requirement level. */
 function mapRequiredLevel(value: string | undefined): RequiredLevel {
   switch (value) {
@@ -113,6 +220,8 @@ export class DataverseService implements IDataverseService {
   private entityMetaCache = new Map<string, EntityMeta>();
   private relationshipCache = new Map<string, RelationshipMeta>();
   private lookupResolveCache = new Map<string, LookupValue[]>();
+  // Attribute metadata by `${entity}::${cast}` -> (logical name -> metadata).
+  private attrMetaCache = new Map<string, Map<string, unknown>>();
 
   constructor(private ctx: ComponentFramework.Context<IInputs>) {}
 
@@ -120,131 +229,66 @@ export class DataverseService implements IDataverseService {
     return this.ctx.webAPI;
   }
 
+  /**
+   * Enriches columns with attribute metadata. Instead of one request per column,
+   * it makes at most one request per attribute type (cast) - so a 50-column view
+   * loads in a handful of requests, not fifty. Results are cached per entity and
+   * cast; a failed type is best-effort (those columns keep their defaults).
+   */
   async enrichColumns(
     entityName: string,
     columns: ColumnDef[],
   ): Promise<ColumnDef[]> {
-    const enriched: ColumnDef[] = [];
+    const casts = new Map<string, CastConfig>();
     for (const column of columns) {
-      try {
-        enriched.push(await this.enrichColumn(entityName, column));
-      } catch (e) {
-        // Metadata enrichment is best effort. If it fails the column keeps its
-        // type-based defaults and inline validation still applies basic checks.
-        console.warn(
-          `JJ - Excel in Dataverse: could not read metadata for column '${column.name}'.`,
-          e,
-        );
-        enriched.push(column);
-      }
+      if (!column.editable) continue;
+      const cfg = castForColumn(column);
+      if (cfg) casts.set(cfg.cast, cfg);
     }
-    return enriched;
+
+    const maps = new Map<string, Map<string, unknown>>();
+    await Promise.all(
+      Array.from(casts.values()).map(async (cfg) => {
+        maps.set(cfg.cast, await this.attributesByCast(entityName, cfg));
+      }),
+    );
+
+    return columns.map((column) => {
+      if (!column.editable) return column;
+      const cfg = castForColumn(column);
+      if (!cfg) return column;
+      const meta = maps.get(cfg.cast)?.get(column.name);
+      return meta ? enrichFromMeta(column, meta) : column;
+    });
   }
 
-  private async enrichColumn(
+  /** All attributes of one cast for an entity, indexed by logical name (cached). */
+  private async attributesByCast(
     entityName: string,
-    column: ColumnDef,
-  ): Promise<ColumnDef> {
-    if (!column.editable) return column;
-    const base = `EntityDefinitions(LogicalName='${entityName}')/Attributes(LogicalName='${column.name}')`;
-
-    switch (column.kind) {
-      case "text":
-      case "multiline": {
-        const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.StringAttributeMetadata?$select=MaxLength,RequiredLevel,Format,IsValidForUpdate`,
-        );
-        return {
-          ...column,
-          editable: editableFromMeta(column, meta),
-          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
-          maxLength:
-            typeof meta?.MaxLength === "number" ? meta.MaxLength : column.maxLength,
-        };
+    cfg: CastConfig,
+  ): Promise<Map<string, unknown>> {
+    const key = `${entityName}::${cfg.cast}`;
+    const cached = this.attrMetaCache.get(key);
+    if (cached) return cached;
+    const map = new Map<string, unknown>();
+    try {
+      const expand = cfg.expand ? `&$expand=${cfg.expand}` : "";
+      const result = await this.fetchOData(
+        `EntityDefinitions(LogicalName='${entityName}')/Attributes/${cfg.cast}` +
+          `?$select=LogicalName,${cfg.select}${expand}`,
+      );
+      for (const a of (result?.value ?? []) as { LogicalName?: string }[]) {
+        if (a?.LogicalName) map.set(a.LogicalName, a);
       }
-      case "number": {
-        const typeName = numericMetadataType(column.dataType);
-        const meta = await this.fetchOData(
-          `${base}/${typeName}?$select=MinValue,MaxValue,Precision,RequiredLevel,IsValidForUpdate`,
-        );
-        return {
-          ...column,
-          editable: editableFromMeta(column, meta),
-          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
-          minValue: typeof meta?.MinValue === "number" ? meta.MinValue : undefined,
-          maxValue: typeof meta?.MaxValue === "number" ? meta.MaxValue : undefined,
-          precision:
-            typeof meta?.Precision === "number"
-              ? meta.Precision
-              : column.dataType === "Whole.None"
-                ? 0
-                : undefined,
-        };
-      }
-      case "choice": {
-        const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.PicklistAttributeMetadata?$select=RequiredLevel,IsValidForUpdate,DefaultFormValue&$expand=OptionSet`,
-        );
-        const options = (meta?.OptionSet?.Options ?? []).map((o: any) => ({
-          value: o.Value,
-          label: o.Label?.UserLocalizedLabel?.Label ?? String(o.Value),
-        }));
-        // DefaultFormValue is the option set's default; -1 means "no default".
-        const defaultValue =
-          typeof meta?.DefaultFormValue === "number" && meta.DefaultFormValue >= 0
-            ? meta.DefaultFormValue
-            : undefined;
-        return {
-          ...column,
-          editable: editableFromMeta(column, meta),
-          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
-          options,
-          defaultValue,
-        };
-      }
-      case "boolean": {
-        const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.BooleanAttributeMetadata?$select=RequiredLevel,IsValidForUpdate,DefaultValue&$expand=OptionSet`,
-        );
-        const os = meta?.OptionSet;
-        const options = [
-          { value: 0, label: os?.FalseOption?.Label?.UserLocalizedLabel?.Label ?? "No" },
-          { value: 1, label: os?.TrueOption?.Label?.UserLocalizedLabel?.Label ?? "Yes" },
-        ];
-        return {
-          ...column,
-          editable: editableFromMeta(column, meta),
-          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
-          options,
-          defaultValue:
-            typeof meta?.DefaultValue === "boolean" ? meta.DefaultValue : undefined,
-        };
-      }
-      case "lookup": {
-        const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=Targets,RequiredLevel,IsValidForUpdate`,
-        );
-        return {
-          ...column,
-          editable: editableFromMeta(column, meta),
-          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
-          lookupTargets: Array.isArray(meta?.Targets) ? meta.Targets : column.lookupTargets,
-        };
-      }
-      case "date":
-      case "datetime": {
-        const meta = await this.fetchOData(
-          `${base}/Microsoft.Dynamics.CRM.DateTimeAttributeMetadata?$select=RequiredLevel,IsValidForUpdate`,
-        );
-        return {
-          ...column,
-          editable: editableFromMeta(column, meta),
-          required: mapRequiredLevel(meta?.RequiredLevel?.Value),
-        };
-      }
-      default:
-        return column;
+    } catch (e) {
+      // Best effort: columns of this type keep their type-based defaults.
+      console.warn(
+        `JJ - Excel in Dataverse: could not read ${cfg.cast} metadata for '${entityName}'.`,
+        e,
+      );
     }
+    this.attrMetaCache.set(key, map);
+    return map;
   }
 
   async searchLookup(

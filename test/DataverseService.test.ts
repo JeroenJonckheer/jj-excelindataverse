@@ -24,6 +24,12 @@ interface FetchRoute {
   body: unknown;
 }
 
+// Wraps attribute metadata the way the batched per-cast query returns it:
+// a `value` array of attributes indexed by their logical name.
+function attr(logicalName: string, fields: Record<string, unknown>) {
+  return { value: [{ LogicalName: logicalName, ...fields }] };
+}
+
 function mockFetch(routes: FetchRoute[]) {
   return jest.fn((url: string) => {
     const route = routes.find((r) => url.includes(r.match));
@@ -97,7 +103,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "StringAttributeMetadata",
-        body: { MaxLength: 120, RequiredLevel: { Value: "ApplicationRequired" } },
+        body: attr("name", { MaxLength: 120, RequiredLevel: { Value: "ApplicationRequired" } }),
       },
     ]) as unknown as typeof fetch;
 
@@ -113,7 +119,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "DecimalAttributeMetadata",
-        body: { RequiredLevel: { Value: "None" }, IsValidForUpdate: false },
+        body: attr("calculatedscore", { RequiredLevel: { Value: "None" }, IsValidForUpdate: false }),
       },
     ]) as unknown as typeof fetch;
 
@@ -128,7 +134,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "DecimalAttributeMetadata",
-        body: { RequiredLevel: { Value: "None" }, IsValidForUpdate: true },
+        body: attr("score", { RequiredLevel: { Value: "None" }, IsValidForUpdate: true }),
       },
     ]) as unknown as typeof fetch;
 
@@ -143,11 +149,11 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "PicklistAttributeMetadata",
-        body: {
+        body: attr("statuscode", {
           RequiredLevel: { Value: "None" },
           DefaultFormValue: 2,
           OptionSet: { Options: [] },
-        },
+        }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -161,11 +167,11 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "PicklistAttributeMetadata",
-        body: {
+        body: attr("statuscode", {
           RequiredLevel: { Value: "None" },
           DefaultFormValue: -1,
           OptionSet: { Options: [] },
-        },
+        }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -179,7 +185,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "BooleanAttributeMetadata",
-        body: { RequiredLevel: { Value: "None" }, DefaultValue: true, OptionSet: {} },
+        body: attr("isvip", { RequiredLevel: { Value: "None" }, DefaultValue: true, OptionSet: {} }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -193,7 +199,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "PicklistAttributeMetadata",
-        body: {
+        body: attr("statuscode", {
           RequiredLevel: { Value: "None" },
           OptionSet: {
             Options: [
@@ -201,7 +207,7 @@ describe("enrichColumns", () => {
               { Value: 2, Label: { UserLocalizedLabel: { Label: "Closed" } } },
             ],
           },
-        },
+        }),
       },
     ]) as unknown as typeof fetch;
 
@@ -219,7 +225,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "DecimalAttributeMetadata",
-        body: { MinValue: 0, MaxValue: 100, Precision: 2, RequiredLevel: { Value: "None" } },
+        body: attr("rate", { MinValue: 0, MaxValue: 100, Precision: 2, RequiredLevel: { Value: "None" } }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -235,7 +241,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "IntegerAttributeMetadata",
-        body: { RequiredLevel: { Value: "SystemRequired" } },
+        body: attr("count", { RequiredLevel: { Value: "SystemRequired" } }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -248,7 +254,7 @@ describe("enrichColumns", () => {
 
   it("reads currency and floating point via their metadata types", async () => {
     global.fetch = mockFetch([
-      { match: "MoneyAttributeMetadata", body: { MinValue: 0, RequiredLevel: { Value: "None" } } },
+      { match: "MoneyAttributeMetadata", body: attr("revenue", { MinValue: 0, RequiredLevel: { Value: "None" } }) },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
     const [money] = await svc.enrichColumns("account", [
@@ -257,7 +263,7 @@ describe("enrichColumns", () => {
     expect(money.minValue).toBe(0);
 
     global.fetch = mockFetch([
-      { match: "DoubleAttributeMetadata", body: { MaxValue: 9, RequiredLevel: { Value: "Recommended" } } },
+      { match: "DoubleAttributeMetadata", body: attr("ratio", { MaxValue: 9, RequiredLevel: { Value: "Recommended" } }) },
     ]) as unknown as typeof fetch;
     const [dbl] = await svc.enrichColumns("account", [
       col({ name: "ratio", kind: "number", dataType: "FP" }),
@@ -270,13 +276,13 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "BooleanAttributeMetadata",
-        body: {
+        body: attr("isactive", {
           RequiredLevel: { Value: "None" },
           OptionSet: {
             TrueOption: { Label: { UserLocalizedLabel: { Label: "Active" } } },
             FalseOption: { Label: { UserLocalizedLabel: { Label: "Inactive" } } },
           },
-        },
+        }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -293,7 +299,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "LookupAttributeMetadata",
-        body: { Targets: ["contact", "account"], RequiredLevel: { Value: "None" } },
+        body: attr("primarycontactid", { Targets: ["contact", "account"], RequiredLevel: { Value: "None" } }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
@@ -307,7 +313,7 @@ describe("enrichColumns", () => {
     global.fetch = mockFetch([
       {
         match: "DateTimeAttributeMetadata",
-        body: { RequiredLevel: { Value: "ApplicationRequired" } },
+        body: attr("duedate", { RequiredLevel: { Value: "ApplicationRequired" } }),
       },
     ]) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({}));
