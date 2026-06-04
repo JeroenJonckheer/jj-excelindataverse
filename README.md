@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f.svg)](LICENSE)
 [![Power Platform](https://img.shields.io/badge/Power%20Platform-PCF%20control-742774.svg)](https://learn.microsoft.com/power-apps/developer/component-framework/overview)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Made by Jeroen Jonckheer](https://img.shields.io/badge/made%20by-Jeroen%20Jonckheer-14b8a6.svg)](https://www.platformpower.nl)
+[![Made by Jeroen Jonckheer](https://img.shields.io/badge/made%20by-Jeroen%20Jonckheer-14b8a6.svg)](https://www.linkedin.com/in/jeroen-jonckheer/)
 
 _Demo recording is added with the first release._
 
@@ -132,7 +132,7 @@ JJ - Excel in Dataverse is free and open source (MIT). Need it tailored to your 
 column types, bespoke behaviour, a configuration UI, or integration with your processes? I take on
 paid customization and support.
 
-**Jeroen Jonckheer** - [platformpower.nl](https://www.platformpower.nl) - [LinkedIn](https://www.linkedin.com/in/jeroen-jonckheer/)
+**Jeroen Jonckheer** - [LinkedIn](https://www.linkedin.com/in/jeroen-jonckheer/) - [GitHub](https://github.com/JeroenJonckheer)
 
 ## Contributing
 

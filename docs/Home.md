@@ -37,4 +37,4 @@ back to Dataverse.
 
 - Repository: <https://github.com/JeroenJonckheer/jj-excelindataverse>
 - Latest release: <https://github.com/JeroenJonckheer/jj-excelindataverse/releases/latest>
-- Maintainer: **Jeroen Jonckheer** - [platformpower.nl](https://www.platformpower.nl) - [LinkedIn](https://www.linkedin.com/in/jeroen-jonckheer/)
+- Maintainer: **Jeroen Jonckheer** - [LinkedIn](https://www.linkedin.com/in/jeroen-jonckheer/) - [GitHub](https://github.com/JeroenJonckheer)
