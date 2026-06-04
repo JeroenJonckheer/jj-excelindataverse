@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.8] - 2026-06-04
+
+### Fixed
+- The grid now self-heals when records are deleted outside the control (the
+  command bar Delete, a bulk delete, or another user): when more rows are loaded
+  than the dataset reports exist, it re-queries from the first page instead of
+  showing ghost rows until a manual page reload. A guard prevents a refresh loop.
+
 ## [0.13.7] - 2026-06-04
 
 ### Fixed

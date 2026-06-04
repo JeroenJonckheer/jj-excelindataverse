@@ -122,19 +122,41 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
       hasNextPage?: boolean;
       totalResultCount?: number;
       loadNextPage?: () => void;
+      reset?: () => void;
     };
   }).paging;
+  const loadedCount = (dataset.sortedRecordIds ?? []).length;
+  const totalCount =
+    typeof pagingApi?.totalResultCount === "number"
+      ? pagingApi.totalResultCount
+      : -1;
   const paging = pagingApi
     ? {
-        loaded: (dataset.sortedRecordIds ?? []).length,
-        total:
-          typeof pagingApi.totalResultCount === "number"
-            ? pagingApi.totalResultCount
-            : -1,
+        loaded: loadedCount,
+        total: totalCount,
         hasMore: !!pagingApi.hasNextPage,
         onLoadMore: () => pagingApi.loadNextPage?.(),
       }
     : undefined;
+
+  // Detect a stale loaded set: more rows loaded than the dataset says exist.
+  // This happens when records are deleted outside the control (the command bar
+  // Delete, a bulk delete, another user) - the host updates the total but keeps
+  // handing us the rows it already loaded, so the grid would show ghost rows
+  // until a manual page reload. Force one re-query from the first page; a guard
+  // ref stops it from looping if the refresh does not change anything.
+  const staleHandledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (totalCount >= 0 && loadedCount > totalCount) {
+      if (!staleHandledRef.current) {
+        staleHandledRef.current = true;
+        pagingApi?.reset?.();
+        (dataset as unknown as { refresh?: () => void }).refresh?.();
+      }
+    } else {
+      staleHandledRef.current = false;
+    }
+  }, [loadedCount, totalCount, dataset, pagingApi]);
 
   const theme: Theme = React.useMemo(() => {
     const dark = !!(context as unknown as {

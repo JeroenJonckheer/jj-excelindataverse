@@ -197,6 +197,17 @@ test("Shift+click range selection works on a virtualized grid", async ({ page })
   await expect(rows.nth(11)).not.toHaveClass(/jj-sheet-row-selected/);
 });
 
+test("self-heals when records were deleted outside the control (loaded > total)", async ({
+  page,
+}) => {
+  // 3 of the 5 loaded rows are "ghosts" (deleted from the command bar): the
+  // dataset still returns them but the total is 2. The grid must re-query and
+  // settle on the live 2 rows instead of showing the stale 5.
+  await page.goto("/?ghost=3");
+  await expect(page.locator("tbody tr[data-record-id]")).toHaveCount(2);
+  await expect(page.getByLabel("Loaded rows")).toContainText(/1.2 of 2/);
+});
+
 test("bulk delete updates the grid and the count, and clears the selection", async ({
   page,
 }) => {

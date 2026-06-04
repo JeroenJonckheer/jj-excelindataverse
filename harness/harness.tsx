@@ -300,6 +300,20 @@ function readUrlPageSize(): number {
   }
 }
 let pageSize = readUrlPageSize();
+
+// ?ghost=N simulates records deleted outside the control (e.g. the command bar):
+// the dataset still hands back N already-loaded rows while reporting a lower
+// total, until a refresh reconciles them. Reproduces the stale-rows bug.
+function readUrlGhost(): number {
+  try {
+    const v = Number(new URLSearchParams(window.location.search).get("ghost"));
+    return Number.isFinite(v) && v > 0 ? Math.floor(v) : 0;
+  } catch {
+    return 0;
+  }
+}
+let ghostCount = readUrlGhost();
+
 // Accumulating paging (like the Dataverse dataset): "load more" grows the loaded
 // count rather than replacing the page.
 let loadedCount = pageSize;
@@ -359,7 +373,9 @@ function buildContext(
     sorting: [...sortState],
     paging: {
       pageSize,
-      totalResultCount: allIds.length,
+      // Ghost rows are still handed back in sortedRecordIds but excluded from the
+      // reported total, so loaded > total - the stale state a refresh resolves.
+      totalResultCount: Math.max(0, allIds.length - ghostCount),
       hasNextPage: loadedCount < allIds.length,
       hasPreviousPage: false,
       loadNextPage: () => {
@@ -387,6 +403,18 @@ function buildContext(
     getTargetEntityType: () => "demo_account",
     refresh: () => {
       sortState = dataset.sorting || [];
+      // A real re-query reconciles ghost rows: the records deleted elsewhere are
+      // gone for good once the dataset is re-read.
+      if (ghostCount > 0) {
+        for (let i = 0; i < ghostCount; i++) {
+          const id = ORDER[ORDER.length - 1];
+          if (id == null) break;
+          ORDER.pop();
+          delete store[id];
+        }
+        ghostCount = 0;
+        loadedCount = pageSize;
+      }
       force();
     },
     // The real host reacts to a selection change by re-running updateView with a
