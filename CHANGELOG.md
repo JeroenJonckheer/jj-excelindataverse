@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.4] - 2026-06-04
+
+### Added
+- Shift+click on the row checkboxes selects the whole range: click one row's
+  checkbox, then Shift+click another, and every row in between is selected too,
+  like a spreadsheet. A plain click still toggles a single row and sets the
+  anchor for the next Shift+click.
+
 ## [0.13.3] - 2026-06-04
 
 ### Fixed

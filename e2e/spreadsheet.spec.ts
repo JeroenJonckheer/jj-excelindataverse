@@ -169,6 +169,20 @@ test("selects a row and deletes it on save", async ({ page }) => {
   await expect(page.getByText("Acme Corporation")).toHaveCount(0);
 });
 
+test("Shift+click on the checkboxes selects the whole range of rows", async ({
+  page,
+}) => {
+  const checkboxes = page.locator('tbody tr[data-record-id] input[type="checkbox"]');
+  await checkboxes.nth(0).click();
+  await checkboxes.nth(3).click({ modifiers: ["Shift"] });
+  // Rows 0-3 (inclusive) are now selected; row 4 is not.
+  const rows = page.locator("tbody tr[data-record-id]");
+  for (let i = 0; i <= 3; i++) {
+    await expect(rows.nth(i)).toHaveClass(/jj-sheet-row-selected/);
+  }
+  await expect(rows.nth(4)).not.toHaveClass(/jj-sheet-row-selected/);
+});
+
 test("sorts the grid when a column header is clicked", async ({ page }) => {
   // Ascending by Score puts the lowest score (Hooli, 15) first.
   await page.getByRole("columnheader", { name: "Score" }).click();

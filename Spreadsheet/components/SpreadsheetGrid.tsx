@@ -925,6 +925,30 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     });
   };
 
+  // Anchor for Shift+click range selection on the leading checkbox column.
+  const rowAnchorRef = React.useRef<number | null>(null);
+
+  // Click on a row checkbox: a plain click toggles that row and becomes the new
+  // anchor; Shift+click selects every row between the anchor and this row
+  // (inclusive), like a spreadsheet.
+  const selectRowAt = (recordId: string, rowIndex: number, shift: boolean) => {
+    if (shift && rowAnchorRef.current != null) {
+      const lo = Math.min(rowAnchorRef.current, rowIndex);
+      const hi = Math.max(rowAnchorRef.current, rowIndex);
+      setSelectedRows((s) => {
+        const next = new Set(s);
+        for (let r = lo; r <= hi; r++) {
+          const rec = allRows[r];
+          if (rec) next.add(rec.recordId);
+        }
+        return next;
+      });
+      return;
+    }
+    rowAnchorRef.current = rowIndex;
+    toggleRowSelected(recordId);
+  };
+
   const allSelected =
     allRows.length > 0 && allRows.every((r) => selectedRows.has(r.recordId));
   const toggleSelectAll = () => {
@@ -1592,8 +1616,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                       type="checkbox"
                       aria-label="Select row"
                       checked={rowSelected}
-                      onChange={() => toggleRowSelected(row.recordId)}
-                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => {
+                        /* selection handled in onClick (needs shiftKey) */
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectRowAt(row.recordId, rowIndex, e.shiftKey);
+                      }}
                     />
                   </td>
                   {columns.map((col, colIndex) => {
