@@ -9,4 +9,4 @@
  * footer of the control and is kept in step with the manifest, the package
  * version and the solution version.
  */
-export const CONTROL_VERSION = "0.13.2";
+export const CONTROL_VERSION = "0.13.3";

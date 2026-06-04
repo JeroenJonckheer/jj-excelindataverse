@@ -343,8 +343,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   let virtualStart = 0;
   let virtualEnd = totalRows;
   if (virtual) {
-    virtualStart = Math.max(0, Math.floor(scrollTop / rowH) - OVERSCAN_ROWS);
     const visibleCount = Math.ceil((viewportHeight || 400) / rowH) + OVERSCAN_ROWS * 2;
+    // Clamp the window so a stale/oversized scrollTop (e.g. after the view's
+    // columns or row count changed) can never land past the data and blank the
+    // grid - it falls back to the last full window instead.
+    const maxStart = Math.max(0, totalRows - visibleCount);
+    virtualStart = Math.max(0, Math.min(Math.floor(scrollTop / rowH) - OVERSCAN_ROWS, maxStart));
     virtualEnd = Math.min(totalRows, virtualStart + visibleCount);
   }
   const topPad = virtualStart * rowH;

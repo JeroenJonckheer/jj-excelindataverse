@@ -226,6 +226,14 @@ test("freezes pinned columns when scrolling horizontally", async ({ page }) => {
   expect(Math.abs((frozenAfter?.x ?? 0) - (frozenBefore?.x ?? 0))).toBeLessThan(2);
 });
 
+test("renders rows when a read-only datetime is the first column", async ({ page }) => {
+  await page.goto("/?firstcol=createdon");
+  // The grid must not go blank: rows render, with the date in col 0 and the
+  // account name in col 1.
+  await expect(cell(page, 0, 0)).not.toHaveText("");
+  await expect(cell(page, 0, 1)).toContainText("Acme Corporation");
+});
+
 test("virtualizes a large grid and renders rows on scroll", async ({ page }) => {
   await page.goto("/?rows=200&pageSize=200");
   await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");
@@ -236,6 +244,18 @@ test("virtualizes a large grid and renders rows on scroll", async ({ page }) => 
   await page.locator(".jj-sheet").evaluate((el) => {
     el.scrollTop = el.scrollHeight;
   });
+  await expect(page.getByText("Synthetic Account 199", { exact: true })).toBeVisible();
+});
+
+test("keeps rows visible when scrolled far past the content", async ({ page }) => {
+  await page.goto("/?rows=200&pageSize=200");
+  await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");
+  // An oversized scrollTop (much larger than the content) must not blank the
+  // grid: the window clamps to the last full page of rows.
+  await page.locator(".jj-sheet").evaluate((el) => {
+    el.scrollTop = el.scrollHeight * 10;
+  });
+  await expect(page.locator("tbody tr[data-record-id]").first()).toBeVisible();
   await expect(page.getByText("Synthetic Account 199", { exact: true })).toBeVisible();
 });
 

@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.3] - 2026-06-04
+
+### Fixed
+- The virtualization window is now clamped so a stale or oversized scroll
+  position (for example right after the view's columns or row count change)
+  can no longer land past the last row and blank the grid; it falls back to the
+  last full window of rows instead.
+
 ## [0.13.2] - 2026-06-04
 
 ### Changed

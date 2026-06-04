@@ -108,6 +108,26 @@ const META: ColumnDef[] = [
   },
 ];
 
+// ?firstcol=createdon reproduces "added a read-only Created On as the first
+// column" - the scenario reported as blanking the whole sheet.
+function readUrlFirstCol(): string {
+  try {
+    return new URLSearchParams(window.location.search).get("firstcol") ?? "";
+  } catch {
+    return "";
+  }
+}
+if (readUrlFirstCol() === "createdon") {
+  META.unshift({
+    name: "createdon",
+    displayName: "Created On",
+    dataType: "DateAndTime.DateAndTime",
+    kind: "datetime",
+    editable: false,
+    required: "none",
+  });
+}
+
 const COL_BY_NAME = new Map(META.map((c) => [c.name, c]));
 
 const CONTACTS: LookupValue[] = [
@@ -204,6 +224,12 @@ function buildInitialStore(): Store {
 // Built once at module load; ORDER is derived from it (no per-render side
 // effects). initialStore() returns a fresh mutable clone for the component.
 const INITIAL_STORE = buildInitialStore();
+if (readUrlFirstCol() === "createdon") {
+  let day = 1;
+  for (const k of Object.keys(INITIAL_STORE)) {
+    INITIAL_STORE[k].createdon = new Date(2026, 0, ((day++ % 27) + 1));
+  }
+}
 const ORDER: string[] = Object.keys(INITIAL_STORE);
 function initialStore(): Store {
   const copy: Store = {};
@@ -316,6 +342,7 @@ function buildContext(
     duedate: 130,
     owner: 180,
     forecast: 120,
+    createdon: 160,
   };
   const allIds = sortedOrder(store);
   const visibleIds = allIds.slice(0, loadedCount);
