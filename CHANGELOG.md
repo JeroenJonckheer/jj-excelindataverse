@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.1] - 2026-06-04
+
+### Fixed
+- The stale-data self-heal now only re-queries when the dataset reports no
+  further pages. Previously, on a large view where Dataverse caps
+  `totalResultCount` at 5000, "loaded > total" could be misread as stale and
+  trigger a reset/refresh on a column or view change.
+
+### Added
+- An empty grid now shows "No records to show." instead of a blank area, so an
+  empty result (or a brief reload) reads as empty rather than broken.
+
+### Changed
+- The offline test harness now caps `totalResultCount` at 5000 like Dataverse
+  and can add a column at runtime, so the large-grid + add-column path is
+  covered by an end-to-end test.
+
 ## [0.15.0] - 2026-06-04
 
 ### Added

@@ -357,6 +357,21 @@ test("virtualizes a large grid and renders rows on scroll", async ({ page }) => 
   await expect(page.getByText("Synthetic Account 199", { exact: true })).toBeVisible();
 });
 
+test("adding a column on a large (>5000) virtualized grid does not blank it", async ({
+  page,
+}) => {
+  // 6000 rows, page size 5000: loaded hits the Dataverse 5000 count cap while a
+  // next page still exists. Adding a column (like "Edit columns") must not blank
+  // the grid.
+  await page.goto("/?rows=6000&pageSize=5000&addcol=1");
+  await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");
+  await page.getByRole("button", { name: "DEV add column" }).click();
+  await expect(page.getByRole("columnheader", { name: "Dev Column" })).toBeVisible();
+  // Rows must still render; the account name is now in column 1.
+  await expect(page.locator("tbody tr[data-record-id]").first()).toBeVisible();
+  await expect(cell(page, 0, 1)).toContainText("Synthetic Account 0");
+});
+
 test("keeps rows visible when scrolled far past the content", async ({ page }) => {
   await page.goto("/?rows=200&pageSize=200");
   await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");

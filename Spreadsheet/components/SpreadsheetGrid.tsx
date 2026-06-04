@@ -1818,6 +1818,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             </tr>
           </thead>
           <tbody>
+            {allRows.length === 0 && (
+              <tr className="jj-sheet-empty-row">
+                <td className="jj-sheet-empty-cell" colSpan={Math.max(columns.length + 1, 1)}>
+                  No records to show.
+                </td>
+              </tr>
+            )}
             {virtual && topPad > 0 && (
               <tr aria-hidden="true">
                 <td

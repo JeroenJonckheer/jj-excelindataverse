@@ -386,7 +386,9 @@ function buildContext(
       pageSize,
       // Ghost rows are still handed back in sortedRecordIds but excluded from the
       // reported total, so loaded > total - the stale state a refresh resolves.
-      totalResultCount: Math.max(0, allIds.length - ghostCount),
+      // Capped at 5000 like the real Dataverse dataset, so the control must cope
+      // with loaded == cap < real total on a large view.
+      totalResultCount: Math.min(5000, Math.max(0, allIds.length - ghostCount)),
       hasNextPage: loadedCount < allIds.length,
       hasPreviousPage: false,
       loadNextPage: () => {
@@ -533,6 +535,30 @@ function createService(store: Store): IDataverseService {
   };
 }
 
+// ?addcol=1 shows a dev button that appends a column at runtime, mimicking the
+// host's "Edit columns": the view's column set changes on an already-loaded
+// (possibly large, virtualized) grid.
+function readUrlAddCol(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get("addcol") === "1";
+  } catch {
+    return false;
+  }
+}
+function addDevColumn(): void {
+  if (META.some((c) => c.name === "pp_devcol")) return;
+  const col: ColumnDef = {
+    name: "pp_devcol",
+    displayName: "Dev Column",
+    dataType: "DateAndTime.DateAndTime",
+    kind: "datetime",
+    editable: false,
+    required: "none",
+  };
+  META.unshift(col); // add as the FIRST column, like the reported repro
+  COL_BY_NAME.set(col.name, col);
+}
+
 const Harness: React.FC = () => {
   const storeRef = React.useRef<Store>(initialStore());
   const serviceRef = React.useRef<IDataverseService>(createService(storeRef.current));
@@ -541,6 +567,19 @@ const Harness: React.FC = () => {
   const context = buildContext(storeRef.current, force);
   return (
     <div style={{ position: "absolute", inset: 0, padding: 16, background: "#f3f2f1" }}>
+      {readUrlAddCol() && (
+        <button
+          type="button"
+          aria-label="DEV add column"
+          style={{ position: "absolute", top: 2, left: 2, zIndex: 50 }}
+          onClick={() => {
+            addDevColumn();
+            force();
+          }}
+        >
+          DEV add column
+        </button>
+      )}
       <div
         style={{
           height: "100%",

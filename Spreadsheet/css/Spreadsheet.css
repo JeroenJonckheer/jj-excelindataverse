@@ -45,6 +45,13 @@
   font-size: 13px;
 }
 
+.jj-sheet-empty-cell {
+  padding: 16px;
+  text-align: center;
+  color: var(--colorNeutralForeground3, #616161);
+  font-style: italic;
+}
+
 /* ---- Error boundary panel ---- */
 
 .jj-sheet-error-boundary {
