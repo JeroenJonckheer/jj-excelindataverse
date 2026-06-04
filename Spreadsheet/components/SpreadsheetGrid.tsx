@@ -1653,7 +1653,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             })}
           </tbody>
         </table>
-        {selectionRect && (
+        {selectionRect && !(copyRect && rectsEqual(selectionRect, copyRect)) && (
           <div
             className="jj-sheet-selection-overlay"
             style={{

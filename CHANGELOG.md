@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.3] - 2026-06-04
+
+### Fixed
+- The copy marching-ants marquee was hidden under the solid selection border on
+  the same range. The solid border is now suppressed where it coincides with the
+  copied range (showing the marquee, like Excel), the marquee sits on top, and
+  its dashes are a touch thicker.
+
 ## [0.10.2] - 2026-06-04
 
 ### Changed
