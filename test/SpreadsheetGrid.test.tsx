@@ -1044,3 +1044,67 @@ describe("dynamic column changes", () => {
     expect(rowEl("a").className).not.toContain("jj-sheet-row-selected");
   });
 });
+
+describe("move selection by dragging the border", () => {
+  function baseProps() {
+    return {
+      version: "0.1.0",
+      onSave: jest.fn(() => Promise.resolve()),
+      onCreate: jest.fn(() => Promise.resolve()),
+      onDelete: jest.fn(() => Promise.resolve()),
+      onOpenRecord: jest.fn(),
+      onOpenLookup: jest.fn(),
+      searchLookup: jest.fn(() => Promise.resolve([] as LookupValue[])),
+      resolveLookup: jest.fn(() => Promise.resolve([] as LookupValue[])),
+    };
+  }
+  const textCol: ColumnDef[] = [
+    {
+      name: "a",
+      displayName: "A",
+      dataType: "SingleLine.Text",
+      kind: "text",
+      editable: true,
+      required: "none",
+    },
+  ];
+  const fiveRows = (): GridRow[] =>
+    ["A", "B", "C", "D", "E"].map((v, i) => ({
+      recordId: `r${i}`,
+      raw: { a: v },
+      display: { a: v },
+    }));
+
+  it("relocates the block to the drop area and clears the source", () => {
+    const { container } = render(
+      <SpreadsheetGrid {...baseProps()} columns={textCol} rows={fiveRows()} />,
+    );
+    // Select a two-row block (rows 0-1).
+    fireEvent.click(cell(container, 0, 0));
+    fireEvent.click(cell(container, 1, 0), { shiftKey: true });
+
+    // Grab the left border band and drag down to row 3: the block lands at 3-4.
+    const band = container.querySelector(".jj-sheet-move-left") as HTMLElement;
+    expect(band).not.toBeNull();
+    fireEvent.mouseDown(band);
+    fireEvent.mouseEnter(cell(container, 3, 0), { buttons: 1 });
+    fireEvent.mouseUp(document);
+
+    expect(cell(container, 3, 0).textContent).toBe("A");
+    expect(cell(container, 4, 0).textContent).toBe("B");
+    expect(cell(container, 0, 0).textContent).toBe("");
+    expect(cell(container, 1, 0).textContent).toBe("");
+    // The whole move is one undo step.
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "z", ctrlKey: true });
+    expect(cell(container, 0, 0).textContent).toBe("A");
+    expect(cell(container, 3, 0).textContent).toBe("D");
+  });
+
+  it("shows no move bands for a single-cell selection", () => {
+    const { container } = render(
+      <SpreadsheetGrid {...baseProps()} columns={textCol} rows={fiveRows()} />,
+    );
+    fireEvent.click(cell(container, 0, 0));
+    expect(container.querySelector(".jj-sheet-move-left")).toBeNull();
+  });
+});

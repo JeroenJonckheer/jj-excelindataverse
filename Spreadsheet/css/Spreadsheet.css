@@ -586,6 +586,48 @@
   }
 }
 
+/* Grab bands on the selection border: drag to move the whole block. They sit on
+   the perimeter only, so a click in the interior still selects/edits cells. */
+.jj-sheet-move-band {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+  z-index: 2;
+}
+.jj-sheet-move-top,
+.jj-sheet-move-bottom {
+  left: 0;
+  right: 0;
+  height: 6px;
+}
+.jj-sheet-move-top {
+  top: -3px;
+}
+.jj-sheet-move-bottom {
+  bottom: -3px;
+}
+.jj-sheet-move-left,
+.jj-sheet-move-right {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+}
+.jj-sheet-move-left {
+  left: -3px;
+}
+.jj-sheet-move-right {
+  right: -3px;
+}
+/* The drop target preview while dragging the block. */
+.jj-sheet-move-preview {
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 3;
+  border: 2px dashed var(--colorBrandStroke1, #0f6cbd);
+  background: color-mix(in srgb, var(--colorBrandBackground, #0f6cbd) 12%, transparent);
+}
+
 /* ---- Find & replace ---- */
 
 .jj-sheet-find {

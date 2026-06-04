@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] - 2026-06-04
+
+### Added
+- Move a selected block of cells by dragging its border to another area, like
+  Excel: grab the edge of a multi-cell selection (the cursor turns into a move
+  cursor), drag, and a dashed preview shows where it lands; on release the values
+  move there and the source cells clear. Read-only or out-of-grid target cells
+  are left untouched so nothing is lost, and the move is a single undo step.
+
 ## [0.13.8] - 2026-06-04
 
 ### Fixed

@@ -171,6 +171,16 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const fillingRef = React.useRef(false);
   const fillToRef = React.useRef<CellAddress | null>(null);
   const [fillTo, setFillTo] = React.useState<CellAddress | null>(null);
+  // Move drag: grab the selection's border and drag the whole block to a new
+  // area (the values move there, the source clears), like Excel.
+  interface RangeBox { top: number; bottom: number; left: number; right: number }
+  const movingRef = React.useRef(false);
+  const moveFromRef = React.useRef<RangeBox | null>(null);
+  const moveGrabRef = React.useRef<CellAddress | null>(null);
+  const moveToRef = React.useRef<CellAddress | null>(null);
+  const [moving, setMoving] = React.useState(false);
+  const [moveTo, setMoveTo] = React.useState<CellAddress | null>(null);
+  const [moveRect, setMoveRect] = React.useState<OverlayRect | null>(null);
   const [editing, setEditing] = React.useState(false);
   const [editText, setEditText] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -442,6 +452,18 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     x === y ||
     (!!x && !!y && x.left === y.left && x.top === y.top && x.width === y.width && x.height === y.height);
 
+  // The target rectangle a move drag would drop the block onto (same size as the
+  // source, offset by the drag), for the preview outline.
+  const moveBounds: RangeBox | null =
+    moving && moveFromRef.current && moveTo
+      ? {
+          top: moveTo.rowIndex,
+          left: moveTo.colIndex,
+          bottom: moveTo.rowIndex + (moveFromRef.current.bottom - moveFromRef.current.top),
+          right: moveTo.colIndex + (moveFromRef.current.right - moveFromRef.current.left),
+        }
+      : null;
+
   // Re-measure the overlays after every render; the equality guard stops the
   // setState from looping. Cheap (two querySelectors) and always accurate.
   React.useLayoutEffect(() => {
@@ -450,6 +472,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const cb = copyRange ? rangeBounds(copyRange.a, copyRange.b) : null;
     const nextCopy = measureRect(cb);
     setCopyRect((prev) => (rectsEqual(prev, nextCopy) ? prev : nextCopy));
+    const nextMove = measureRect(moveBounds);
+    setMoveRect((prev) => (rectsEqual(prev, nextMove) ? prev : nextMove));
     // Keep the virtualisation row height in step with the real rendered height.
     const firstRow = containerRef.current?.querySelector(
       "tbody tr[data-record-id]",
@@ -677,6 +701,27 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     // the host iframe): if the primary button is no longer down, stop instead
     // of letting plain hover keep extending.
     const buttonUp = (e.buttons & 1) === 0;
+    if (movingRef.current) {
+      if (buttonUp) {
+        movingRef.current = false;
+        setMoving(false);
+        return;
+      }
+      const from = moveFromRef.current;
+      const grab = moveGrabRef.current;
+      if (from && grab) {
+        // Offset the whole block by how far the cursor moved from the grab cell,
+        // clamped so the block stays inside the grid.
+        let dRow = rowIndex - grab.rowIndex;
+        let dCol = colIndex - grab.colIndex;
+        dRow = Math.max(-from.top, Math.min(dRow, dims.rowCount - 1 - from.bottom));
+        dCol = Math.max(-from.left, Math.min(dCol, dims.colCount - 1 - from.right));
+        const to = { rowIndex: from.top + dRow, colIndex: from.left + dCol };
+        moveToRef.current = to;
+        setMoveTo(to);
+      }
+      return;
+    }
     if (fillingRef.current) {
       if (buttonUp) {
         fillingRef.current = false;
@@ -694,6 +739,98 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       return;
     }
     setActive({ rowIndex, colIndex });
+  };
+
+  // Resolves the grid cell under a viewport point, ignoring the overlays.
+  const cellFromPoint = (x: number, y: number): CellAddress | null => {
+    if (typeof document.elementFromPoint !== "function") return null;
+    const el = document.elementFromPoint(x, y) as HTMLElement | null;
+    const td = el?.closest?.("td[data-row]") as HTMLElement | null;
+    if (!td) return null;
+    const r = Number(td.getAttribute("data-row"));
+    const c = Number(td.getAttribute("data-col"));
+    if (!Number.isFinite(r) || !Number.isFinite(c)) return null;
+    return { rowIndex: r, colIndex: c };
+  };
+
+  // Start dragging the selection's border to move the whole block.
+  const onMoveStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (editing || !active || !selStart) return;
+    const from = rangeBounds(selStart, active);
+    // The cell under the cursor at grab time (hide the band so the hit-test
+    // reaches the cell beneath it), so the block follows the cursor naturally.
+    const band = e.currentTarget as HTMLElement;
+    const prev = band.style.pointerEvents;
+    band.style.pointerEvents = "none";
+    const grab = cellFromPoint(e.clientX, e.clientY) ?? { rowIndex: from.top, colIndex: from.left };
+    band.style.pointerEvents = prev;
+    movingRef.current = true;
+    moveFromRef.current = from;
+    moveGrabRef.current = grab;
+    moveToRef.current = { rowIndex: from.top, colIndex: from.left };
+    setMoving(true);
+    setMoveTo({ rowIndex: from.top, colIndex: from.left });
+  };
+
+  // Apply the move: relocate every selected cell by the drag offset, clearing
+  // the source. Only cells whose source and target columns are both editable
+  // move; read-only or out-of-grid targets are left untouched (no data loss).
+  const applyMove = () => {
+    const from = moveFromRef.current;
+    const to = moveToRef.current;
+    if (!from || !to) return;
+    const dRow = to.rowIndex - from.top;
+    const dCol = to.colIndex - from.left;
+    if (dRow === 0 && dCol === 0) return;
+
+    interface Cap {
+      srcId: string;
+      srcCol: ColumnDef;
+      value: CellValue;
+      display: string;
+      tgtRow: GridRow;
+      tgtCol: ColumnDef;
+    }
+    const caps: Cap[] = [];
+    for (let r = from.top; r <= from.bottom; r++) {
+      const row = allRows[r];
+      if (!row) continue;
+      for (let c = from.left; c <= from.right; c++) {
+        const srcCol = columns[c];
+        const tgtRow = allRows[r + dRow];
+        const tgtCol = columns[c + dCol];
+        if (!srcCol?.editable || !tgtRow || !tgtCol?.editable) continue;
+        caps.push({
+          srcId: row.recordId,
+          srcCol,
+          value: valueOf(row, srcCol),
+          display: displayOf(row, srcCol),
+          tgtRow,
+          tgtCol,
+        });
+      }
+    }
+    if (caps.length === 0) return;
+
+    record();
+    // Clear the moved sources first (captured above), then write the targets, so
+    // an overlapping move keeps the values that land back on a source cell.
+    for (const cap of caps) {
+      if (cap.srcCol.kind === "lookup") applyValue(cap.srcId, cap.srcCol, null);
+      else applyText(cap.srcId, cap.srcCol, "");
+    }
+    for (const cap of caps) {
+      if (cap.tgtCol.kind === "lookup") {
+        applyValue(cap.tgtRow.recordId, cap.tgtCol, isLookupValue(cap.value) ? cap.value : null);
+      } else {
+        applyText(cap.tgtRow.recordId, cap.tgtCol, cap.display);
+      }
+    }
+    // Frame the block at its new location.
+    setAnchor({ rowIndex: from.top + dRow, colIndex: from.left + dCol });
+    setActive({ rowIndex: from.bottom + dRow, colIndex: from.right + dCol });
   };
 
   // Start dragging the fill handle from the selection's bottom-right corner.
@@ -784,6 +921,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       fillingRef.current = false;
       applyFill();
       setFillTo(null);
+    }
+    if (movingRef.current) {
+      movingRef.current = false;
+      applyMove();
+      setMoving(false);
+      setMoveTo(null);
     }
   };
 
@@ -1819,6 +1962,29 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
               top: selectionRect.top,
               width: selectionRect.width,
               height: selectionRect.height,
+            }}
+            aria-hidden="true"
+          >
+            {/* Grab the border to move the whole block (only for a real range,
+                so a single-cell click is never hijacked). */}
+            {selectionCount > 1 && !editing && !moving && (
+              <>
+                <span className="jj-sheet-move-band jj-sheet-move-top" onMouseDown={onMoveStart} />
+                <span className="jj-sheet-move-band jj-sheet-move-bottom" onMouseDown={onMoveStart} />
+                <span className="jj-sheet-move-band jj-sheet-move-left" onMouseDown={onMoveStart} />
+                <span className="jj-sheet-move-band jj-sheet-move-right" onMouseDown={onMoveStart} />
+              </>
+            )}
+          </div>
+        )}
+        {moving && moveRect && (
+          <div
+            className="jj-sheet-move-preview"
+            style={{
+              left: moveRect.left,
+              top: moveRect.top,
+              width: moveRect.width,
+              height: moveRect.height,
             }}
             aria-hidden="true"
           />

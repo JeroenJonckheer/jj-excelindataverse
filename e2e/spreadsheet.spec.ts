@@ -225,6 +225,32 @@ test("bulk delete updates the grid and the count, and clears the selection", asy
   await expect(page.getByRole("button", { name: /Delete selected/ })).toHaveCount(0);
 });
 
+test("moves a selected block to another area by dragging its border", async ({
+  page,
+}) => {
+  // Select a two-row block in the first (editable) column.
+  await cell(page, 0, 0).click();
+  await cell(page, 1, 0).click({ modifiers: ["Shift"] });
+  const v0 = (await cell(page, 0, 0).innerText()).trim();
+  const v1 = (await cell(page, 1, 0).innerText()).trim();
+
+  // Grab the left border band near the top row and drag the block down.
+  const band = page.locator(".jj-sheet-move-left");
+  const bb = await band.boundingBox();
+  const drop = await cell(page, 3, 0).boundingBox();
+  if (!bb || !drop) throw new Error("missing geometry");
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(drop.x + drop.width / 2, drop.y + drop.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  // The block landed at rows 3-4 and the source rows cleared.
+  await expect(cell(page, 3, 0)).toHaveText(v0);
+  await expect(cell(page, 4, 0)).toHaveText(v1);
+  await expect(cell(page, 0, 0)).toHaveText("");
+  await expect(cell(page, 1, 0)).toHaveText("");
+});
+
 test("sorts the grid when a column header is clicked", async ({ page }) => {
   // Ascending by Score puts the lowest score (Hooli, 15) first.
   await page.getByRole("columnheader", { name: "Score" }).click();
