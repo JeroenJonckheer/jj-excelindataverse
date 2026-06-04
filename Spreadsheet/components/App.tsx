@@ -142,25 +142,31 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     return dark ? webDarkTheme : webLightTheme;
   }, [context]);
 
+  // The per-record API calls no longer refresh the dataset themselves: a bulk
+  // save (especially a bulk delete) would otherwise fire one refresh per record
+  // in parallel, mid-operation, and the dataset would read back an intermediate
+  // state (stale rows, a wrong "loaded of total" count). The grid calls
+  // onCommitted once, after every save/create/delete has resolved.
   const onSave = React.useCallback(
     async (recordId: string, edits: PendingEdit[]) => {
       await dataverse.saveRecord(entityName, recordId, edits);
-      const refreshable = dataset as unknown as { refresh?: () => void };
-      refreshable.refresh?.();
-      onChange();
     },
-    [dataverse, entityName, dataset, onChange],
+    [dataverse, entityName],
   );
 
   const onCreate = React.useCallback(
     async (edits: PendingEdit[]) => {
       await dataverse.createRecord(entityName, edits);
-      const refreshable = dataset as unknown as { refresh?: () => void };
-      refreshable.refresh?.();
-      onChange();
     },
-    [dataverse, entityName, dataset, onChange],
+    [dataverse, entityName],
   );
+
+  // Called once after a batch of saves/creates/deletes has fully resolved.
+  const onCommitted = React.useCallback(() => {
+    const refreshable = dataset as unknown as { refresh?: () => void };
+    refreshable.refresh?.();
+    onChange();
+  }, [dataset, onChange]);
 
   const searchLookup = React.useCallback(
     (targets: string[], term: string): Promise<LookupValue[]> =>
@@ -177,11 +183,8 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   const onDelete = React.useCallback(
     async (recordId: string) => {
       await dataverse.deleteRecord(entityName, recordId);
-      const refreshable = dataset as unknown as { refresh?: () => void };
-      refreshable.refresh?.();
-      onChange();
     },
-    [dataverse, entityName, dataset, onChange],
+    [dataverse, entityName],
   );
 
   const onOpenRecord = React.useCallback(
@@ -268,6 +271,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         version={CONTROL_VERSION}
         onCreate={onCreate}
         onDelete={onDelete}
+        onCommitted={onCommitted}
         onOpenRecord={onOpenRecord}
         onOpenLookup={onOpenLookup}
         onSelectionChange={onSelectionChange}

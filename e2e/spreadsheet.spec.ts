@@ -183,6 +183,23 @@ test("Shift+click on the checkboxes selects the whole range of rows", async ({
   await expect(rows.nth(4)).not.toHaveClass(/jj-sheet-row-selected/);
 });
 
+test("bulk delete updates the grid and the count, and clears the selection", async ({
+  page,
+}) => {
+  await expect(page.getByLabel("Loaded rows")).toContainText(/1.5 of 5/);
+  const checkboxes = page.locator('tbody tr[data-record-id] input[type="checkbox"]');
+  await checkboxes.nth(0).click();
+  await checkboxes.nth(2).click({ modifiers: ["Shift"] });
+  await page.getByRole("button", { name: /Delete selected \(3\)/ }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  // The deleted rows leave the grid immediately, the count drops to the live
+  // total, and the stale "Delete selected" button is gone (selection cleared).
+  await expect(page.getByText(/No pending changes/)).toBeVisible();
+  await expect(page.locator("tbody tr[data-record-id]")).toHaveCount(2);
+  await expect(page.getByLabel("Loaded rows")).toContainText(/1.2 of 2/);
+  await expect(page.getByRole("button", { name: /Delete selected/ })).toHaveCount(0);
+});
+
 test("sorts the grid when a column header is clicked", async ({ page }) => {
   // Ascending by Score puts the lowest score (Hooli, 15) first.
   await page.getByRole("columnheader", { name: "Score" }).click();

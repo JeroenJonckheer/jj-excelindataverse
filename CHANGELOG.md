@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.5] - 2026-06-04
+
+### Fixed
+- After a bulk save (especially a bulk delete), the grid now reads the dataset
+  back once, after every record has resolved, instead of firing one refresh per
+  record mid-operation. That race left deleted rows on screen and showed an
+  impossible count such as "1-29 of 17" until a manual refresh.
+- Deleted rows now leave the grid immediately (optimistically), then reconcile
+  with the refreshed dataset.
+- The checkbox selection is pruned to rows that still exist, so a stale
+  "Delete selected (N)" no longer lingers after the underlying data changed.
+- The footer count clamps the loaded number to the total, so it can never read
+  more loaded than exist.
+
 ## [0.13.4] - 2026-06-04
 
 ### Added

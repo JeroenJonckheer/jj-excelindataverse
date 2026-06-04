@@ -99,7 +99,7 @@ export const Footer: React.FC<FooterProps> = ({
           <span className="jj-sheet-paging">
             <span className="jj-sheet-paging-info" aria-label="Loaded rows">
               {paging.total >= 0
-                ? `1–${paging.loaded} of ${paging.total}`
+                ? `1–${Math.min(paging.loaded, paging.total)} of ${paging.total}`
                 : `${paging.loaded} loaded`}
             </span>
             {paging.hasMore && (

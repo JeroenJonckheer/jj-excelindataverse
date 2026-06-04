@@ -67,6 +67,8 @@ export interface SpreadsheetGridProps {
   onSave: (recordId: string, edits: PendingEdit[]) => Promise<void>;
   onCreate: (edits: PendingEdit[]) => Promise<void>;
   onDelete: (recordId: string) => Promise<void>;
+  /** Called once after a batch of saves/creates/deletes has fully resolved. */
+  onCommitted?: () => void;
   onOpenRecord: (recordId: string) => void;
   /** Opens a record referenced by a lookup value (its own table and id). */
   onOpenLookup?: (entityType: string, recordId: string) => void;
@@ -136,6 +138,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onSave,
   onCreate,
   onDelete,
+  onCommitted,
   onOpenRecord,
   onOpenLookup,
   searchLookup,
@@ -179,6 +182,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [selectedRows, setSelectedRows] = React.useState<Set<string>>(new Set());
   // Existing records marked for deletion; removed from Dataverse on save.
   const [pendingDeletes, setPendingDeletes] = React.useState<Set<string>>(new Set());
+  // Records already deleted on the server but still present in the bound rows
+  // until the dataset refresh comes back. Filtered out so the grid updates
+  // immediately; pruned again once the refreshed rows no longer carry them.
+  const [removedIds, setRemovedIds] = React.useState<Set<string>>(new Set());
   // Right-click context menu position and target record.
   const [menu, setMenu] = React.useState<{ x: number; y: number; recordId: string } | null>(null);
   // Manual per-column width overrides (pixels), keyed by column name.
@@ -321,18 +328,45 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     return { raw, display };
   }, [columns]);
 
-  // The rendered rows are the bound dataset rows plus any unsaved new rows.
+  // The rendered rows are the bound dataset rows (minus any already deleted on
+  // the server but not yet dropped by the refresh) plus any unsaved new rows.
   const allRows: GridRow[] = React.useMemo(
     () => [
-      ...rows,
+      ...(removedIds.size > 0
+        ? rows.filter((r) => !removedIds.has(r.recordId))
+        : rows),
       ...newRows.map((id) => ({
         recordId: id,
         raw: { ...newRowDefaults.raw },
         display: { ...newRowDefaults.display },
       })),
     ],
-    [rows, newRows, newRowDefaults],
+    [rows, removedIds, newRows, newRowDefaults],
   );
+
+  // Reconcile local bookkeeping with the bound rows once a refresh arrives:
+  // drop removed ids the dataset no longer returns, and prune the checkbox
+  // selection to rows that still exist (so a stale "Delete selected (N)" or a
+  // leftover removed-id can never linger after the data changes underneath).
+  React.useEffect(() => {
+    const bound = new Set(rows.map((r) => r.recordId));
+    setRemovedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) if (bound.has(id)) next.add(id);
+      return next.size === prev.size ? prev : next;
+    });
+    // Keep a selected id only if the dataset still carries it or it is a new
+    // (unsaved) row; otherwise the deleted rows would keep "Delete selected (N)"
+    // alive after the data changed underneath.
+    const keep = new Set([...bound, ...newRows]);
+    setSelectedRows((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) if (keep.has(id)) next.add(id);
+      return next.size === prev.size ? prev : next;
+    });
+  }, [rows, newRows]);
   const dims = { rowCount: allRows.length, colCount: columns.length };
 
   // Virtual window: which rows to actually render. Below the threshold we render
@@ -1342,9 +1376,26 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       deletedRecords.forEach((id) => next.delete(id));
       return next;
     });
+    // Drop the deleted rows from the grid right away (the dataset refresh below
+    // is async; without this the just-deleted rows linger until it returns) and
+    // clear them from the checkbox selection so "Delete selected (N)" resets.
+    if (deletedRecords.length > 0) {
+      setRemovedIds((prev) => new Set([...prev, ...deletedRecords]));
+      setSelectedRows((prev) => {
+        const next = new Set(prev);
+        deletedRecords.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
     setActive(null);
     setRowErrors((re) => ({ ...re, ...failures }));
     setSaving(false);
+
+    // One refresh, after every save/create/delete has resolved, so the dataset
+    // reports a single consistent state instead of an intermediate one.
+    if (savedRecords.length > 0 || deletedRecords.length > 0) {
+      onCommitted?.();
+    }
   };
 
   // ---- Find & replace ----
