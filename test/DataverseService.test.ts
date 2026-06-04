@@ -533,6 +533,36 @@ describe("resolveLookup", () => {
     expect(await svc.resolveLookup(["contact"], "   ")).toEqual([]);
     expect(retrieveMultipleRecords).not.toHaveBeenCalled();
   });
+
+  it("does not cache a failed lookup, so a later retry can resolve it", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions",
+        body: {
+          PrimaryNameAttribute: "name",
+          PrimaryIdAttribute: "accountid",
+          EntitySetName: "accounts",
+        },
+      },
+    ]) as unknown as typeof fetch;
+    let calls = 0;
+    const retrieveMultipleRecords = jest.fn(() => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new Error("throttled"))
+        : Promise.resolve({ entities: [{ accountid: "a1", name: "Helix Group" }] });
+    });
+    const svc = new DataverseService(
+      makeContext({ retrieveMultipleRecords } as unknown as Partial<ComponentFramework.WebApi>),
+    );
+    // First attempt errors -> empty, but must NOT be cached.
+    expect(await svc.resolveLookup(["account"], "Helix Group")).toEqual([]);
+    // Retry hits the API again and resolves.
+    expect(await svc.resolveLookup(["account"], "Helix Group")).toEqual([
+      { id: "a1", name: "Helix Group", entityType: "account" },
+    ]);
+    expect(retrieveMultipleRecords).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("saveRecord", () => {

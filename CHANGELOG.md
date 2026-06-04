@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.14.1] - 2026-06-04
+
+### Fixed
+- Reordering columns now clears the freeze: the freeze boundary was a positional
+  index, so after a reorder it pinned whichever columns happened to land there
+  rather than the ones the user chose.
+- The stale-data self-heal (re-query when more rows are loaded than exist) now
+  latches on the exact loaded/total pair it handled, so a host that keeps
+  returning the same stale counts can no longer trigger a refresh loop.
+- A failed lookup resolution (a throttle or transient query error) is no longer
+  cached as "no match"; a later retry can resolve it.
+- Boolean cells now read string values ("true"/"false"/"1"/"0"/"yes") the
+  dataset can hand back, instead of treating anything but `true`/`1` as false.
+- A move or fill drag is cancelled if the window loses focus mid-drag (released
+  outside the host), so it can no longer silently complete on the next click.
+
+### Changed
+- The solution, package and footer versions are back in step (the solution and
+  package versions had drifted behind the control version).
+
 ## [0.14.0] - 2026-06-04
 
 ### Added

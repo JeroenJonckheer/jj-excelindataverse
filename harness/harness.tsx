@@ -312,7 +312,18 @@ function readUrlGhost(): number {
     return 0;
   }
 }
+// ?ghoststick keeps the discrepancy unresolved on refresh, so the control's
+// self-heal must re-query at most once (no refresh storm) rather than loop.
+function readUrlGhostStick(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get("ghoststick") === "1";
+  } catch {
+    return false;
+  }
+}
 let ghostCount = readUrlGhost();
+const ghostStick = readUrlGhostStick();
+let refreshCount = 0;
 
 // Accumulating paging (like the Dataverse dataset): "load more" grows the loaded
 // count rather than replacing the page.
@@ -403,9 +414,12 @@ function buildContext(
     getTargetEntityType: () => "demo_account",
     refresh: () => {
       sortState = dataset.sorting || [];
+      refreshCount++;
+      (window as unknown as { __jjRefreshCount?: number }).__jjRefreshCount = refreshCount;
       // A real re-query reconciles ghost rows: the records deleted elsewhere are
-      // gone for good once the dataset is re-read.
-      if (ghostCount > 0) {
+      // gone for good once the dataset is re-read. In sticky mode it does not,
+      // so the control's self-heal must not loop.
+      if (ghostCount > 0 && !ghostStick) {
         for (let i = 0; i < ghostCount; i++) {
           const id = ORDER[ORDER.length - 1];
           if (id == null) break;

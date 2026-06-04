@@ -84,8 +84,13 @@ export function extractRawValue(
       const num = typeof raw === "number" ? raw : Number(raw);
       return Number.isFinite(num) ? num : null;
     }
-    case "boolean":
-      return raw === true || raw === 1 || raw === "1";
+    case "boolean": {
+      if (typeof raw === "string") {
+        const v = raw.trim().toLowerCase();
+        return v === "true" || v === "1" || v === "yes";
+      }
+      return raw === true || raw === 1;
+    }
     case "choice": {
       const num = typeof raw === "number" ? raw : Number(raw);
       return Number.isFinite(num) ? num : null;

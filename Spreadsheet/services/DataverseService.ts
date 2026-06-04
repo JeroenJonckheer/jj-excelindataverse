@@ -374,6 +374,7 @@ export class DataverseService implements IDataverseService {
     const isGuid = GUID_PATTERN.test(term);
     const id = term.replace(/[{}]/g, "");
     const results: LookupValue[] = [];
+    let errored = false;
 
     for (const target of targets) {
       try {
@@ -413,7 +414,9 @@ export class DataverseService implements IDataverseService {
         }
       } catch (e) {
         // A missing record by id, or a query failure, simply yields no match
-        // for this target.
+        // for this target. A query failure (throttle, transient) must not be
+        // cached as "no match", or the value would never resolve afterwards.
+        errored = true;
         console.warn(
           `JJ - Excel in Dataverse: could not resolve lookup '${term}' on table '${target}'.`,
           e,
@@ -421,7 +424,11 @@ export class DataverseService implements IDataverseService {
       }
     }
 
-    this.lookupResolveCache.set(cacheKey, results);
+    // Only cache a definitive result. If a target errored and produced nothing,
+    // leave it uncached so a later retry can resolve it.
+    if (!errored || results.length > 0) {
+      this.lookupResolveCache.set(cacheKey, results);
+    }
     return results;
   }
 

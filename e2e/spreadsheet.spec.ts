@@ -208,6 +208,22 @@ test("self-heals when records were deleted outside the control (loaded > total)"
   await expect(page.getByLabel("Loaded rows")).toContainText(/1.2 of 2/);
 });
 
+test("does not loop refreshing when a stale count cannot be reconciled", async ({
+  page,
+}) => {
+  // ghoststick keeps loaded(5) > total(2) even after a refresh: the self-heal
+  // must re-query at most once for that pair, never storm.
+  await page.goto("/?ghost=3&ghoststick=1");
+  await expect(page.locator("tbody tr[data-record-id]").first()).toBeVisible();
+  // Give any runaway effect time to fire, then assert the refresh count stayed
+  // tiny (one re-query for the discrepancy, not a loop).
+  await page.waitForTimeout(400);
+  const refreshes = await page.evaluate(
+    () => (window as unknown as { __jjRefreshCount?: number }).__jjRefreshCount ?? 0,
+  );
+  expect(refreshes).toBeLessThanOrEqual(2);
+});
+
 test("bulk delete updates the grid and the count, and clears the selection", async ({
   page,
 }) => {
@@ -265,6 +281,18 @@ test("reorders columns by dragging a header", async ({ page }) => {
     .getByRole("columnheader", { name: "Owner" })
     .dragTo(page.getByRole("columnheader", { name: "Account" }));
   await expect(cell(page, 0, 0)).toContainText("Jane Doe");
+});
+
+test("clears the freeze when columns are reordered", async ({ page }) => {
+  // Freeze through the second column, then reorder: the freeze must drop so it
+  // cannot pin the wrong (now shifted) columns.
+  await page.getByRole("columnheader", { name: "Account" }).hover();
+  await page.getByRole("button", { name: /Freeze up to this column/ }).first().click();
+  await expect(page.locator("thead .jj-sheet-col-frozen").first()).toBeVisible();
+  await page
+    .getByRole("columnheader", { name: "Owner" })
+    .dragTo(page.getByRole("columnheader", { name: "Account" }));
+  await expect(page.locator("thead .jj-sheet-col-frozen")).toHaveCount(0);
 });
 
 test("auto-fits a column on double-clicking its border", async ({ page }) => {

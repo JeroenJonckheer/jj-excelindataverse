@@ -84,6 +84,13 @@ describe("extractRawValue", () => {
     expect(extractRawValue(rec, col("b", "boolean"))).toBe(true);
     expect(extractRawValue(rec, col("c", "choice"))).toBe(2);
   });
+  it("reads string booleans the dataset can hand back", () => {
+    const rec = record({ t: "true", f: "false", one: "1", zero: "0" }, {});
+    expect(extractRawValue(rec, col("t", "boolean"))).toBe(true);
+    expect(extractRawValue(rec, col("f", "boolean"))).toBe(false);
+    expect(extractRawValue(rec, col("one", "boolean"))).toBe(true);
+    expect(extractRawValue(rec, col("zero", "boolean"))).toBe(false);
+  });
   it("reads dates", () => {
     const d = new Date(2026, 1, 2);
     const rec = record({ d }, {});

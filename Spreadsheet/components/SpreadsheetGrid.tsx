@@ -488,8 +488,23 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const onDocumentMouseUpRef = React.useRef<() => void>(() => undefined);
   React.useEffect(() => {
     const up = () => onDocumentMouseUpRef.current();
+    // If focus leaves the window mid-drag (released outside the host iframe, an
+    // alt-tab), abort any drag so it cannot silently complete on the next click.
+    const cancelDrag = () => {
+      if (!draggingRef.current && !fillingRef.current && !movingRef.current) return;
+      draggingRef.current = false;
+      fillingRef.current = false;
+      movingRef.current = false;
+      setFillTo(null);
+      setMoving(false);
+      setMoveTo(null);
+    };
     document.addEventListener("mouseup", up);
-    return () => document.removeEventListener("mouseup", up);
+    window.addEventListener("blur", cancelDrag);
+    return () => {
+      document.removeEventListener("mouseup", up);
+      window.removeEventListener("blur", cancelDrag);
+    };
   }, []);
 
   // The cells a fill drag would write to (beyond the source selection), for the
@@ -1081,9 +1096,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     setDragOverCol(null);
     if (!drag || drag === columnName) return;
     setColumnOrder(moveColumn(columns.map((c) => c.name), drag, columnName));
-    // Column indices change, so collapse the selection to avoid a stale range.
+    // Column indices change, so collapse the selection to avoid a stale range
+    // and clear the freeze (its boundary is a positional index that would now
+    // pin the wrong columns).
     setActive(null);
     setAnchor(null);
+    setFrozenColIndex(null);
     setEditing(false);
   };
   const onColDragEnd = () => {

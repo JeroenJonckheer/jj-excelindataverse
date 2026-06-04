@@ -145,16 +145,19 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   // handing us the rows it already loaded, so the grid would show ghost rows
   // until a manual page reload. Force one re-query from the first page; a guard
   // ref stops it from looping if the refresh does not change anything.
-  const staleHandledRef = React.useRef(false);
+  const staleSigRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (totalCount >= 0 && loadedCount > totalCount) {
-      if (!staleHandledRef.current) {
-        staleHandledRef.current = true;
+      // Latch on the exact (loaded, total) pair handled, so if the host keeps
+      // returning the same stale counts after the refresh we re-query at most
+      // once for them instead of looping. A genuinely new discrepancy (a
+      // different pair) still triggers a fresh re-query.
+      const sig = `${loadedCount}:${totalCount}`;
+      if (staleSigRef.current !== sig) {
+        staleSigRef.current = sig;
         pagingApi?.reset?.();
         (dataset as unknown as { refresh?: () => void }).refresh?.();
       }
-    } else {
-      staleHandledRef.current = false;
     }
   }, [loadedCount, totalCount, dataset, pagingApi]);
 
