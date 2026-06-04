@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.6] - 2026-06-04
+
+### Added
+- An error boundary around the grid: a render-time error (for example after a
+  view or column change) now shows an inline message with the error detail and
+  a Reload button - which re-reads the dataset and remounts the grid with fresh
+  state - instead of blanking the whole control to a white screen.
+
 ## [0.13.5] - 2026-06-04
 
 ### Fixed

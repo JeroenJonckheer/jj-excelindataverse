@@ -45,6 +45,40 @@
   font-size: 13px;
 }
 
+/* ---- Error boundary panel ---- */
+
+.jj-sheet-error-boundary {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--colorNeutralForeground1, #242424);
+}
+.jj-sheet-error-title {
+  font-weight: 600;
+}
+.jj-sheet-error-detail {
+  color: var(--colorPaletteRedForeground1, #b10e1c);
+  font-family: Consolas, "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 80ch;
+}
+.jj-sheet-error-reload {
+  margin-top: 4px;
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  border-radius: 4px;
+  background: var(--colorNeutralBackground1, #ffffff);
+}
+.jj-sheet-error-reload:hover {
+  background: var(--colorNeutralBackground1Hover, #f5f5f5);
+}
+
 /* ---- Grid shell ---- */
 
 .jj-sheet {

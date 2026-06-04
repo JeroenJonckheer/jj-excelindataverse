@@ -23,6 +23,7 @@ import {
 import { DataverseService, type IDataverseService } from "../services/DataverseService";
 import { CONTROL_VERSION } from "../services/version";
 import { SpreadsheetGrid } from "./SpreadsheetGrid";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 export interface AppProps {
   context: ComponentFramework.Context<IInputs>;
@@ -168,6 +169,15 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     onChange();
   }, [dataset, onChange]);
 
+  // Bumped to remount the grid with fresh state after the error boundary's
+  // Reload, so a crash caused by stale local state cannot immediately recur.
+  const [reloadKey, setReloadKey] = React.useState(0);
+  const onReload = React.useCallback(() => {
+    setReloadKey((k) => k + 1);
+    const refreshable = dataset as unknown as { refresh?: () => void };
+    refreshable.refresh?.();
+  }, [dataset]);
+
   const searchLookup = React.useCallback(
     (targets: string[], term: string): Promise<LookupValue[]> =>
       dataverse.searchLookup(targets, term),
@@ -265,7 +275,9 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   return (
     <div className="jj-sheet-shell" style={shellStyle}>
       <FluentProvider theme={theme} className="jj-sheet-fluent">
+        <ErrorBoundary onReload={onReload}>
         <SpreadsheetGrid
+        key={reloadKey}
         columns={columns}
         rows={rows}
         version={CONTROL_VERSION}
@@ -283,6 +295,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         onSave={onSave}
         searchLookup={searchLookup}
       />
+        </ErrorBoundary>
       </FluentProvider>
     </div>
   );

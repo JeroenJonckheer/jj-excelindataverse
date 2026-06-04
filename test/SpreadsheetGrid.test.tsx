@@ -942,3 +942,64 @@ describe("fill handle", () => {
     expect(cell(container, 1, 1).className).toContain("jj-sheet-td-selected");
   });
 });
+
+describe("dynamic column changes", () => {
+  function baseProps() {
+    return {
+      version: "0.1.0",
+      onSave: jest.fn(() => Promise.resolve()),
+      onCreate: jest.fn(() => Promise.resolve()),
+      onDelete: jest.fn(() => Promise.resolve()),
+      onOpenRecord: jest.fn(),
+      onOpenLookup: jest.fn(),
+      searchLookup: jest.fn(() => Promise.resolve([] as LookupValue[])),
+      resolveLookup: jest.fn(() => Promise.resolve([] as LookupValue[])),
+    };
+  }
+
+  const createdOnColumn: ColumnDef = {
+    name: "createdon",
+    displayName: "Created On",
+    dataType: "DateAndTime.DateAndTime",
+    kind: "datetime",
+    editable: false,
+    required: "none",
+  };
+
+  function rowsWithCreatedOn(): GridRow[] {
+    return rows().map((r) => ({
+      recordId: r.recordId,
+      raw: { ...r.raw, createdon: new Date(2026, 0, 15) },
+      display: { ...r.display, createdon: "15-Jan-26 9:00 AM" },
+    }));
+  }
+
+  it("keeps rendering rows when a read-only datetime is added as the first column", () => {
+    const props = baseProps();
+    const { container, rerender } = render(
+      <SpreadsheetGrid {...props} columns={columns()} rows={rows()} />,
+    );
+    // Give the grid live state with indices into the current columns: an active
+    // cell on the far-right column, so the column shift below would expose any
+    // stale-index crash.
+    fireEvent.click(cell(container, 0, 3));
+    expect(cell(container, 0, 3).className).toContain("jj-sheet-td-active");
+
+    // Add "Created On" as the new first column - every column index shifts by 1.
+    rerender(
+      <SpreadsheetGrid
+        {...props}
+        columns={[createdOnColumn, ...columns()]}
+        rows={rowsWithCreatedOn()}
+      />,
+    );
+
+    // The grid must not blank: the new header and all the data still render.
+    expect(screen.getByText("Created On")).toBeInTheDocument();
+    expect(screen.getByText("Acme")).toBeInTheDocument();
+    expect(screen.getByText("Globex")).toBeInTheDocument();
+    expect(screen.getAllByText("15-Jan-26 9:00 AM").length).toBeGreaterThan(0);
+    // "Acme" is now in column 1 (after Created On).
+    expect(cell(container, 0, 1).textContent).toContain("Acme");
+  });
+});
