@@ -274,7 +274,9 @@ function readUrlPageSize(): number {
   }
 }
 let pageSize = readUrlPageSize();
-let pageStart = 0;
+// Accumulating paging (like the Dataverse dataset): "load more" grows the loaded
+// count rather than replacing the page.
+let loadedCount = pageSize;
 
 function sortedOrder(store: Store): string[] {
   const ids = ORDER.filter((id) => matchesFilter(store[id]));
@@ -316,7 +318,7 @@ function buildContext(
     forecast: 120,
   };
   const allIds = sortedOrder(store);
-  const visibleIds = allIds.slice(pageStart, pageStart + pageSize);
+  const visibleIds = allIds.slice(0, loadedCount);
   const dataset = {
     columns: META.map((c, i) => ({
       name: c.name,
@@ -331,22 +333,19 @@ function buildContext(
     paging: {
       pageSize,
       totalResultCount: allIds.length,
-      hasNextPage: pageStart + pageSize < allIds.length,
-      hasPreviousPage: pageStart > 0,
+      hasNextPage: loadedCount < allIds.length,
+      hasPreviousPage: false,
       loadNextPage: () => {
-        pageStart += pageSize;
+        loadedCount = Math.min(loadedCount + pageSize, allIds.length);
         force();
       },
-      loadPreviousPage: () => {
-        pageStart = Math.max(0, pageStart - pageSize);
-        force();
-      },
+      loadPreviousPage: () => undefined,
       setPageSize: (n: number) => {
         pageSize = n;
-        pageStart = 0;
+        loadedCount = n;
       },
       reset: () => {
-        pageStart = 0;
+        loadedCount = pageSize;
       },
     },
     filtering: {

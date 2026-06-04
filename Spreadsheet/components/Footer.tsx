@@ -21,14 +21,12 @@ export interface FooterProps {
   message: string | null;
   onSave: () => void;
   onDeleteSelected: () => void;
-  /** Dataset paging: navigate pages when the view has more than one. */
+  /** Dataset paging: "load more" grows the loaded set (the dataset accumulates). */
   paging?: {
-    hasPrevious: boolean;
-    hasNext: boolean;
-    total: number;
     loaded: number;
-    onPrevious: () => void;
-    onNext: () => void;
+    total: number;
+    hasMore: boolean;
+    onLoadMore: () => void;
   };
 }
 
@@ -97,30 +95,21 @@ export const Footer: React.FC<FooterProps> = ({
         <span>{status}</span>
       </div>
       <div className="jj-sheet-footer-right">
-        {paging && (paging.hasPrevious || paging.hasNext) && (
+        {paging && paging.hasMore && (
           <span className="jj-sheet-paging">
-            <Button
-              size="small"
-              appearance="subtle"
-              aria-label="Previous page"
-              title="Previous page"
-              disabled={!paging.hasPrevious}
-              onClick={paging.onPrevious}
-            >
-              {"‹"}
-            </Button>
-            <span className="jj-sheet-paging-info" aria-label="Page info">
-              {paging.total >= 0 ? `${paging.loaded} of ${paging.total}` : `${paging.loaded}`}
+            <span className="jj-sheet-paging-info" aria-label="Loaded rows">
+              {paging.total >= 0
+                ? `1–${paging.loaded} of ${paging.total}`
+                : `${paging.loaded} loaded`}
             </span>
             <Button
               size="small"
               appearance="subtle"
-              aria-label="Next page"
-              title="Next page"
-              disabled={!paging.hasNext}
-              onClick={paging.onNext}
+              aria-label="Load more rows"
+              title="Load more rows"
+              onClick={paging.onLoadMore}
             >
-              {"›"}
+              Load more
             </Button>
           </span>
         )}

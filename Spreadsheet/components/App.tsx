@@ -118,24 +118,20 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   // Paging info and navigation for the footer.
   const pagingApi = (dataset as unknown as {
     paging?: {
-      hasPreviousPage?: boolean;
       hasNextPage?: boolean;
       totalResultCount?: number;
-      loadPreviousPage?: () => void;
       loadNextPage?: () => void;
     };
   }).paging;
   const paging = pagingApi
     ? {
-        hasPrevious: !!pagingApi.hasPreviousPage,
-        hasNext: !!pagingApi.hasNextPage,
+        loaded: (dataset.sortedRecordIds ?? []).length,
         total:
           typeof pagingApi.totalResultCount === "number"
             ? pagingApi.totalResultCount
             : -1,
-        loaded: (dataset.sortedRecordIds ?? []).length,
-        onPrevious: () => pagingApi.loadPreviousPage?.(),
-        onNext: () => pagingApi.loadNextPage?.(),
+        hasMore: !!pagingApi.hasNextPage,
+        onLoadMore: () => pagingApi.loadNextPage?.(),
       }
     : undefined;
 

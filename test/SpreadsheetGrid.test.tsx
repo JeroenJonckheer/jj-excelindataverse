@@ -99,12 +99,10 @@ function renderGrid(overrides?: {
   sortColumn?: string | null;
   sortDescending?: boolean;
   paging?: {
-    hasPrevious: boolean;
-    hasNext: boolean;
-    total: number;
     loaded: number;
-    onPrevious: () => void;
-    onNext: () => void;
+    total: number;
+    hasMore: boolean;
+    onLoadMore: () => void;
   };
   rows?: GridRow[];
 }): Harness {
@@ -881,24 +879,17 @@ describe("virtualization (brok G)", () => {
 });
 
 describe("paging (brok G)", () => {
-  it("shows the page info and navigates", () => {
-    const onNext = jest.fn();
-    const onPrevious = jest.fn();
-    renderGrid({
-      paging: { hasPrevious: false, hasNext: true, total: 5, loaded: 2, onPrevious, onNext },
-    });
-    expect(screen.getByLabelText("Page info").textContent).toContain("2 of 5");
-    const prev = screen.getByRole("button", { name: "Previous page" });
-    expect(prev).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(onNext).toHaveBeenCalledTimes(1);
+  it("shows the loaded count and loads more", () => {
+    const onLoadMore = jest.fn();
+    renderGrid({ paging: { loaded: 2, total: 5, hasMore: true, onLoadMore } });
+    expect(screen.getByLabelText("Loaded rows").textContent).toMatch(/1.2 of 5/);
+    fireEvent.click(screen.getByRole("button", { name: "Load more rows" }));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
   });
 
-  it("hides paging when there is a single page", () => {
-    renderGrid({
-      paging: { hasPrevious: false, hasNext: false, total: 3, loaded: 3, onPrevious: jest.fn(), onNext: jest.fn() },
-    });
-    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+  it("hides the load-more control when everything is loaded", () => {
+    renderGrid({ paging: { loaded: 3, total: 3, hasMore: false, onLoadMore: jest.fn() } });
+    expect(screen.queryByRole("button", { name: "Load more rows" })).toBeNull();
   });
 });
 

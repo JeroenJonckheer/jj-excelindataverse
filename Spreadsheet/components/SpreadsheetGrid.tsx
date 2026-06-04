@@ -80,14 +80,12 @@ export interface SpreadsheetGridProps {
   sortDescending?: boolean;
   /** Requests a sort on a column (the host re-queries the dataset). */
   onSort?: (columnName: string) => void;
-  /** Dataset paging info and navigation, surfaced in the footer. */
+  /** Dataset paging info and "load more", surfaced in the footer. */
   paging?: {
-    hasPrevious: boolean;
-    hasNext: boolean;
-    total: number;
     loaded: number;
-    onPrevious: () => void;
-    onNext: () => void;
+    total: number;
+    hasMore: boolean;
+    onLoadMore: () => void;
   };
 }
 

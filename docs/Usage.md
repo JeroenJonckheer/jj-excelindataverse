@@ -135,11 +135,11 @@ validated just like a typed value.
 
 ## Paging through large views
 
-When the view has more records than fit on one page, paging controls appear in
-the footer: **‹** and **›** move to the previous and next page, with a count of
-the loaded rows out of the total. The page size comes from the control's
-**Page size** property (set by the maker). Pending edits are kept while you page,
-and saved together.
+When the view has more records than are loaded, the footer shows
+**1–N of Total** and a **Load more** button. Loading more keeps the rows already
+shown and adds the next batch (the dataset accumulates), so you can keep loading
+and then find/replace or edit across everything loaded. The batch size comes from
+the control's **Page size** property (set by the maker).
 
 ## Saving
 
