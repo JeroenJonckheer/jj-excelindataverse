@@ -25,6 +25,12 @@ dotnet build solution/JJExcelInDataverseSolution.cdsproj -c Release
 
 The output zips are written under `solution/bin/Release/`.
 
+The `-c Release` build produces a **production** control bundle: minified, no
+`eval`, and without readable source file names - unlike the development bundle
+that `pac pcf push` deploys for fast iteration. Always ship the **Release** build
+(the managed zip in `solution/bin/Release/`) as the release artifact, not a
+`pac pcf push` / Debug build.
+
 ## Publish a GitHub release
 
 1. Make sure `npm run verify` is green and the version numbers match.
