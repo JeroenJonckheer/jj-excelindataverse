@@ -226,6 +226,19 @@ test("freezes pinned columns when scrolling horizontally", async ({ page }) => {
   expect(Math.abs((frozenAfter?.x ?? 0) - (frozenBefore?.x ?? 0))).toBeLessThan(2);
 });
 
+test("virtualizes a large grid and renders rows on scroll", async ({ page }) => {
+  await page.goto("/?rows=200&pageSize=200");
+  await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");
+  // Not all 200 rows are in the DOM (virtualized).
+  expect(await page.locator("tbody tr[data-record-id]").count()).toBeLessThan(200);
+  await expect(page.getByText("Synthetic Account 190", { exact: true })).toHaveCount(0);
+  // Scrolling to the bottom renders the later rows.
+  await page.locator(".jj-sheet").evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(page.getByText("Synthetic Account 199", { exact: true })).toBeVisible();
+});
+
 // ---- Brok G: dataset paging ----
 
 test("pages through records with the footer paging", async ({ page }) => {

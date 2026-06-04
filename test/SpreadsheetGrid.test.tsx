@@ -106,6 +106,7 @@ function renderGrid(overrides?: {
     onPrevious: () => void;
     onNext: () => void;
   };
+  rows?: GridRow[];
 }): Harness {
   const onSave: Harness["onSave"] =
     overrides?.onSave ??
@@ -130,7 +131,7 @@ function renderGrid(overrides?: {
   const { container } = render(
     <SpreadsheetGrid
       columns={columns()}
-      rows={rows()}
+      rows={overrides?.rows ?? rows()}
       version="0.1.0"
       onSave={onSave}
       onCreate={onCreate}
@@ -857,6 +858,25 @@ describe("defaults and duplicate (brok D)", () => {
     fireEvent.click(screen.getByText("Duplicate row"));
     expect(cell(container, 2, 0).textContent).toContain("Acme");
     expect(screen.getByText(/pending change/)).toBeInTheDocument();
+  });
+});
+
+describe("virtualization (brok G)", () => {
+  it("renders only a window of rows for a large grid", () => {
+    const many: GridRow[] = Array.from({ length: 200 }, (_, i) => ({
+      recordId: `r${i}`,
+      raw: { name: `Name ${i}` },
+      display: { name: `Name ${i}` },
+    }));
+    const { container } = renderGrid({ rows: many });
+    const rendered = container.querySelectorAll("tbody tr[data-record-id]").length;
+    expect(rendered).toBeGreaterThan(0);
+    expect(rendered).toBeLessThan(many.length); // not all 200 are in the DOM
+  });
+
+  it("renders every row for a small grid (no virtualization)", () => {
+    const { container } = renderGrid();
+    expect(container.querySelectorAll("tbody tr[data-record-id]").length).toBe(2);
   });
 });
 

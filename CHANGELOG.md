@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] - 2026-06-04
+
+### Added
+- Row virtualization: large grids render only the rows around the viewport (plus
+  a small overscan), with spacer rows preserving the scroll height, so a big page
+  size or a large paste stays responsive. Small grids (<= 60 rows) render in full,
+  unchanged. The row height is measured from the DOM so spacing stays accurate.
+
 ## [0.12.0] - 2026-06-04
 
 ### Added

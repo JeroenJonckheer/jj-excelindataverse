@@ -23,6 +23,13 @@ import {
 /** Width (px) of the leading row-selection column. */
 const SELECT_COL_WIDTH = 36;
 
+/** Only virtualise rows past this count; small grids render in full. */
+const VIRTUALIZE_THRESHOLD = 60;
+/** Estimated row height (px) until a real row is measured. */
+const ROW_HEIGHT_FALLBACK = 33;
+/** Extra rows rendered above and below the viewport, to keep scrolling smooth. */
+const OVERSCAN_ROWS = 8;
+
 // Thumbtack (push pin) icon paths - the standard Material "push_pin", drawn as
 // an outline when a column is not frozen and filled when it is.
 const PIN_PATH_OUTLINE =
@@ -245,10 +252,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // Dynamics grid does. A ResizeObserver keeps this responsive to window and
   // panel resizes; we fall back to the window resize event where it is absent.
   const [viewportWidth, setViewportWidth] = React.useState(0);
+  const [viewportHeight, setViewportHeight] = React.useState(0);
   React.useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const measure = () => setViewportWidth(el.clientWidth);
+    const measure = () => {
+      setViewportWidth(el.clientWidth);
+      setViewportHeight(el.clientHeight);
+    };
     measure();
     if (typeof ResizeObserver === "undefined") {
       window.addEventListener("resize", measure);
@@ -258,6 +269,21 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Virtualisation: render only the rows around the viewport once the grid is
+  // large. scrollTop is tracked (rAF-throttled) to recompute the window.
+  const [scrollTop, setScrollTop] = React.useState(0);
+  const [rowHeight, setRowHeight] = React.useState(ROW_HEIGHT_FALLBACK);
+  const scrollRafRef = React.useRef(0);
+  const onScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      setScrollTop(el.scrollTop);
+    });
+  };
 
   const widths = React.useMemo(
     () => computeColumnWidths(columns, viewportWidth - SELECT_COL_WIDTH, widthOverrides),
@@ -310,6 +336,22 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     [rows, newRows, newRowDefaults],
   );
   const dims = { rowCount: allRows.length, colCount: columns.length };
+
+  // Virtual window: which rows to actually render. Below the threshold we render
+  // everything (so small grids and the tests are unchanged).
+  const totalRows = allRows.length;
+  const virtual = totalRows > VIRTUALIZE_THRESHOLD;
+  const rowH = rowHeight || ROW_HEIGHT_FALLBACK;
+  let virtualStart = 0;
+  let virtualEnd = totalRows;
+  if (virtual) {
+    virtualStart = Math.max(0, Math.floor(scrollTop / rowH) - OVERSCAN_ROWS);
+    const visibleCount = Math.ceil((viewportHeight || 400) / rowH) + OVERSCAN_ROWS * 2;
+    virtualEnd = Math.min(totalRows, virtualStart + visibleCount);
+  }
+  const topPad = virtualStart * rowH;
+  const bottomPad = Math.max(0, (totalRows - virtualEnd) * rowH);
+  const visibleRows = virtual ? allRows.slice(virtualStart, virtualEnd) : allRows;
 
   // The current rectangular selection: from the anchor (or the active cell when
   // there is no anchor) to the active cell.
@@ -372,6 +414,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     const cb = copyRange ? rangeBounds(copyRange.a, copyRange.b) : null;
     const nextCopy = measureRect(cb);
     setCopyRect((prev) => (rectsEqual(prev, nextCopy) ? prev : nextCopy));
+    // Keep the virtualisation row height in step with the real rendered height.
+    const firstRow = containerRef.current?.querySelector(
+      "tbody tr[data-record-id]",
+    ) as HTMLElement | null;
+    if (firstRow && firstRow.offsetHeight > 0) {
+      setRowHeight((prev) => (prev === firstRow.offsetHeight ? prev : firstRow.offsetHeight));
+    }
   });
 
   // A drag (selection or fill) releases anywhere. The handler is kept in a ref
@@ -1384,6 +1433,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         onPaste={onPaste}
         onCopy={onCopy}
         onWheel={onWheel}
+        onScroll={onScroll}
       >
         <table className="jj-sheet-table" style={{ width: `${tableWidth}px` }}>
           <colgroup>
@@ -1499,7 +1549,16 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             </tr>
           </thead>
           <tbody>
-            {allRows.map((row, rowIndex) => {
+            {virtual && topPad > 0 && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={columns.length + 1}
+                  style={{ height: topPad, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
+            {visibleRows.map((row, i) => {
+              const rowIndex = virtualStart + i;
               const rowHasError = row.recordId in rowErrors;
               const rowSelected = selectedRows.has(row.recordId);
               const rowDeleting = pendingDeletes.has(row.recordId);
@@ -1651,6 +1710,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                 </tr>
               );
             })}
+            {virtual && bottomPad > 0 && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={columns.length + 1}
+                  style={{ height: bottomPad, padding: 0, border: 0 }}
+                />
+              </tr>
+            )}
           </tbody>
         </table>
         {selectionRect && !(copyRect && rectsEqual(selectionRect, copyRect)) && (

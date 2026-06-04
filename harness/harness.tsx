@@ -119,7 +119,34 @@ const CONTACTS: LookupValue[] = [
 
 type Store = Record<string, Record<string, CellValue>>;
 
-function initialStore(): Store {
+function readUrlRows(): number {
+  try {
+    const v = Number(new URLSearchParams(window.location.search).get("rows"));
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function buildInitialStore(): Store {
+  // ?rows=N generates N synthetic rows for the virtualization test.
+  const n = readUrlRows();
+  if (n > 0) {
+    const store: Store = {};
+    for (let i = 0; i < n; i++) {
+      store[`syn${i}`] = {
+        name: `Synthetic Account ${i}`,
+        email: `row${i}@example.test`,
+        score: i % 100,
+        status: (i % 4) + 1,
+        active: i % 2 === 0,
+        duedate: null,
+        owner: CONTACTS[i % CONTACTS.length],
+        forecast: i * 100,
+      };
+    }
+    return store;
+  }
   return {
     r1: {
       name: "Acme Corporation",
@@ -174,7 +201,15 @@ function initialStore(): Store {
   };
 }
 
-const ORDER = ["r1", "r2", "r3", "r4", "r5"];
+// Built once at module load; ORDER is derived from it (no per-render side
+// effects). initialStore() returns a fresh mutable clone for the component.
+const INITIAL_STORE = buildInitialStore();
+const ORDER: string[] = Object.keys(INITIAL_STORE);
+function initialStore(): Store {
+  const copy: Store = {};
+  for (const k of Object.keys(INITIAL_STORE)) copy[k] = { ...INITIAL_STORE[k] };
+  return copy;
+}
 
 function formattedValue(value: CellValue, column: ColumnDef): string {
   if (value === null || value === undefined) return "";
