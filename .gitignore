@@ -21,6 +21,9 @@ demo-output/
 *.webm
 *.mp4
 
+# ---- one-off full-project export archives (generated for review hand-off) ----
+/jj-excelindataverse-COMPLETE-*.zip
+
 # ---- local scratch logs ----
 push*.txt
 verify*.txt
