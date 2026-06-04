@@ -389,7 +389,10 @@ function buildContext(
       sortState = dataset.sorting || [];
       force();
     },
-    setSelectedRecordIds: () => undefined,
+    // The real host reacts to a selection change by re-running updateView with a
+    // fresh dataset (new rows reference). Mirror that so the harness exercises a
+    // re-render between two clicks - the path a Shift+click range relies on.
+    setSelectedRecordIds: () => force(),
     loading: false,
   };
   return {

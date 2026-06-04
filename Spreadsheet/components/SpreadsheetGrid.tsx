@@ -960,26 +960,35 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   };
 
   // Anchor for Shift+click range selection on the leading checkbox column.
-  const rowAnchorRef = React.useRef<number | null>(null);
+  // Stored as a record id (not an index) so it survives a re-render that
+  // reorders the rows between the two clicks - which happens in a sorted grid
+  // because selecting a row tells the host, and the host re-runs the view.
+  const rowAnchorRef = React.useRef<string | null>(null);
 
   // Click on a row checkbox: a plain click toggles that row and becomes the new
   // anchor; Shift+click selects every row between the anchor and this row
-  // (inclusive), like a spreadsheet.
+  // (inclusive), like a spreadsheet. Both endpoints are resolved against the
+  // current row order, so the range is always correct.
   const selectRowAt = (recordId: string, rowIndex: number, shift: boolean) => {
     if (shift && rowAnchorRef.current != null) {
-      const lo = Math.min(rowAnchorRef.current, rowIndex);
-      const hi = Math.max(rowAnchorRef.current, rowIndex);
-      setSelectedRows((s) => {
-        const next = new Set(s);
-        for (let r = lo; r <= hi; r++) {
-          const rec = allRows[r];
-          if (rec) next.add(rec.recordId);
-        }
-        return next;
-      });
-      return;
+      const anchorIndex = allRows.findIndex(
+        (r) => r.recordId === rowAnchorRef.current,
+      );
+      if (anchorIndex >= 0) {
+        const lo = Math.min(anchorIndex, rowIndex);
+        const hi = Math.max(anchorIndex, rowIndex);
+        setSelectedRows((s) => {
+          const next = new Set(s);
+          for (let r = lo; r <= hi; r++) {
+            const rec = allRows[r];
+            if (rec) next.add(rec.recordId);
+          }
+          return next;
+        });
+        return;
+      }
     }
-    rowAnchorRef.current = rowIndex;
+    rowAnchorRef.current = recordId;
     toggleRowSelected(recordId);
   };
 

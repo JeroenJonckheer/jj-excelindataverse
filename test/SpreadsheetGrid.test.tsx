@@ -1002,4 +1002,45 @@ describe("dynamic column changes", () => {
     // "Acme" is now in column 1 (after Created On).
     expect(cell(container, 0, 1).textContent).toContain("Acme");
   });
+
+  it("keeps the Shift+click anchor across a re-render that reorders the rows", () => {
+    const props = baseProps();
+    const nameCol: ColumnDef[] = [
+      {
+        name: "name",
+        displayName: "Name",
+        dataType: "SingleLine.Text",
+        kind: "text",
+        editable: true,
+        required: "none",
+      },
+    ];
+    const makeRows = (ids: string[]): GridRow[] =>
+      ids.map((id) => ({ recordId: id, raw: { name: id }, display: { name: id } }));
+    const selectBoxes = (c: HTMLElement) =>
+      Array.from(
+        c.querySelectorAll('input[aria-label="Select row"]'),
+      ) as HTMLInputElement[];
+
+    const { container, rerender } = render(
+      <SpreadsheetGrid {...props} columns={nameCol} rows={makeRows(["a", "b", "c", "d"])} />,
+    );
+    // Anchor on "b" (row index 1).
+    fireEvent.click(selectBoxes(container)[1]);
+
+    // The host re-runs the view and the rows come back reversed: "b" is now at
+    // index 2. A Shift+click on the row now at index 0 ("d") must select the
+    // range between "b" and "d" in the *current* order: d, c, b.
+    rerender(
+      <SpreadsheetGrid {...props} columns={nameCol} rows={makeRows(["d", "c", "b", "a"])} />,
+    );
+    fireEvent.click(selectBoxes(container)[0], { shiftKey: true });
+
+    const rowEl = (id: string) =>
+      container.querySelector(`tr[data-record-id="${id}"]`) as HTMLElement;
+    expect(rowEl("d").className).toContain("jj-sheet-row-selected");
+    expect(rowEl("c").className).toContain("jj-sheet-row-selected");
+    expect(rowEl("b").className).toContain("jj-sheet-row-selected");
+    expect(rowEl("a").className).not.toContain("jj-sheet-row-selected");
+  });
 });

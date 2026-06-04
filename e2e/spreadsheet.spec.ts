@@ -183,6 +183,20 @@ test("Shift+click on the checkboxes selects the whole range of rows", async ({
   await expect(rows.nth(4)).not.toHaveClass(/jj-sheet-row-selected/);
 });
 
+test("Shift+click range selection works on a virtualized grid", async ({ page }) => {
+  await page.goto("/?rows=200&pageSize=200");
+  const checkboxes = page.locator('tbody tr[data-record-id] input[type="checkbox"]');
+  // Select row 4, then Shift+click row 10: rows 4-10 (inclusive) must be selected.
+  await checkboxes.nth(4).click();
+  await checkboxes.nth(10).click({ modifiers: ["Shift"] });
+  const rows = page.locator("tbody tr[data-record-id]");
+  for (let i = 4; i <= 10; i++) {
+    await expect(rows.nth(i)).toHaveClass(/jj-sheet-row-selected/);
+  }
+  await expect(rows.nth(3)).not.toHaveClass(/jj-sheet-row-selected/);
+  await expect(rows.nth(11)).not.toHaveClass(/jj-sheet-row-selected/);
+});
+
 test("bulk delete updates the grid and the count, and clears the selection", async ({
   page,
 }) => {

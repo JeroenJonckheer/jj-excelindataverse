@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.13.7] - 2026-06-04
+
+### Fixed
+- Shift+click range selection on the row checkboxes now survives a re-render
+  that reorders the rows between the two clicks (which happens in a sorted grid,
+  because selecting a row notifies the host and the host re-runs the view). The
+  anchor is tracked by record id and both endpoints are resolved against the
+  current row order, so the range is always correct instead of selecting nothing
+  or the wrong rows.
+
 ## [0.13.6] - 2026-06-04
 
 ### Added
