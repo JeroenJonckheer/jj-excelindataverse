@@ -4,7 +4,11 @@
  * License: MIT
  */
 
-import { DataverseService, escapeODataString } from "../Spreadsheet/services/DataverseService";
+import {
+  DataverseService,
+  escapeODataString,
+  isTransientError,
+} from "../Spreadsheet/services/DataverseService";
 import type { ColumnDef, PendingEdit } from "../Spreadsheet/services/types";
 
 function col(partial: Partial<ColumnDef>): ColumnDef {
@@ -51,6 +55,44 @@ function makeContext(webApi: Partial<ComponentFramework.WebApi>) {
 describe("escapeODataString", () => {
   it("doubles single quotes", () => {
     expect(escapeODataString("O'Brien")).toBe("O''Brien");
+  });
+});
+
+describe("transient retry", () => {
+  const edits = [
+    { recordId: "id", columnName: "name", kind: "text" as const, value: "x", display: "x" },
+  ];
+
+  it("distinguishes transient from deterministic errors", () => {
+    expect(isTransientError({ status: 503 })).toBe(true);
+    expect(isTransientError(new Error("The connection was aborted"))).toBe(true);
+    expect(isTransientError({ status: 400 })).toBe(false);
+    expect(isTransientError(new Error("Required field missing"))).toBe(false);
+    expect(isTransientError(null)).toBe(false);
+  });
+
+  it("retries an update on a transient error, then succeeds", async () => {
+    const updateRecord = jest
+      .fn()
+      .mockRejectedValueOnce({ status: 503 })
+      .mockResolvedValueOnce({});
+    const svc = new DataverseService(makeContext({ updateRecord }));
+    await svc.saveRecord("account", "id", edits);
+    expect(updateRecord).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry an update on a deterministic error", async () => {
+    const updateRecord = jest.fn().mockRejectedValue({ status: 400 });
+    const svc = new DataverseService(makeContext({ updateRecord }));
+    await expect(svc.saveRecord("account", "id", edits)).rejects.toBeDefined();
+    expect(updateRecord).toHaveBeenCalledTimes(1);
+  });
+
+  it("never retries create, to avoid duplicate records", async () => {
+    const createRecord = jest.fn().mockRejectedValue({ status: 503 });
+    const svc = new DataverseService(makeContext({ createRecord }));
+    await expect(svc.createRecord("account", edits)).rejects.toBeDefined();
+    expect(createRecord).toHaveBeenCalledTimes(1);
   });
 });
 

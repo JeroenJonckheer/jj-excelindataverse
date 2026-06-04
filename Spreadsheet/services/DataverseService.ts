@@ -9,6 +9,23 @@ import type { ColumnDef, LookupValue, PendingEdit, RequiredLevel } from "./types
 import { isLookupValue } from "./format";
 
 /**
+ * Whether an error looks transient (worth retrying): a throttle/server status
+ * or a network/timeout/connection message. Deterministic outright failures
+ * (validation, 400, 404) are not retried.
+ */
+export function isTransientError(err: unknown): boolean {
+  if (err == null) return false;
+  const status = (err as { status?: number; errorCode?: number }).status;
+  if (typeof status === "number" && [429, 500, 502, 503, 504].includes(status)) {
+    return true;
+  }
+  const msg = String((err as { message?: unknown }).message ?? err).toLowerCase();
+  return /aborted|network|timeout|temporar|connection|econnreset|fetch failed|failed to fetch/.test(
+    msg,
+  );
+}
+
+/**
  * Contract used by the UI for all Dataverse access. Defining it as an interface
  * lets the React components be tested against a lightweight mock instead of a
  * live host context.
@@ -230,6 +247,25 @@ export class DataverseService implements IDataverseService {
   }
 
   /**
+   * Retries an idempotent operation a few times on a transient error, with a
+   * short backoff. Used for reads, updates and deletes - never for create, so a
+   * lost response cannot duplicate a record.
+   */
+  private async withRetry<T>(op: () => Promise<T>, attempts = 3): Promise<T> {
+    let lastError: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await op();
+      } catch (e) {
+        lastError = e;
+        if (i === attempts - 1 || !isTransientError(e)) throw e;
+        await new Promise((resolve) => setTimeout(resolve, 200 * (i + 1)));
+      }
+    }
+    throw lastError;
+  }
+
+  /**
    * Enriches columns with attribute metadata. Instead of one request per column,
    * it makes at most one request per attribute type (cast) - so a 50-column view
    * loads in a handful of requests, not fifty. Results are cached per entity and
@@ -395,7 +431,9 @@ export class DataverseService implements IDataverseService {
     edits: PendingEdit[],
   ): Promise<void> {
     const payload = await this.buildPayload(entityName, edits);
-    await this.webApi.updateRecord(entityName, recordId, payload);
+    await this.withRetry(() =>
+      this.webApi.updateRecord(entityName, recordId, payload),
+    );
   }
 
   async createRecord(entityName: string, edits: PendingEdit[]): Promise<void> {
@@ -404,7 +442,7 @@ export class DataverseService implements IDataverseService {
   }
 
   async deleteRecord(entityName: string, recordId: string): Promise<void> {
-    await this.webApi.deleteRecord(entityName, recordId);
+    await this.withRetry(() => this.webApi.deleteRecord(entityName, recordId));
   }
 
   openRecord(entityName: string, recordId: string): void {
@@ -537,19 +575,25 @@ export class DataverseService implements IDataverseService {
       (this.ctx as any).page?.getClientUrl?.() ??
       (window as any).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.();
     const url = `${clientUrl}/api/data/v9.2/${relative}`;
-    const resp = await fetch(url, {
-      headers: {
-        "OData-Version": "4.0",
-        "OData-MaxVersion": "4.0",
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      credentials: "include",
+    return this.withRetry(async () => {
+      const resp = await fetch(url, {
+        headers: {
+          "OData-Version": "4.0",
+          "OData-MaxVersion": "4.0",
+          Accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+        },
+        credentials: "include",
+      });
+      if (!resp.ok) {
+        const err = new Error(`OData ${resp.status}: ${await resp.text()}`) as Error & {
+          status?: number;
+        };
+        err.status = resp.status;
+        throw err;
+      }
+      return resp.json();
     });
-    if (!resp.ok) {
-      throw new Error(`OData ${resp.status}: ${await resp.text()}`);
-    }
-    return resp.json();
   }
 }
 

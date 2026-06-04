@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] - 2026-06-04
+
+### Added
+- Transient-error retry: reads, updates and deletes retry a couple of times with
+  a short backoff on a throttle/server/network error. Create is never retried, so
+  a lost response cannot duplicate a record.
+
 ## [0.11.0] - 2026-06-04
 
 ### Changed
