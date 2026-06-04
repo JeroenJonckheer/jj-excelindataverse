@@ -84,6 +84,14 @@ export interface SpreadsheetGridProps {
   };
 }
 
+/** A pixel rectangle for an absolutely-positioned overlay. */
+interface OverlayRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 /** Prefix that marks an as-yet-unsaved new row. */
 const NEW_ROW_PREFIX = "new-";
 const isNewRow = (recordId: string) => recordId.startsWith(NEW_ROW_PREFIX);
@@ -141,6 +149,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // a plain click collapses it (anchor === active). Shift+click/arrow and mouse
   // drag extend it.
   const [anchor, setAnchor] = React.useState<CellAddress | null>(null);
+  // The range last copied with Ctrl+C, shown as a marching-ants marquee until a
+  // paste, Escape or a new copy.
+  const [copyRange, setCopyRange] = React.useState<{ a: CellAddress; b: CellAddress } | null>(null);
+  // Pixel rectangles (content coordinates) for the selection border and the copy
+  // marquee overlays, measured from the DOM.
+  const [selectionRect, setSelectionRect] = React.useState<OverlayRect | null>(null);
+  const [copyRect, setCopyRect] = React.useState<OverlayRect | null>(null);
   // Mouse is held down and dragging a selection.
   const draggingRef = React.useRef(false);
   // Fill handle drag: filling true while dragging the corner handle; fillTo is
@@ -321,12 +336,43 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           };
         })()
       : null;
-  const inFrame = (rowIndex: number, colIndex: number): boolean =>
-    !!frameBounds &&
-    rowIndex >= frameBounds.top &&
-    rowIndex <= frameBounds.bottom &&
-    colIndex >= frameBounds.left &&
-    colIndex <= frameBounds.right;
+  // Measure a cell-range rectangle in the scroll content's coordinates, so an
+  // absolutely-positioned overlay (selection border, copy marquee) lines up with
+  // it and scrolls along with the grid.
+  const measureRect = (b: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  } | null): OverlayRect | null => {
+    const sheet = containerRef.current;
+    if (!sheet || !b) return null;
+    const tl = sheet.querySelector(`td[data-row="${b.top}"][data-col="${b.left}"]`);
+    const br = sheet.querySelector(`td[data-row="${b.bottom}"][data-col="${b.right}"]`);
+    if (!tl || !br) return null;
+    const sr = sheet.getBoundingClientRect();
+    const a = (tl as HTMLElement).getBoundingClientRect();
+    const c = (br as HTMLElement).getBoundingClientRect();
+    return {
+      left: Math.round(a.left - sr.left + sheet.scrollLeft),
+      top: Math.round(a.top - sr.top + sheet.scrollTop),
+      width: Math.round(c.right - a.left),
+      height: Math.round(c.bottom - a.top),
+    };
+  };
+  const rectsEqual = (x: OverlayRect | null, y: OverlayRect | null): boolean =>
+    x === y ||
+    (!!x && !!y && x.left === y.left && x.top === y.top && x.width === y.width && x.height === y.height);
+
+  // Re-measure the overlays after every render; the equality guard stops the
+  // setState from looping. Cheap (two querySelectors) and always accurate.
+  React.useLayoutEffect(() => {
+    const next = measureRect(frameBounds);
+    setSelectionRect((prev) => (rectsEqual(prev, next) ? prev : next));
+    const cb = copyRange ? rangeBounds(copyRange.a, copyRange.b) : null;
+    const nextCopy = measureRect(cb);
+    setCopyRect((prev) => (rectsEqual(prev, nextCopy) ? prev : nextCopy));
+  });
 
   // A drag (selection or fill) releases anywhere. The handler is kept in a ref
   // so the single document listener always runs against the latest state.
@@ -700,6 +746,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     e.preventDefault();
     e.clipboardData.setData("text/plain", gridToTsv(grid));
     e.clipboardData.setData("text/html", gridToHtml(grid));
+    setCopyRange({ a: selStart, b: active });
   };
 
   // Add an empty new row at the bottom and select its first editable cell.
@@ -932,6 +979,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       redo();
       return;
     }
+    // Escape clears the copy marquee (like Excel).
+    if (e.key === "Escape" && copyRange) {
+      setCopyRange(null);
+      return;
+    }
 
     if (!active) return;
     const col = columns[active.colIndex];
@@ -993,6 +1045,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const onPaste = (e: React.ClipboardEvent) => {
     if (editing) return;
+    setCopyRange(null);
     const html = e.clipboardData.getData("text/html");
     const text = e.clipboardData.getData("text/plain");
     if (!html && !text) return;
@@ -1492,21 +1545,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const dirty = key in drafts;
                     const selected =
                       selectionCount > 1 && inSelection(rowIndex, colIndex);
-                    // Draw the outline only along the frame's edges, so the whole
-                    // block is framed once (like Excel) instead of bordering just
-                    // the active cell. While filling, the frame includes the
-                    // target cells. Skipped for an invalid cell so its red border
-                    // stays visible.
+                    // The selection border is drawn as one continuous overlay
+                    // rectangle (see selectionRect); cells only carry the tint and
+                    // the frozen-column offset.
                     let cellStyle: React.CSSProperties | undefined;
-                    if (inFrame(rowIndex, colIndex) && frameBounds && !error) {
-                      const c = "var(--colorBrandStroke1, #0f6cbd)";
-                      const edges: string[] = [];
-                      if (rowIndex === frameBounds.top) edges.push(`inset 0 2px 0 0 ${c}`);
-                      if (rowIndex === frameBounds.bottom) edges.push(`inset 0 -2px 0 0 ${c}`);
-                      if (colIndex === frameBounds.left) edges.push(`inset 2px 0 0 0 ${c}`);
-                      if (colIndex === frameBounds.right) edges.push(`inset -2px 0 0 0 ${c}`);
-                      if (edges.length > 0) cellStyle = { boxShadow: edges.join(", ") };
-                    }
                     const fillTarget = inFillPreview(rowIndex, colIndex);
                     const isFillCorner =
                       !!frameBounds &&
@@ -1611,6 +1653,30 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             })}
           </tbody>
         </table>
+        {selectionRect && (
+          <div
+            className="jj-sheet-selection-overlay"
+            style={{
+              left: selectionRect.left,
+              top: selectionRect.top,
+              width: selectionRect.width,
+              height: selectionRect.height,
+            }}
+            aria-hidden="true"
+          />
+        )}
+        {copyRect && (
+          <div
+            className="jj-sheet-marquee"
+            style={{
+              left: copyRect.left,
+              top: copyRect.top,
+              width: copyRect.width,
+              height: copyRect.height,
+            }}
+            aria-hidden="true"
+          />
+        )}
       </div>
       {menu && (
         <ul

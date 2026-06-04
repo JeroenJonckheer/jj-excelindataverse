@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] - 2026-06-04
+
+### Changed
+- The selection border is now a single continuous overlay rectangle instead of
+  per-cell box-shadows, so the vertical edges no longer break at each row.
+- After Ctrl+C the copied range shows Excel's animated "marching ants" marquee,
+  cleared on paste or Escape.
+
 ## [0.10.1] - 2026-06-04
 
 ### Fixed

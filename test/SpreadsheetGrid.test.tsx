@@ -815,6 +815,12 @@ describe("range selection", () => {
     expect(cell(container, 1, 1).className).toContain("jj-sheet-td-selected");
   });
 
+  it("draws one continuous selection-border overlay", () => {
+    const { container } = renderGrid();
+    fireEvent.click(cell(container, 0, 1));
+    expect(container.querySelector(".jj-sheet-selection-overlay")).not.toBeNull();
+  });
+
   it("selects a range by dragging with the mouse", () => {
     const { container } = renderGrid();
     fireEvent.mouseDown(cell(container, 0, 0));

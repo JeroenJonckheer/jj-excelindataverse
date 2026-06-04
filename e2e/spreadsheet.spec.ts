@@ -297,6 +297,8 @@ test("copies the selected range as TSV and HTML", async ({ page }) => {
   const data = await copySelection(page);
   expect(data["text/plain"]).toBe("Acme Corporation\r\nGlobex");
   expect(data["text/html"]).toContain("<table>");
+  // The copied range shows the marching-ants marquee.
+  await expect(page.locator(".jj-sheet-marquee")).toBeVisible();
 });
 
 test("clears a selected range with Delete and stays responsive", async ({ page }) => {

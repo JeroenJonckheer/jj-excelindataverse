@@ -48,6 +48,7 @@
 /* ---- Grid shell ---- */
 
 .jj-sheet {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
@@ -516,6 +517,38 @@
    No z-index here: a stacking context would poke above the host's modal dim. */
 .jj-sheet-td.jj-sheet-td-active {
   box-shadow: inset 0 0 0 2px var(--colorBrandStroke1, #0f6cbd);
+}
+
+/* ---- Selection overlay and copy marquee ----
+   The selection border is drawn as a single absolutely-positioned rectangle over
+   the range (continuous, no per-cell gaps), instead of per-cell box-shadows. The
+   copy marquee adds Excel's animated "marching ants". Both sit in the scroll
+   content (so they scroll with the grid) and never capture mouse input. */
+.jj-sheet-selection-overlay,
+.jj-sheet-marquee {
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 1;
+}
+.jj-sheet-selection-overlay {
+  border: 2px solid var(--colorBrandStroke1, #0f6cbd);
+}
+.jj-sheet-marquee {
+  background-image:
+    linear-gradient(90deg, #2b2b2b 50%, transparent 50%),
+    linear-gradient(90deg, #2b2b2b 50%, transparent 50%),
+    linear-gradient(0deg, #2b2b2b 50%, transparent 50%),
+    linear-gradient(0deg, #2b2b2b 50%, transparent 50%);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-size: 8px 1px, 8px 1px, 1px 8px, 1px 8px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  animation: jj-sheet-marching 0.6s infinite linear;
+}
+@keyframes jj-sheet-marching {
+  to {
+    background-position: 8px 0, -8px 100%, 0 -8px, 100% 8px;
+  }
 }
 
 /* ---- Find & replace ---- */
