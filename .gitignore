@@ -36,3 +36,4 @@ e2e*.txt
 v.txt
 solbuild.txt
 verify.txt
+testdata/

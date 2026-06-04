@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] - 2026-06-04
+
+### Fixed
+- Date parsing now reads day-first (dd/MM/yyyy, also with `.`/`-` separators and
+  an optional time), matching the Dutch/European locale, instead of the US
+  month-first interpretation that rejected days > 12 and silently mis-parsed the
+  rest. ISO and unambiguous month-first dates still parse; impossible dates are
+  rejected rather than rolling over.
+
 ## [0.10.0] - 2026-06-03
 
 ### Added

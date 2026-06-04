@@ -105,15 +105,54 @@ export function formatValue(value: CellValue, column: ColumnDef): string {
 }
 
 /** Parses a yyyy-mm-dd (or any Date-parseable) string into a Date or null. */
+/**
+ * Builds a Date from explicit parts plus any time found in the text, and
+ * rejects impossible dates (for example 31/02) instead of letting them roll
+ * over into the next month.
+ */
+function buildDate(year: number, month: number, day: number, raw: string): Date | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const time = /(\d{1,2}):(\d{2})/.exec(raw);
+  const hh = time ? Number(time[1]) : 0;
+  const mm = time ? Number(time[2]) : 0;
+  const date = new Date(year, month - 1, day, hh, mm);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Parses a date the way this org enters them. ISO (yyyy-MM-dd) is taken as-is.
+ * A d/M/y date (with / . or - separators, optional time) is read DAY-first to
+ * match the Dutch / European locale, falling back to month-first only when the
+ * first number cannot be a day (so an unambiguous US-style date still parses).
+ */
 export function parseDate(raw: string): Date | null {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return null;
-  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(trimmed);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    const date = new Date(Number(y), Number(m) - 1, Number(d));
-    return Number.isNaN(date.getTime()) ? null : date;
+
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(trimmed);
+  if (iso) {
+    return buildDate(Number(iso[1]), Number(iso[2]), Number(iso[3]), trimmed);
   }
+
+  const dmy = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/.exec(trimmed);
+  if (dmy) {
+    const a = Number(dmy[1]);
+    const b = Number(dmy[2]);
+    const year = Number(dmy[3]);
+    // Month-first only when the first value cannot be a day; otherwise day-first.
+    const monthFirst = a <= 12 && b > 12;
+    const day = monthFirst ? b : a;
+    const month = monthFirst ? a : b;
+    return buildDate(year, month, day, trimmed);
+  }
+
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

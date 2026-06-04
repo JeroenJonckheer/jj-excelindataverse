@@ -23,6 +23,7 @@ export default [
       "test-results/**",
       "harness/dist/**",
       "media/**",
+      "testdata/**",
     ],
   },
   // Register the Power Apps plugin globally so its rules resolve for every

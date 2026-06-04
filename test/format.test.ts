@@ -114,6 +114,33 @@ describe("parseDate", () => {
     expect(parseDate("")).toBeNull();
     expect(parseDate("not-a-date")).toBeNull();
   });
+  it("parses day-first European dates, including day > 12", () => {
+    const d = parseDate("23/01/2026") as Date;
+    expect(d).not.toBeNull();
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(0); // January
+    expect(d.getDate()).toBe(23);
+  });
+  it("treats an ambiguous d/M date as day-first", () => {
+    const d = parseDate("11/01/2026") as Date;
+    expect(d.getMonth()).toBe(0); // January, not November
+    expect(d.getDate()).toBe(11);
+  });
+  it("falls back to month-first only when the first value cannot be a day", () => {
+    const d = parseDate("01/23/2026") as Date;
+    expect(d.getMonth()).toBe(0);
+    expect(d.getDate()).toBe(23);
+  });
+  it("accepts dashes and a trailing time", () => {
+    const d = parseDate("03-06-2026 11:12") as Date;
+    expect(d.getMonth()).toBe(5); // June
+    expect(d.getDate()).toBe(3);
+    expect(d.getHours()).toBe(11);
+  });
+  it("rejects impossible dates instead of rolling over", () => {
+    expect(parseDate("31/02/2026")).toBeNull();
+    expect(parseDate("13/13/2026")).toBeNull();
+  });
 });
 
 describe("parseInput", () => {
