@@ -40,6 +40,7 @@ import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue, isEmpty, formatValue, valuesEqual } from "../services/format";
 import { serverErrorMessage } from "../services/errors";
+import type { BatchOp, BatchResult } from "../services/DataverseService";
 import {
   parseClipboard,
   parseHtmlClipboard,
@@ -67,6 +68,12 @@ export interface SpreadsheetGridProps {
   onSave: (recordId: string, edits: PendingEdit[]) => Promise<void>;
   onCreate: (edits: PendingEdit[]) => Promise<void>;
   onDelete: (recordId: string) => Promise<void>;
+  /**
+   * Commits a whole save in one batched request. When provided it is used
+   * instead of the per-record onSave/onCreate/onDelete callbacks (which remain
+   * the fallback for tests and any host without batch support).
+   */
+  onSaveBatch?: (ops: BatchOp[]) => Promise<BatchResult[]>;
   /** Called once after a batch of saves/creates/deletes has fully resolved. */
   onCommitted?: () => void;
   onOpenRecord: (recordId: string) => void;
@@ -138,6 +145,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onSave,
   onCreate,
   onDelete,
+  onSaveBatch,
   onCommitted,
   onOpenRecord,
   onOpenLookup,
@@ -1497,37 +1505,51 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       byRecord.set(recordId, list);
     }
 
+    // Build the operations: a create or update per edited record (a record
+    // marked for deletion skips its edits), then a delete per pending deletion.
+    const ops: BatchOp[] = [];
+    for (const [recordId, edits] of byRecord.entries()) {
+      if (pendingDeletes.has(recordId)) continue;
+      ops.push({ recordId, kind: isNewRow(recordId) ? "create" : "update", edits });
+    }
+    for (const recordId of pendingDeletes) {
+      ops.push({ recordId, kind: "delete" });
+    }
+
+    // Commit in one batched request when the host supports it; otherwise fall
+    // back to one request per record (kept for tests and hosts without batch).
+    let results: BatchResult[];
+    if (onSaveBatch) {
+      results = await onSaveBatch(ops);
+    } else {
+      results = await Promise.all(
+        ops.map(async (op): Promise<BatchResult> => {
+          try {
+            if (op.kind === "create") await onCreate(op.edits ?? []);
+            else if (op.kind === "update") await onSave(op.recordId, op.edits ?? []);
+            else await onDelete(op.recordId);
+            return { recordId: op.recordId, ok: true };
+          } catch (err) {
+            return { recordId: op.recordId, ok: false, error: serverErrorMessage(err) };
+          }
+        }),
+      );
+    }
+
+    // Sort the outcomes: successes get their drafts cleared, failures keep them
+    // with the server message shown on the row.
     const failures: Record<string, string> = {};
     const savedRecords: string[] = [];
-    await Promise.all(
-      Array.from(byRecord.entries()).map(async ([recordId, edits]) => {
-        // A record marked for deletion does not need its edits saved.
-        if (pendingDeletes.has(recordId)) return;
-        try {
-          if (isNewRow(recordId)) {
-            await onCreate(edits);
-          } else {
-            await onSave(recordId, edits);
-          }
-          savedRecords.push(recordId);
-        } catch (err) {
-          failures[recordId] = serverErrorMessage(err);
-        }
-      }),
-    );
-
-    // Delete the records marked for deletion.
     const deletedRecords: string[] = [];
-    await Promise.all(
-      Array.from(pendingDeletes).map(async (recordId) => {
-        try {
-          await onDelete(recordId);
-          deletedRecords.push(recordId);
-        } catch (err) {
-          failures[recordId] = serverErrorMessage(err);
-        }
-      }),
-    );
+    const kindOf = new Map(ops.map((o) => [o.recordId, o.kind]));
+    for (const r of results) {
+      if (r.ok) {
+        if (kindOf.get(r.recordId) === "delete") deletedRecords.push(r.recordId);
+        else savedRecords.push(r.recordId);
+      } else {
+        failures[r.recordId] = r.error ?? serverErrorMessage(null);
+      }
+    }
 
     // Clear the drafts that saved; keep the ones that failed so the user can
     // fix and retry. The rest of the changes are preserved.

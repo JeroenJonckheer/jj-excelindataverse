@@ -8,6 +8,7 @@ import {
   DataverseService,
   escapeODataString,
   isTransientError,
+  type BatchOp,
 } from "../Spreadsheet/services/DataverseService";
 import type { ColumnDef, PendingEdit } from "../Spreadsheet/services/types";
 
@@ -562,6 +563,103 @@ describe("resolveLookup", () => {
       { id: "a1", name: "Helix Group", entityType: "account" },
     ]);
     expect(retrieveMultipleRecords).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("writeBatch", () => {
+  const METABODY = {
+    EntitySetName: "contacts",
+    PrimaryNameAttribute: "fullname",
+    PrimaryIdAttribute: "contactid",
+    ObjectTypeCode: 2,
+  };
+  const edit = (recordId: string, value: string): PendingEdit => ({
+    recordId,
+    columnName: "fullname",
+    kind: "text",
+    value,
+    display: value,
+  });
+
+  it("maps the ordered sub-responses back to each operation", async () => {
+    const resp = [
+      "--b",
+      "Content-Type: multipart/mixed; boundary=cs",
+      "",
+      "--cs",
+      "Content-Type: application/http",
+      "",
+      "HTTP/1.1 204 No Content",
+      "",
+      "--cs--",
+      "--b",
+      "Content-Type: multipart/mixed; boundary=cs",
+      "",
+      "--cs",
+      "Content-Type: application/http",
+      "",
+      "HTTP/1.1 201 Created",
+      "",
+      "--cs--",
+      "--b",
+      "Content-Type: multipart/mixed; boundary=cs",
+      "",
+      "--cs",
+      "Content-Type: application/http",
+      "",
+      "HTTP/1.1 400 Bad Request",
+      "Content-Type: application/json",
+      "",
+      '{"error":{"code":"x","message":"Business rule: nope"}}',
+      "--cs--",
+      "--b--",
+    ].join("\r\n");
+    const fetchMock = jest.fn((url: string, init?: { body?: string }) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(METABODY),
+        text: () => Promise.resolve(String(url).includes("/$batch") ? resp : ""),
+        __body: init?.body,
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const ops: BatchOp[] = [
+      { recordId: "r1", kind: "update", edits: [edit("r1", "A")] },
+      { recordId: "tmp1", kind: "create", edits: [edit("tmp1", "B")] },
+      { recordId: "r2", kind: "delete" },
+    ];
+    const results = await svc.writeBatch("contact", ops);
+    expect(results).toEqual([
+      { recordId: "r1", ok: true },
+      { recordId: "tmp1", ok: true },
+      { recordId: "r2", ok: false, error: "Business rule: nope" },
+    ]);
+    const batchCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("/$batch"));
+    expect(batchCalls.length).toBe(1);
+    const body = String((batchCalls[0] as unknown as [string, { body: string }])[1].body);
+    expect(body).toContain("PATCH ");
+    expect(body).toContain("POST ");
+    expect(body).toContain("DELETE ");
+  });
+
+  it("chunks more than 100 operations into multiple $batch requests", async () => {
+    const fetchMock = jest.fn((url: string, init?: { body?: string }) => {
+      if (String(url).includes("/$batch")) {
+        const n = (String(init?.body).match(/Content-ID:/g) || []).length;
+        const text = Array.from({ length: n }, () => "HTTP/1.1 204 No Content").join("\r\n");
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}), text: () => Promise.resolve(text) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(METABODY), text: () => Promise.resolve("") });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const ops: BatchOp[] = Array.from({ length: 150 }, (_, i) => ({ recordId: `r${i}`, kind: "delete" as const }));
+    const results = await svc.writeBatch("contact", ops);
+    expect(results.length).toBe(150);
+    expect(results.every((r) => r.ok)).toBe(true);
+    const batchCalls = fetchMock.mock.calls.filter((c) => String(c[0]).includes("/$batch"));
+    expect(batchCalls.length).toBe(2);
   });
 });
 

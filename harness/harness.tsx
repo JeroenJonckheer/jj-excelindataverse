@@ -493,6 +493,33 @@ function createService(store: Store): IDataverseService {
       delete store[recordId];
       return Promise.resolve();
     },
+    writeBatch: (_entity, ops) => {
+      // Mirror the per-record store mutations, with the same "REJECT" rejection
+      // so the inline server-error path is exercised through the batch too.
+      const rejects = (edits: PendingEdit[] | undefined) =>
+        (edits ?? []).some((e) => e.columnName === "name" && e.value === "REJECT");
+      const results = ops.map((op) => {
+        if (op.kind === "delete") {
+          const i = ORDER.indexOf(op.recordId);
+          if (i >= 0) ORDER.splice(i, 1);
+          delete store[op.recordId];
+          return { recordId: op.recordId, ok: true };
+        }
+        if (rejects(op.edits)) {
+          return { recordId: op.recordId, ok: false, error: "Server refused this record" };
+        }
+        if (op.kind === "create") {
+          const id = `demo-${ORDER.length + 1}`;
+          store[id] = {};
+          for (const e of op.edits ?? []) store[id][e.columnName] = e.value;
+          ORDER.push(id);
+        } else {
+          for (const e of op.edits ?? []) store[op.recordId][e.columnName] = e.value;
+        }
+        return { recordId: op.recordId, ok: true };
+      });
+      return Promise.resolve(results);
+    },
     openRecord: (_entity, recordId) => {
       // The harness has no host form; surface the intent for the demo and tests.
       console.info(`JJ - Excel in Dataverse: open record ${recordId}`);

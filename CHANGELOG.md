@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] - 2026-06-04
+
+### Added
+- Batched saves: a save now commits all its creates, updates and deletes in one
+  OData `$batch` request (chunked at 100), instead of one HTTP request per
+  record. A large paste or bulk edit that used to fire dozens or hundreds of
+  requests now goes out in a handful, which is much faster and far less likely
+  to be throttled. Each record is its own changeset, so one rejected row does
+  not roll back the others - failures are still shown inline on their row and
+  kept pending, successes are cleared, exactly as before. Creates are never
+  retried, so a lost response cannot duplicate a record.
+
 ## [0.14.1] - 2026-06-04
 
 ### Fixed

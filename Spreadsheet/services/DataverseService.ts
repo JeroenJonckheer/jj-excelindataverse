@@ -7,6 +7,7 @@
 import type { IInputs } from "../generated/ManifestTypes";
 import type { ColumnDef, LookupValue, PendingEdit, RequiredLevel } from "./types";
 import { isLookupValue } from "./format";
+import { serverErrorMessage } from "./errors";
 
 /**
  * Whether an error looks transient (worth retrying): a throttle/server status
@@ -55,6 +56,14 @@ export interface IDataverseService {
   createRecord(entityName: string, edits: PendingEdit[]): Promise<void>;
   /** Deletes a record. */
   deleteRecord(entityName: string, recordId: string): Promise<void>;
+  /**
+   * Commits a batch of create/update/delete operations in one OData $batch
+   * request (chunked), each operation in its own changeset so one failure does
+   * not roll back the rest. Returns a per-operation result keyed by the row's
+   * id. Far fewer round-trips than one request per record for a large paste or
+   * bulk edit.
+   */
+  writeBatch(entityName: string, ops: BatchOp[]): Promise<BatchResult[]>;
   /** Opens the standard form for a record in the host app. */
   openRecord(entityName: string, recordId: string): void;
   /**
@@ -67,6 +76,24 @@ export interface IDataverseService {
     columns: ViewColumn[],
     sort: ViewSort[],
   ): Promise<void>;
+}
+
+/** One create/update/delete to commit in a batch. */
+export interface BatchOp {
+  /** The row id this op belongs to (a temp id for a new row); used to map the
+   * result back to the row. */
+  recordId: string;
+  kind: "create" | "update" | "delete";
+  /** Pending edits for a create/update (ignored for delete). */
+  edits?: PendingEdit[];
+}
+
+/** The outcome of a single batched operation. */
+export interface BatchResult {
+  recordId: string;
+  ok: boolean;
+  /** Server message when the operation failed. */
+  error?: string;
 }
 
 interface EntityMeta {
@@ -452,6 +479,98 @@ export class DataverseService implements IDataverseService {
     await this.withRetry(() => this.webApi.deleteRecord(entityName, recordId));
   }
 
+  async writeBatch(entityName: string, ops: BatchOp[]): Promise<BatchResult[]> {
+    if (ops.length === 0) return [];
+    const meta = await this.getEntityMeta(entityName);
+    const eset = meta.entitySetName;
+    const base = `${this.clientUrl()}/api/data/v9.2`;
+
+    // Build each sub-request up front (payloads need async metadata).
+    const prepared = await Promise.all(
+      ops.map(async (op) => {
+        if (op.kind === "delete") {
+          return { op, method: "DELETE", url: `${base}/${eset}(${op.recordId})`, body: null as string | null };
+        }
+        const payload = await this.buildPayload(entityName, op.edits ?? []);
+        const body = JSON.stringify(payload);
+        return op.kind === "create"
+          ? { op, method: "POST", url: `${base}/${eset}`, body }
+          : { op, method: "PATCH", url: `${base}/${eset}(${op.recordId})`, body };
+      }),
+    );
+
+    // One $batch HTTP request per chunk; never auto-retried (a lost response on
+    // a create could otherwise duplicate a record).
+    const CHUNK = 100;
+    const results: BatchResult[] = [];
+    for (let i = 0; i < prepared.length; i += CHUNK) {
+      results.push(...(await this.postBatch(base, prepared.slice(i, i + CHUNK))));
+    }
+    return results;
+  }
+
+  /** Posts one multipart/mixed $batch (each op in its own changeset) and maps
+   * the ordered sub-responses back to the operations. */
+  private async postBatch(
+    base: string,
+    items: { op: BatchOp; method: string; url: string; body: string | null }[],
+  ): Promise<BatchResult[]> {
+    const boundary = `batch_jj_${Date.now()}_${batchCounter++}`;
+    const segments = items.map((it, k) => {
+      const cs = `changeset_jj_${k}`;
+      const head =
+        `--${boundary}\r\nContent-Type: multipart/mixed; boundary=${cs}\r\n\r\n` +
+        `--${cs}\r\nContent-Type: application/http\r\n` +
+        `Content-Transfer-Encoding: binary\r\nContent-ID: ${k + 1}\r\n\r\n` +
+        `${it.method} ${it.url} HTTP/1.1\r\n`;
+      const payload =
+        it.body != null
+          ? `Content-Type: application/json;type=entry\r\n\r\n${it.body}\r\n`
+          : `\r\n`;
+      return `${head}${payload}--${cs}--\r\n`;
+    });
+    const body = `${segments.join("")}--${boundary}--\r\n`;
+
+    try {
+      const resp = await fetch(`${base}/$batch`, {
+        method: "POST",
+        headers: {
+          "OData-Version": "4.0",
+          "OData-MaxVersion": "4.0",
+          Accept: "application/json",
+          "Content-Type": `multipart/mixed; boundary=${boundary}`,
+        },
+        credentials: "include",
+        body,
+      });
+      const text = await resp.text();
+      if (!resp.ok && !text.includes("HTTP/1.1")) {
+        // The whole batch was rejected (e.g. auth) - fail every op so the grid
+        // keeps them pending.
+        return items.map((it) => ({
+          recordId: it.op.recordId,
+          ok: false,
+          error: `Batch ${resp.status}: ${text.slice(0, 200)}`,
+        }));
+      }
+      return mapBatchResponse(text, items.map((it) => it.op));
+    } catch (e) {
+      return items.map((it) => ({
+        recordId: it.op.recordId,
+        ok: false,
+        error: serverErrorMessage(e),
+      }));
+    }
+  }
+
+  private clientUrl(): string {
+    return (
+      (this.ctx as any).page?.getClientUrl?.() ??
+      (window as any).Xrm?.Utility?.getGlobalContext?.()?.getClientUrl?.() ??
+      ""
+    );
+  }
+
   openRecord(entityName: string, recordId: string): void {
     const opts = { entityName, entityId: recordId };
     const nav = (this.ctx as unknown as { navigation?: { openForm?: (o: unknown) => void } })
@@ -601,6 +720,47 @@ export class DataverseService implements IDataverseService {
       }
       return resp.json();
     });
+  }
+}
+
+/** Monotonic suffix so concurrent $batch boundaries never collide. */
+let batchCounter = 0;
+
+/**
+ * Maps an OData $batch response body to a per-operation result. Each changeset
+ * yields one `HTTP/1.1 <status>` line, in request order; a 2xx is a success,
+ * anything else carries the server's error message from the JSON body.
+ */
+export function mapBatchResponse(text: string, ops: BatchOp[]): BatchResult[] {
+  const statusRe = /HTTP\/1\.1\s+(\d{3})/g;
+  const statuses: { code: number; at: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = statusRe.exec(text)) !== null) {
+    statuses.push({ code: Number(m[1]), at: m.index });
+  }
+  return ops.map((op, k) => {
+    const s = statuses[k];
+    if (!s) {
+      return { recordId: op.recordId, ok: false, error: "No response for this operation." };
+    }
+    if (s.code >= 200 && s.code < 300) return { recordId: op.recordId, ok: true };
+    const segment = text.slice(s.at, statuses[k + 1]?.at ?? text.length);
+    return {
+      recordId: op.recordId,
+      ok: false,
+      error: extractErrorMessage(segment) ?? `Save failed (HTTP ${s.code}).`,
+    };
+  });
+}
+
+/** Pulls the `"message"` out of an OData error JSON body within a segment. */
+function extractErrorMessage(segment: string): string | null {
+  const m = /"message"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(segment);
+  if (!m) return null;
+  try {
+    return JSON.parse(`"${m[1]}"`);
+  } catch {
+    return m[1];
   }
 }
 

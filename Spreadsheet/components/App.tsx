@@ -20,7 +20,11 @@ import {
   type DatasetRecordLike,
   type GridRow,
 } from "../services/dataset";
-import { DataverseService, type IDataverseService } from "../services/DataverseService";
+import {
+  DataverseService,
+  type IDataverseService,
+  type BatchOp,
+} from "../services/DataverseService";
 import { CONTROL_VERSION } from "../services/version";
 import { SpreadsheetGrid } from "./SpreadsheetGrid";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -222,6 +226,12 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     [dataverse, entityName],
   );
 
+  // Commit a whole save (creates, updates, deletes) in one batched request.
+  const onSaveBatch = React.useCallback(
+    (ops: BatchOp[]) => dataverse.writeBatch(entityName, ops),
+    [dataverse, entityName],
+  );
+
   const onOpenRecord = React.useCallback(
     (recordId: string) => dataverse.openRecord(entityName, recordId),
     [dataverse, entityName],
@@ -308,6 +318,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         version={CONTROL_VERSION}
         onCreate={onCreate}
         onDelete={onDelete}
+        onSaveBatch={onSaveBatch}
         onCommitted={onCommitted}
         onOpenRecord={onOpenRecord}
         onOpenLookup={onOpenLookup}

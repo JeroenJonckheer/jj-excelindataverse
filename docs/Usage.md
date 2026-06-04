@@ -93,11 +93,6 @@ validated just like a typed value.
   widens (or narrows) to fit the header and the visible cell contents.
 - **Reorder** columns by dragging a column header onto another; a blue line shows
   where it will land.
-- **Filter** a column: hover its header and click the **funnel**. A small panel
-  opens - "contains" for text, from/to for numbers and dates, or a checkbox list
-  for choice and yes/no columns. Filtering runs server-side over the whole
-  dataset (not just the loaded page); the funnel stays highlighted while a filter
-  is active. Click it again and **Clear** to remove it.
 - **Freeze columns**: hover a column header and click the **pin** that appears.
   All columns up to and including that one (and the row checkboxes) stay in view
   while you scroll horizontally. Click the pin again to unfreeze. Nothing is
