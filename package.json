@@ -22,6 +22,7 @@
     "test:e2e": "playwright test",
     "test:adversarial": "playwright test e2e/adversarial.spec.ts",
     "check:version": "node scripts/check-version.mjs",
+    "demo": "playwright test --config=playwright.demo.config.ts",
     "test:all": "npm run verify",
     "verify": "npm run check:version && npm run refreshTypes && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:e2e"
   },

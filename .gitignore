@@ -26,6 +26,8 @@ demo-output/
 
 # ---- local scratch logs ----
 push*.txt
+demo.txt
+ff.txt
 verify*.txt
 e2e*.txt
 *-out.txt

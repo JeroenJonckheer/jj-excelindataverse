@@ -83,6 +83,7 @@ export default [
       "harness/**/*.ts",
       "harness/**/*.js",
       "e2e/**/*.ts",
+      "e2e-demo/**/*.ts",
       "scripts/**/*.mjs",
       "*.config.ts",
       "*.config.js",

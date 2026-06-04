@@ -9,7 +9,7 @@
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Made by Jeroen Jonckheer](https://img.shields.io/badge/made%20by-Jeroen%20Jonckheer-14b8a6.svg)](https://www.linkedin.com/in/jeroen-jonckheer/)
 
-_Demo recording is added with the first release._
+![JJ - Excel in Dataverse - inline editing, paste from Excel, fill, move, find and sort](media/demo.gif)
 
 *Type in cells, edit several rows at once, paste straight from Excel, pick lookups as you type - all saved to Dataverse, no export required.*
 

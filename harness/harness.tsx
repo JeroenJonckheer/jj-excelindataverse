@@ -148,7 +148,42 @@ function readUrlRows(): number {
   }
 }
 
+// ?demo=1 loads a full, realistic sales-leads board for the demo recording and
+// the hero screenshot (toy data reads as a toy product).
+function readUrlDemo(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get("demo") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function demoStore(): Store {
+  const rows: [string, string, number, number, boolean, Date, LookupValue, number][] = [
+    ["Acme Corporation", "sales@acme.example", 82, 2, true, new Date(2026, 5, 15), CONTACTS[0], 82000],
+    ["Globex Trading", "hello@globex.example", 47, 1, false, new Date(2026, 6, 1), CONTACTS[1], 40000],
+    ["Initech Software", "info@initech.example", 88, 3, true, new Date(2026, 4, 20), CONTACTS[2], 120000],
+    ["Umbrella Health", "contact@umbrella.example", 23, 4, false, new Date(2026, 7, 9), CONTACTS[3], 15000],
+    ["Stark Industries", "deals@stark.example", 64, 2, true, new Date(2026, 8, 2), CONTACTS[0], 96000],
+    ["Wonka Foods", "orders@wonka.example", 55, 1, true, new Date(2026, 5, 28), CONTACTS[1], 30000],
+    ["Cyberdyne Systems", "ai@cyberdyne.example", 91, 3, true, new Date(2026, 3, 11), CONTACTS[2], 210000],
+    ["Wayne Enterprises", "procurement@wayne.example", 73, 2, true, new Date(2026, 9, 4), CONTACTS[3], 150000],
+    ["Tyrell Corp", "info@tyrell.example", 38, 1, false, new Date(2026, 6, 22), CONTACTS[0], 28000],
+    ["Nakatomi Trading", "hr@nakatomi.example", 60, 2, true, new Date(2026, 7, 17), CONTACTS[1], 54000],
+    ["Vandelay Industries", "import@vandelay.example", 19, 4, false, new Date(2026, 4, 30), CONTACTS[2], 12000],
+    ["Gekko Capital", "deals@gekko.example", 84, 3, true, new Date(2026, 8, 19), CONTACTS[3], 175000],
+    ["Soylent Foods", "green@soylent.example", 42, 1, true, new Date(2026, 9, 25), CONTACTS[0], 33000],
+    ["Hooli", "team@hooli.example", 69, 2, false, new Date(2026, 5, 6), CONTACTS[1], 70000],
+  ];
+  const store: Store = {};
+  rows.forEach(([name, email, score, status, active, duedate, owner, forecast], i) => {
+    store[`d${i}`] = { name, email, score, status, active, duedate, owner, forecast };
+  });
+  return store;
+}
+
 function buildInitialStore(): Store {
+  if (readUrlDemo()) return demoStore();
   // ?rows=N generates N synthetic rows for the virtualization test.
   const n = readUrlRows();
   if (n > 0) {
