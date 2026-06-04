@@ -324,6 +324,10 @@ function readUrlGhostStick(): boolean {
 let ghostCount = readUrlGhost();
 const ghostStick = readUrlGhostStick();
 let refreshCount = 0;
+// ?healtest=1: the next column add makes the dataset hand back zero rows until a
+// refresh restores them - the "blank grid after a column change" the self-heal
+// must recover from.
+let emptyUntilRefresh = false;
 
 // Accumulating paging (like the Dataverse dataset): "load more" grows the loaded
 // count rather than replacing the page.
@@ -370,7 +374,7 @@ function buildContext(
     createdon: 160,
   };
   const allIds = sortedOrder(store);
-  const visibleIds = allIds.slice(0, loadedCount);
+  const visibleIds = emptyUntilRefresh ? [] : allIds.slice(0, loadedCount);
   const dataset = {
     columns: META.map((c, i) => ({
       name: c.name,
@@ -416,6 +420,7 @@ function buildContext(
     getTargetEntityType: () => "demo_account",
     refresh: () => {
       sortState = dataset.sorting || [];
+      emptyUntilRefresh = false; // a real re-query brings the rows back
       refreshCount++;
       (window as unknown as { __jjRefreshCount?: number }).__jjRefreshCount = refreshCount;
       // A real re-query reconciles ghost rows: the records deleted elsewhere are
@@ -574,6 +579,13 @@ const Harness: React.FC = () => {
           style={{ position: "absolute", top: 2, left: 2, zIndex: 50 }}
           onClick={() => {
             addDevColumn();
+            try {
+              if (new URLSearchParams(window.location.search).get("healtest") === "1") {
+                emptyUntilRefresh = true;
+              }
+            } catch {
+              /* ignore */
+            }
             force();
           }}
         >

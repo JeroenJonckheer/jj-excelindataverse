@@ -372,6 +372,19 @@ test("adding a column on a large (>5000) virtualized grid does not blank it", as
   await expect(cell(page, 0, 1)).toContainText("Synthetic Account 0");
 });
 
+test("self-heals the blank grid when a column change returns zero rows", async ({
+  page,
+}) => {
+  // healtest makes the column add hand back zero rows (the reported blank), with
+  // records still existing - the grid must re-query and bring the rows back.
+  await page.goto("/?rows=6000&pageSize=5000&addcol=1&healtest=1");
+  await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");
+  await page.getByRole("button", { name: "DEV add column" }).click();
+  await expect(page.getByRole("columnheader", { name: "Dev Column" })).toBeVisible();
+  // After the transient empty, the self-heal restores the rows (name now col 1).
+  await expect(cell(page, 0, 1)).toContainText("Synthetic Account 0");
+});
+
 test("keeps rows visible when scrolled far past the content", async ({ page }) => {
   await page.goto("/?rows=200&pageSize=200");
   await expect(cell(page, 0, 0)).toContainText("Synthetic Account 0");

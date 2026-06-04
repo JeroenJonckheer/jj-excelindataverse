@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.2] - 2026-06-04
+
+### Fixed
+- Blank grid after adding a column on a large, paged view: when the host
+  re-queries and briefly hands back zero rows (records still exist), the grid now
+  re-queries from the first page and the rows come back, instead of staying on
+  "No records to show." until a manual reload. This covers the reported case of
+  Load more to 5000 records, then adding a column.
+
 ## [0.15.1] - 2026-06-04
 
 ### Fixed

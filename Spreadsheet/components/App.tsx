@@ -150,18 +150,27 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
   // until a manual page reload. Force one re-query from the first page; a guard
   // ref stops it from looping if the refresh does not change anything.
   const hasNextPage = !!pagingApi?.hasNextPage;
+  // Remember that the grid has shown rows, so a sudden drop to zero can be told
+  // apart from a genuinely empty view.
+  const hadRowsRef = React.useRef(false);
+  if (loadedCount > 0) hadRowsRef.current = true;
   const staleSigRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    // Only a genuine ghost-row situation: the dataset says there are no more
-    // pages, yet it handed back more rows than it reports exist. When there IS a
-    // next page, loaded > total just means totalResultCount is the Dataverse
-    // 5000 count cap (an approximation), not stale data - never re-query then,
-    // or large views would reset themselves on every column or view change.
-    if (!hasNextPage && totalCount >= 0 && loadedCount > totalCount) {
-      // Latch on the exact (loaded, total) pair handled, so if the host keeps
-      // returning the same stale counts after the refresh we re-query at most
-      // once for them instead of looping.
-      const sig = `${loadedCount}:${totalCount}`;
+    // Two recoverable inconsistencies the host can leave us in; both are fixed
+    // by re-querying from the first page, latched so a host that keeps returning
+    // the same bad state cannot make us loop.
+    //
+    // A) Ghost rows: no next page, yet more rows loaded than reported to exist
+    //    (records deleted outside the control). When there IS a next page,
+    //    loaded > total is just the Dataverse 5000 count cap, not stale data.
+    // B) Lost rows: zero rows handed back although records should be there (we
+    //    had rows a moment ago, or the total is positive). This is the blank
+    //    grid seen after adding a column on a large, paged view - the host
+    //    re-queries and briefly returns nothing and does not recover on its own.
+    const ghost = !hasNextPage && totalCount >= 0 && loadedCount > totalCount;
+    const lostRows = loadedCount === 0 && (totalCount > 0 || hadRowsRef.current);
+    if (ghost || lostRows) {
+      const sig = `${loadedCount}:${totalCount}:${hasNextPage}:${hadRowsRef.current}`;
       if (staleSigRef.current !== sig) {
         staleSigRef.current = sig;
         pagingApi?.reset?.();
