@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.15.5] - 2026-06-04
+
+### Changed
+- Find & replace no longer re-scans the whole loaded grid on every keystroke:
+  the query is debounced, so typing in the find box stays responsive on large
+  datasets. Replace all scans synchronously against the current term (correct
+  even right after typing) and applies all replacements in one batched update.
+
+### Added
+- A version-sync gate (`npm run check:version`, part of `npm run verify`) fails
+  the build if the four version locations (version.ts, manifest, package.json,
+  Solution.xml) drift apart.
+
 ## [0.15.4] - 2026-06-04
 
 ### Fixed

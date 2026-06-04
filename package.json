@@ -1,6 +1,6 @@
 {
   "name": "jj-excelindataverse",
-  "version": "0.15.4",
+  "version": "0.15.5",
   "description": "JJ - Excel in Dataverse - the spreadsheet experience Dataverse always should have had. A PCF dataset control for inline editing in Model-Driven Apps.",
   "private": true,
   "author": "Jeroen Jonckheer",
@@ -21,8 +21,9 @@
     "harness:build": "node harness/build.js",
     "test:e2e": "playwright test",
     "test:adversarial": "playwright test e2e/adversarial.spec.ts",
+    "check:version": "node scripts/check-version.mjs",
     "test:all": "npm run verify",
-    "verify": "npm run refreshTypes && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:e2e"
+    "verify": "npm run check:version && npm run refreshTypes && npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "@fluentui/react-components": "9.46.2",

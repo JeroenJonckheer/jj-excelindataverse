@@ -895,20 +895,26 @@ describe("paging (brok G)", () => {
 });
 
 describe("find and replace (brok F)", () => {
-  it("opens find with Ctrl+F and highlights matches", () => {
+  it("opens find with Ctrl+F and highlights matches", async () => {
     const { container } = renderGrid();
     fireEvent.keyDown(document, { key: "f", ctrlKey: true });
     const input = screen.getByLabelText("Find") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "Acme" } });
-    expect(cell(container, 0, 0).className).toContain("jj-sheet-td-match");
+    // The find scan is debounced; wait for it to settle.
+    await waitFor(() =>
+      expect(cell(container, 0, 0).className).toContain("jj-sheet-td-match"),
+    );
     expect(screen.getByLabelText("Match count").textContent).toContain("1/1");
   });
 
-  it("replaces the current match as a pending edit (Ctrl+H)", () => {
+  it("replaces the current match as a pending edit (Ctrl+H)", async () => {
     const { container } = renderGrid();
     fireEvent.keyDown(document, { key: "h", ctrlKey: true });
     fireEvent.change(screen.getByLabelText("Find"), { target: { value: "Acme" } });
     fireEvent.change(screen.getByLabelText("Replace with"), { target: { value: "Zeta" } });
+    await waitFor(() =>
+      expect(cell(container, 0, 0).className).toContain("jj-sheet-td-match"),
+    );
     fireEvent.click(screen.getByRole("button", { name: /^Replace$/ }));
     expect(cell(container, 0, 0).textContent).toContain("Zeta");
     expect(screen.getByText(/1 pending change/)).toBeInTheDocument();

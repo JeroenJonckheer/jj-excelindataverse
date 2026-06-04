@@ -217,6 +217,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const [findOpen, setFindOpen] = React.useState(false);
   const [findReplace, setFindReplace] = React.useState(false);
   const [findQuery, setFindQuery] = React.useState("");
+  // The find scan is O(rows x columns); debounce the query so typing in the find
+  // box does not re-scan a large loaded grid on every keystroke.
+  const [debouncedQuery, setDebouncedQuery] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(findQuery), 150);
+    return () => clearTimeout(id);
+  }, [findQuery]);
   const [findReplaceWith, setFindReplaceWith] = React.useState("");
   const [findMatchCase, setFindMatchCase] = React.useState(false);
   const [findWholeCell, setFindWholeCell] = React.useState(false);
@@ -611,19 +618,19 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Find & replace: the cells whose display text matches the query.
   const matches = React.useMemo(() => {
-    if (!findOpen || findQuery === "") return [] as CellAddress[];
+    if (!findOpen || debouncedQuery === "") return [] as CellAddress[];
     const opts = { matchCase: findMatchCase, wholeCell: findWholeCell };
     const out: CellAddress[] = [];
     for (let r = 0; r < allRows.length; r++) {
       const row = allRows[r];
       for (let c = 0; c < columns.length; c++) {
-        if (cellMatches(displayOf(row, columns[c]), findQuery, opts)) {
+        if (cellMatches(displayOf(row, columns[c]), debouncedQuery, opts)) {
           out.push({ rowIndex: r, colIndex: c });
         }
       }
     }
     return out;
-  }, [findOpen, findQuery, findMatchCase, findWholeCell, allRows, columns, drafts]);
+  }, [findOpen, debouncedQuery, findMatchCase, findWholeCell, allRows, columns, drafts]);
   const matchKeys = React.useMemo(
     () => new Set(matches.map((m) => `${m.rowIndex},${m.colIndex}`)),
     [matches],
@@ -1698,25 +1705,27 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     );
   };
   const replaceAll = () => {
-    const targets = matches.filter((m) => {
-      const col = columns[m.colIndex];
-      return !!col && col.editable && col.kind !== "lookup";
-    });
-    if (targets.length === 0) return;
-    record();
-    for (const m of targets) {
-      const col = columns[m.colIndex];
-      const row = allRows[m.rowIndex];
-      if (!col || !row) continue;
-      applyText(
-        row.recordId,
-        col,
-        replaceInText(displayOf(row, col), findQuery, findReplaceWith, {
-          matchCase: findMatchCase,
-          wholeCell: findWholeCell,
-        }),
-      );
+    if (findQuery === "") return;
+    const opts = { matchCase: findMatchCase, wholeCell: findWholeCell };
+    // Scan synchronously against the current query (not the debounced matches),
+    // so Replace all is correct even if clicked right after typing, and apply
+    // every replacement in one batched state update.
+    const entries: { recordId: string; col: ColumnDef; text: string }[] = [];
+    for (const row of allRows) {
+      for (const col of columns) {
+        if (!col.editable || col.kind === "lookup") continue;
+        const current = displayOf(row, col);
+        if (!cellMatches(current, findQuery, opts)) continue;
+        entries.push({
+          recordId: row.recordId,
+          col,
+          text: replaceInText(current, findQuery, findReplaceWith, opts),
+        });
+      }
     }
+    if (entries.length === 0) return;
+    record();
+    applyTextBatch(entries);
   };
 
   // Open find (Ctrl+F) and replace (Ctrl+H) from anywhere in the control.
