@@ -128,6 +128,29 @@ if (readUrlFirstCol() === "createdon") {
   });
 }
 
+// ?demo=1 swaps in a realistic lead schema for the demo recording: Account and
+// Contact are LOOKUPS (blue links), like the real entity, alongside editable
+// text/number/choice/date columns. Only the demo URL uses it; the e2e tests keep
+// the default columns above.
+const DEMO_META: ColumnDef[] = [
+  { name: "account", displayName: "Account", dataType: "Lookup.Simple", kind: "lookup", editable: true, required: "required", lookupTargets: ["account"] },
+  { name: "contact", displayName: "Contact", dataType: "Lookup.Simple", kind: "lookup", editable: true, required: "none", lookupTargets: ["contact"] },
+  { name: "company", displayName: "Company", dataType: "SingleLine.Text", kind: "text", editable: true, required: "none", maxLength: 80 },
+  { name: "city", displayName: "City", dataType: "SingleLine.Text", kind: "text", editable: true, required: "none", maxLength: 80 },
+  { name: "hours", displayName: "Hours/week", dataType: "Whole.None", kind: "number", editable: true, required: "none", minValue: 0, maxValue: 60 },
+  { name: "rate", displayName: "Rate", dataType: "Currency", kind: "number", editable: true, required: "none" },
+  { name: "status", displayName: "Status", dataType: "OptionSet", kind: "choice", editable: true, required: "none", options: [{ value: 1, label: "Lead" }, { value: 2, label: "Qualified" }, { value: 3, label: "Won" }, { value: 4, label: "Lost" }] },
+  { name: "closedate", displayName: "Close date", dataType: "DateAndTime.DateOnly", kind: "date", editable: true, required: "none" },
+];
+try {
+  if (new URLSearchParams(window.location.search).get("demo") === "1") {
+    META.length = 0;
+    META.push(...DEMO_META);
+  }
+} catch {
+  /* not in a browser */
+}
+
 const COL_BY_NAME = new Map(META.map((c) => [c.name, c]));
 
 const CONTACTS: LookupValue[] = [
@@ -135,6 +158,18 @@ const CONTACTS: LookupValue[] = [
   { id: "c2", name: "John Roe", entityType: "contact" },
   { id: "c3", name: "Mary Major", entityType: "contact" },
   { id: "c4", name: "Richard Miles", entityType: "contact" },
+];
+
+// Accounts the demo's Account lookup resolves against (type-ahead + paste).
+const DEMO_ACCOUNTS: LookupValue[] = [
+  { id: "a1", name: "Acme Corporation", entityType: "account" },
+  { id: "a2", name: "Globex Trading", entityType: "account" },
+  { id: "a3", name: "Initech Software", entityType: "account" },
+  { id: "a4", name: "Cyberdyne Systems", entityType: "account" },
+  { id: "a5", name: "Wayne Enterprises", entityType: "account" },
+  { id: "a6", name: "Umbrella Health", entityType: "account" },
+  { id: "a7", name: "Stark Industries", entityType: "account" },
+  { id: "a8", name: "Tyrell Corp", entityType: "account" },
 ];
 
 type Store = Record<string, Record<string, CellValue>>;
@@ -159,25 +194,37 @@ function readUrlDemo(): boolean {
 }
 
 function demoStore(): Store {
-  const rows: [string, string, number, number, boolean, Date, LookupValue, number][] = [
-    ["Acme Corporation", "sales@acme.example", 82, 2, true, new Date(2026, 5, 15), CONTACTS[0], 82000],
-    ["Globex Trading", "hello@globex.example", 47, 1, false, new Date(2026, 6, 1), CONTACTS[1], 40000],
-    ["Initech Software", "info@initech.example", 88, 3, true, new Date(2026, 4, 20), CONTACTS[2], 120000],
-    ["Umbrella Health", "contact@umbrella.example", 23, 4, false, new Date(2026, 7, 9), CONTACTS[3], 15000],
-    ["Stark Industries", "deals@stark.example", 64, 2, true, new Date(2026, 8, 2), CONTACTS[0], 96000],
-    ["Wonka Foods", "orders@wonka.example", 55, 1, true, new Date(2026, 5, 28), CONTACTS[1], 30000],
-    ["Cyberdyne Systems", "ai@cyberdyne.example", 91, 3, true, new Date(2026, 3, 11), CONTACTS[2], 210000],
-    ["Wayne Enterprises", "procurement@wayne.example", 73, 2, true, new Date(2026, 9, 4), CONTACTS[3], 150000],
-    ["Tyrell Corp", "info@tyrell.example", 38, 1, false, new Date(2026, 6, 22), CONTACTS[0], 28000],
-    ["Nakatomi Trading", "hr@nakatomi.example", 60, 2, true, new Date(2026, 7, 17), CONTACTS[1], 54000],
-    ["Vandelay Industries", "import@vandelay.example", 19, 4, false, new Date(2026, 4, 30), CONTACTS[2], 12000],
-    ["Gekko Capital", "deals@gekko.example", 84, 3, true, new Date(2026, 8, 19), CONTACTS[3], 175000],
-    ["Soylent Foods", "green@soylent.example", 42, 1, true, new Date(2026, 9, 25), CONTACTS[0], 33000],
-    ["Hooli", "team@hooli.example", 69, 2, false, new Date(2026, 5, 6), CONTACTS[1], 70000],
+  // [account, contact, company, city, hours, rate, status, month]. The first
+  // three hours are 1, 2, 3 so the fill-handle step can extend the series to
+  // 4, 5, 6.
+  const rows: [LookupValue, LookupValue, string, string, number, number, number, number][] = [
+    [DEMO_ACCOUNTS[0], CONTACTS[0], "Acme Recruitment", "Amsterdam", 1, 85, 2, 5],
+    [DEMO_ACCOUNTS[1], CONTACTS[1], "Globex Resourcing", "Rotterdam", 2, 72, 1, 6],
+    [DEMO_ACCOUNTS[2], CONTACTS[2], "Initech Talent", "Utrecht", 3, 95, 3, 4],
+    [DEMO_ACCOUNTS[3], CONTACTS[3], "Cyberdyne People", "Eindhoven", 24, 110, 2, 7],
+    [DEMO_ACCOUNTS[4], CONTACTS[0], "Wayne Staffing", "Den Haag", 18, 98, 2, 9],
+    [DEMO_ACCOUNTS[5], CONTACTS[1], "Umbrella Care Jobs", "Groningen", 20, 64, 4, 3],
+    [DEMO_ACCOUNTS[6], CONTACTS[2], "Stark Engineers", "Delft", 32, 120, 3, 8],
+    [DEMO_ACCOUNTS[7], CONTACTS[3], "Tyrell Recruitment", "Leiden", 12, 80, 1, 6],
+    [DEMO_ACCOUNTS[0], CONTACTS[1], "Acme Field Services", "Breda", 28, 90, 2, 7],
+    [DEMO_ACCOUNTS[2], CONTACTS[2], "Initech Cloud", "Nijmegen", 16, 105, 3, 5],
+    [DEMO_ACCOUNTS[4], CONTACTS[3], "Wayne Logistics", "Almere", 22, 75, 1, 10],
+    [DEMO_ACCOUNTS[6], CONTACTS[0], "Stark Robotics", "Haarlem", 35, 140, 3, 8],
+    [DEMO_ACCOUNTS[1], CONTACTS[1], "Globex Finance", "Tilburg", 10, 60, 1, 9],
+    [DEMO_ACCOUNTS[3], CONTACTS[2], "Cyberdyne AI", "Arnhem", 30, 130, 2, 6],
   ];
   const store: Store = {};
-  rows.forEach(([name, email, score, status, active, duedate, owner, forecast], i) => {
-    store[`d${i}`] = { name, email, score, status, active, duedate, owner, forecast };
+  rows.forEach(([account, contact, company, city, hours, rate, status, month], i) => {
+    store[`d${i}`] = {
+      account,
+      contact,
+      company,
+      city,
+      hours,
+      rate,
+      status,
+      closedate: new Date(2026, month, ((i * 3) % 27) + 1),
+    };
   });
   return store;
 }
@@ -407,6 +454,13 @@ function buildContext(
     owner: 180,
     forecast: 120,
     createdon: 160,
+    account: 200,
+    contact: 170,
+    company: 200,
+    city: 130,
+    hours: 120,
+    rate: 110,
+    closedate: 130,
   };
   const allIds = sortedOrder(store);
   const visibleIds = emptyUntilRefresh ? [] : allIds.slice(0, loadedCount);
@@ -494,20 +548,19 @@ function createService(store: Store): IDataverseService {
           return meta ? { ...c, ...meta, dataType: c.dataType, kind: c.kind } : c;
         }),
       ),
-    searchLookup: (_targets, term) =>
-      Promise.resolve(
-        CONTACTS.filter((c) =>
-          c.name.toLowerCase().includes(term.toLowerCase()),
-        ),
-      ),
-    resolveLookup: (_targets, text) => {
+    searchLookup: (targets, term) => {
+      const pool = targets.includes("account") ? DEMO_ACCOUNTS : CONTACTS;
+      return Promise.resolve(
+        pool.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())),
+      );
+    },
+    resolveLookup: (targets, text) => {
       const term = text.trim().toLowerCase();
       if (term.length === 0) return Promise.resolve([]);
-      const byId = CONTACTS.filter((c) => c.id.toLowerCase() === term);
+      const pool = targets.includes("account") ? DEMO_ACCOUNTS : CONTACTS;
+      const byId = pool.filter((c) => c.id.toLowerCase() === term);
       if (byId.length > 0) return Promise.resolve(byId);
-      return Promise.resolve(
-        CONTACTS.filter((c) => c.name.toLowerCase() === term),
-      );
+      return Promise.resolve(pool.filter((c) => c.name.toLowerCase() === term));
     },
     saveRecord: (_entity, recordId, edits: PendingEdit[]) => {
       // Mimic a server-side rejection (business rule / plugin) so the inline
