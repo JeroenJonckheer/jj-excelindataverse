@@ -171,19 +171,25 @@ test("demo", async ({ page }) => {
   await page.waitForTimeout(900);
 
   // 3b. Date picker - clicking the cell opens a calendar, like Dataverse.
+  // First make sure the choice step left nothing open: a native <select> popup
+  // would otherwise swallow the first click on the date cell (the browser uses
+  // it to dismiss the popup), so the calendar would not open - exactly the
+  // "the narration says it but it doesn't happen" symptom.
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(350);
   await say(page, "Click a date cell and a calendar opens - just like the Dataverse date field.", 3600);
   await moveToCell(page, 2, 7); // Close date
   await clickHere(page);
-  await page.waitForTimeout(900);
-  try {
-    const day = page.locator(".jj-sheet-cal-days .jj-sheet-cal-day:not(.jj-sheet-cal-out)").nth(21);
-    const db = await day.boundingBox();
-    if (db) {
-      await moveMouse(page, db.x + db.width / 2, db.y + db.height / 2, 700);
-      await clickHere(page);
-    }
-  } catch {
-    await page.keyboard.press("Escape");
+  // Wait for the calendar to actually be visible: the recording must show it
+  // open (and the run fails loudly if it ever stops opening, instead of quietly
+  // recording a misleading clip).
+  await page.locator(".jj-sheet-cal").waitFor({ state: "visible" });
+  await page.waitForTimeout(800);
+  const day = page.locator(".jj-sheet-cal-days .jj-sheet-cal-day:not(.jj-sheet-cal-out)").nth(21);
+  const db = await day.boundingBox();
+  if (db) {
+    await moveMouse(page, db.x + db.width / 2, db.y + db.height / 2, 700);
+    await clickHere(page);
   }
   await page.waitForTimeout(1000);
 

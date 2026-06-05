@@ -392,6 +392,16 @@ test("freezes pinned columns when scrolling horizontally", async ({ page }) => {
   expect(Math.abs((frozenAfter?.x ?? 0) - (frozenBefore?.x ?? 0))).toBeLessThan(2);
 });
 
+test("a single click on a date cell opens the calendar flyout", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForSelector(".jj-sheet-row");
+  // Close date is column 5 in the default harness schema and is editable.
+  await cell(page, 0, 5).click();
+  // The calendar must open on that one click - no Enter, no double-click.
+  await expect(page.locator(".jj-sheet-cal")).toBeVisible();
+  await expect(page.locator(".jj-sheet-cal-days .jj-sheet-cal-day").first()).toBeVisible();
+});
+
 test("renders rows when a read-only datetime is the first column", async ({ page }) => {
   await page.goto("/?firstcol=createdon");
   // The grid must not go blank: rows render, with the date in col 0 and the
