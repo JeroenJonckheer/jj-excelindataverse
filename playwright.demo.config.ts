@@ -15,7 +15,7 @@ const SIZE = { width: 1600, height: 900 };
 export default defineConfig({
   testDir: "./e2e-demo",
   workers: 1,
-  timeout: 120000,
+  timeout: 240000,
   outputDir: "./demo-output",
   globalSetup: "./e2e-demo/globalSetup.ts",
   reporter: [["list"]],

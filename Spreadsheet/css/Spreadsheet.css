@@ -442,6 +442,110 @@
   font-size: 13px;
 }
 
+/* ---- Date picker (calendar flyout), Dataverse-style ---- */
+.jj-sheet-cal {
+  position: fixed;
+  z-index: 2147483000;
+  display: flex;
+  gap: 0;
+  background-color: #ffffff;
+  border: 1px solid var(--colorNeutralStroke1, #d1d1d1);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--colorNeutralForeground1, #242424);
+}
+.jj-sheet-cal-pane {
+  padding: 2px 8px;
+}
+.jj-sheet-cal-pane-year {
+  border-left: 1px solid var(--colorNeutralStroke2, #ededed);
+}
+.jj-sheet-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.jj-sheet-cal-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.jj-sheet-cal-navs button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--colorNeutralForeground2, #424242);
+  font-size: 14px;
+  line-height: 1;
+}
+.jj-sheet-cal-navs button:hover {
+  background: var(--colorNeutralBackground3, #f0f0f0);
+}
+.jj-sheet-cal-weekdays,
+.jj-sheet-cal-days {
+  display: grid;
+  grid-template-columns: repeat(7, 32px);
+}
+.jj-sheet-cal-wd {
+  text-align: center;
+  color: var(--colorNeutralForeground3, #616161);
+  font-size: 12px;
+  padding: 4px 0;
+}
+.jj-sheet-cal-day {
+  height: 32px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  color: var(--colorNeutralForeground1, #242424);
+  font-size: 13px;
+}
+.jj-sheet-cal-day:hover {
+  background: var(--colorNeutralBackground3, #f0f0f0);
+}
+.jj-sheet-cal-out {
+  color: var(--colorNeutralForeground4, #b9b9b9);
+}
+.jj-sheet-cal-today {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--colorBrandStroke1, #0f6cbd);
+}
+.jj-sheet-cal-sel {
+  background: var(--colorBrandBackground, #0f6cbd);
+  color: #ffffff;
+}
+.jj-sheet-cal-sel:hover {
+  background: var(--colorBrandBackgroundHover, #115ea3);
+}
+.jj-sheet-cal-months {
+  display: grid;
+  grid-template-columns: repeat(4, 56px);
+  gap: 4px 6px;
+}
+.jj-sheet-cal-month {
+  height: 40px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  color: var(--colorNeutralForeground1, #242424);
+  font-size: 13px;
+}
+.jj-sheet-cal-month:hover {
+  background: var(--colorNeutralBackground3, #f0f0f0);
+}
+.jj-sheet-cal-month-on {
+  background: var(--colorBrandBackground2, #ebf3fc);
+  color: var(--colorBrandForeground1, #0f6cbd);
+  font-weight: 600;
+}
+
 /* ---- Footer ---- */
 
 .jj-sheet-footer {

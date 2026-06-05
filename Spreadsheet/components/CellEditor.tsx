@@ -10,6 +10,7 @@ import type { CellValue, ColumnDef, LookupValue } from "../services/types";
 import type { NavKey } from "../services/navigation";
 import { toNavKey } from "../services/navigation";
 import { LookupEditor } from "./LookupEditor";
+import { DateEditor } from "./DateEditor";
 
 export interface CellEditorProps {
   column: ColumnDef;
@@ -38,6 +39,16 @@ export const CellEditor: React.FC<CellEditorProps> = (props) => {
   }
   if (column.kind === "choice" || column.kind === "boolean") {
     return <SelectEditor {...props} />;
+  }
+  if (column.kind === "date" || column.kind === "datetime") {
+    return (
+      <DateEditor
+        column={column}
+        initialText={props.initialText}
+        onCommitText={props.onCommitText}
+        onCancel={props.onCancel}
+      />
+    );
   }
   return <TextLikeEditor {...props} />;
 };

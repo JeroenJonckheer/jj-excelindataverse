@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] - 2026-06-05
+
+### Added
+- Date picker: date and date/time cells now open a Dataverse-style calendar - a
+  month day-grid (today and the selected day marked, month navigation) next to a
+  month-of-year panel for quick jumps - rendered in a portal so the cell does not
+  clip it. Typing a date still works (day-first), and for date/time columns the
+  existing time of day is kept when a day is picked.
+
 ## [0.16.3] - 2026-06-05
 
 ### Changed
