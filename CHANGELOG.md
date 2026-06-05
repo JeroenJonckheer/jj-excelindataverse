@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.1] - 2026-06-05
+
+### Changed
+- The lookup picker is redesigned as a Dataverse-style flyout: a search box with
+  a records list below it. Polymorphic lookups (more than one target table) now
+  show a tab per table and search the selected one, so the picked record always
+  references the right entity; rows show a record icon and, for polymorphic
+  lookups, the table name. (Advanced find is intentionally left out for now.)
+
 ## [0.16.0] - 2026-06-05
 
 ### Added

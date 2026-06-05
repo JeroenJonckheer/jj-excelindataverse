@@ -84,4 +84,38 @@ describe("LookupEditor", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it("shows a tab per table for a polymorphic lookup and searches the chosen one", async () => {
+    const polyColumn: ColumnDef = {
+      ...column,
+      displayName: "Customer",
+      lookupTargets: ["account", "contact"],
+    };
+    const searchLookup = jest.fn((targets: string[]) =>
+      Promise.resolve(
+        targets[0] === "account"
+          ? [{ id: "a1", name: "Acme Corp", entityType: "account" } as LookupValue]
+          : [{ id: "c1", name: "Jane Doe", entityType: "contact" } as LookupValue],
+      ),
+    );
+    render(
+      <LookupEditor
+        column={polyColumn}
+        initialText=""
+        searchLookup={searchLookup}
+        onCommitValue={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    // Tabs for both tables; the first table is searched on open.
+    expect(screen.getByRole("tab", { name: "Account" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Contact" })).toBeInTheDocument();
+    await screen.findByText("Acme Corp");
+    expect(searchLookup).toHaveBeenCalledWith(["account"], "");
+
+    // Switching the tab searches the other table.
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Contact" }));
+    await screen.findByText("Jane Doe");
+    expect(searchLookup).toHaveBeenCalledWith(["contact"], "");
+  });
 });
