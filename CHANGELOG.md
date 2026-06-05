@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.19.1] - 2026-06-05
+
+### Changed
+- FLS now resolves field security profiles assigned via the user's **teams** in
+  addition to those assigned directly. A user's field access is the union of
+  every profile that reaches them through either path, so someone who gets edit
+  rights only through a team is no longer wrongly locked out (and the inverse:
+  access is no longer broadened past what those profiles actually grant). Each
+  team query is isolated - one failing team never drops the other profiles.
+
 ## [0.19.0] - 2026-06-05
 
 ### Added

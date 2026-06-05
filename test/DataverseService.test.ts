@@ -484,6 +484,52 @@ describe("getFieldAccess", () => {
     });
   });
 
+  it("includes field security profiles assigned via the user's teams", async () => {
+    global.fetch = mockFetch([
+      { match: "WhoAmI", body: { UserId: "u1" } },
+      // No profile assigned to the user directly...
+      { match: "systemuserprofiles_association", body: { value: [] } },
+      // ...but the user is on a team that carries one.
+      { match: "teammembership_association", body: { value: [{ teamid: "t1" }] } },
+      { match: "teamprofiles_association", body: { value: [{ fieldsecurityprofileid: "tp1" }] } },
+      {
+        match: "fieldpermissions",
+        body: {
+          value: [
+            { attributelogicalname: "salary", canread: 4, canupdate: 4, _fieldsecurityprofileid_value: "tp1" },
+            { attributelogicalname: "ssn", canread: 4, canupdate: 4, _fieldsecurityprofileid_value: "pNobody" },
+          ],
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const fa = await svc.getFieldAccess("account", ["salary", "ssn"]);
+    expect(fa).toEqual({
+      // Granted on the team's profile -> the user gets it.
+      salary: { read: true, update: true },
+      // Only on a profile that reaches the user via neither path -> denied.
+      ssn: { read: false, update: false },
+    });
+  });
+
+  it("does not let one failing team query drop the other profiles", async () => {
+    global.fetch = mockFetch([
+      { match: "WhoAmI", body: { UserId: "u1" } },
+      { match: "systemuserprofiles_association", body: { value: [{ fieldsecurityprofileid: "p1" }] } },
+      { match: "teammembership_association", body: { value: [{ teamid: "t1" }] } },
+      // teamprofiles_association is intentionally not mocked -> returns {} (no rows),
+      // standing in for a team whose profiles could not be read. The direct grant
+      // on p1 must survive.
+      {
+        match: "fieldpermissions",
+        body: { value: [{ attributelogicalname: "salary", canread: 4, canupdate: 4, _fieldsecurityprofileid_value: "p1" }] },
+      },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const fa = await svc.getFieldAccess("account", ["salary"]);
+    expect(fa).toEqual({ salary: { read: true, update: true } });
+  });
+
   it("returns an empty map (fail open) when the query errors", async () => {
     global.fetch = jest.fn(() => Promise.reject(new Error("boom"))) as unknown as typeof fetch;
     const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));

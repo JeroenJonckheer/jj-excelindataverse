@@ -561,17 +561,38 @@ export class DataverseService implements IDataverseService {
     try {
       const me = await this.whoAmI();
       if (!me) return {};
-      // The field security profiles assigned directly to the user. (Team-assigned
-      // profiles are not yet considered; those columns simply stay accessible -
-      // fail-open - until that path is added.)
-      const profilesRes = await this.fetchOData(
+      // A user's effective field access is the union of every field security
+      // profile that reaches them: the ones assigned to them directly AND the
+      // ones assigned to any team they belong to. Both paths are gathered into
+      // one set so a grant from either source counts.
+      const profileIds = new Set<string>();
+      const directRes = await this.fetchOData(
         `systemusers(${me})/systemuserprofiles_association?$select=fieldsecurityprofileid`,
       );
-      const profileIds = new Set<string>(
-        ((profilesRes?.value ?? []) as { fieldsecurityprofileid?: string }[])
-          .map((p) => p.fieldsecurityprofileid)
-          .filter((id): id is string => typeof id === "string"),
+      for (const p of (directRes?.value ?? []) as { fieldsecurityprofileid?: string }[]) {
+        if (typeof p.fieldsecurityprofileid === "string") profileIds.add(p.fieldsecurityprofileid);
+      }
+      // Teams the user is a member of, then the field security profiles on each
+      // team. A failing team query must not drop the others (or the direct ones),
+      // so each is isolated and a failure is treated as "no profiles from there".
+      const teamsRes = await this.fetchOData(
+        `systemusers(${me})/teammembership_association?$select=teamid`,
+      ).catch(() => null);
+      const teamIds = ((teamsRes?.value ?? []) as { teamid?: string }[])
+        .map((t) => t.teamid)
+        .filter((id): id is string => typeof id === "string");
+      const teamProfileLists = await Promise.all(
+        teamIds.map((tid) =>
+          this.fetchOData(
+            `teams(${tid})/teamprofiles_association?$select=fieldsecurityprofileid`,
+          ).catch(() => null),
+        ),
       );
+      for (const res of teamProfileLists) {
+        for (const p of (res?.value ?? []) as { fieldsecurityprofileid?: string }[]) {
+          if (typeof p.fieldsecurityprofileid === "string") profileIds.add(p.fieldsecurityprofileid);
+        }
+      }
       // The field permissions for this table; keep the ones in the user's profiles.
       const permsRes = await this.fetchOData(
         `fieldpermissions?$select=attributelogicalname,canread,canupdate,_fieldsecurityprofileid_value` +
