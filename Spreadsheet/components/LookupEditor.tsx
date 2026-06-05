@@ -5,6 +5,7 @@
  */
 
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import { Input, Spinner } from "@fluentui/react-components";
 import type { ColumnDef, LookupValue } from "../services/types";
 import type { NavKey } from "../services/navigation";
@@ -63,6 +64,24 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(0);
   const reqRef = React.useRef(0);
+  // The flyout is rendered in a portal so the cell's overflow:hidden cannot clip
+  // it; it is positioned under (or above) the search box.
+  const anchorRef = React.useRef<HTMLDivElement>(null);
+  const [flyoutStyle, setFlyoutStyle] = React.useState<React.CSSProperties | null>(null);
+  React.useLayoutEffect(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom > 280;
+    setFlyoutStyle({
+      position: "fixed",
+      left: Math.round(r.left),
+      width: Math.max(Math.round(r.width), 250),
+      ...(below
+        ? { top: Math.round(r.bottom) + 2 }
+        : { bottom: Math.round(window.innerHeight - r.top) + 2 }),
+    });
+  }, []);
 
   React.useEffect(() => {
     // Search even on an empty term so opening the picker shows a browse list,
@@ -124,20 +143,9 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
     }
   };
 
-  return (
-    <div className="jj-sheet-lookup">
-      <Input
-        autoFocus
-        appearance="filled-lighter"
-        className="jj-sheet-input"
-        value={text}
-        aria-label={column.displayName}
-        contentAfter={<span className="jj-sheet-lookup-searchico">{SEARCH_ICON}</span>}
-        onChange={(_e, data) => setText(data.value)}
-        onKeyDown={handleKeyDown}
-      />
-      <div className="jj-sheet-lookup-flyout">
-        {polymorphic ? (
+  const flyout = (
+    <div className="jj-sheet-lookup-flyout" style={flyoutStyle ?? undefined}>
+      {polymorphic ? (
           <div className="jj-sheet-lookup-tabs" role="tablist" aria-label="Tables">
             {targets.map((t) => (
               <button
@@ -193,10 +201,27 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
             ))}
           </ul>
         )}
-        {!loading && options.length === 0 && (
-          <div className="jj-sheet-lookup-empty">No records found.</div>
-        )}
-      </div>
+      {!loading && options.length === 0 && (
+        <div className="jj-sheet-lookup-empty">No records found.</div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="jj-sheet-lookup" ref={anchorRef}>
+      <Input
+        autoFocus
+        appearance="filled-lighter"
+        className="jj-sheet-input"
+        value={text}
+        aria-label={column.displayName}
+        contentAfter={<span className="jj-sheet-lookup-searchico">{SEARCH_ICON}</span>}
+        onChange={(_e, data) => setText(data.value)}
+        onKeyDown={handleKeyDown}
+      />
+      {typeof document !== "undefined"
+        ? ReactDOM.createPortal(flyout, document.body)
+        : flyout}
     </div>
   );
 };

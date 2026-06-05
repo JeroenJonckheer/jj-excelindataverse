@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.2] - 2026-06-05
+
+### Fixed
+- The lookup flyout did not appear: it was rendered inside the cell, whose
+  overflow clipped it. It now renders in a portal positioned under (or above)
+  the search box, so clicking the magnifying glass shows the full records list.
+
 ## [0.16.1] - 2026-06-05
 
 ### Changed

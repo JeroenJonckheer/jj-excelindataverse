@@ -351,13 +351,12 @@
   color: var(--colorNeutralForeground3, #616161);
 }
 
-/* The Dataverse-style flyout below the search box. */
+/* The Dataverse-style flyout. Rendered in a portal on document.body (so the
+   cell's overflow:hidden can't clip it) and positioned with an inline fixed
+   style by the editor. */
 .jj-sheet-lookup-flyout {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  z-index: 10;
-  margin-top: 2px;
+  position: fixed;
+  z-index: 2147483000;
   min-width: 250px;
   max-width: 380px;
   background-color: #ffffff;

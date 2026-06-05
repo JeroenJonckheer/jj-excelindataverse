@@ -81,6 +81,18 @@ test("opens the choice dropdown on a single click", async ({ page }) => {
   await expect(cell(page, 1, 3)).toContainText("Won");
 });
 
+test("opens the lookup flyout from the magnifying glass and picks a record", async ({
+  page,
+}) => {
+  // The search button shows on hover; clicking it opens the flyout with a browse
+  // list (rendered in a portal, so the cell's overflow does not clip it).
+  await cell(page, 0, 6).hover();
+  await cell(page, 0, 6).locator(".jj-sheet-lookup-search").click();
+  await expect(page.getByRole("option", { name: "John Roe" })).toBeVisible();
+  await page.getByRole("option", { name: "John Roe" }).click();
+  await expect(cell(page, 0, 6)).toContainText("John Roe");
+});
+
 test("offers lookup autocomplete and selects an existing record", async ({ page }) => {
   await startEdit(page, 0, 6);
   const input = page.getByLabel("Owner");
