@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.17.1] - 2026-06-05
+
+### Fixed
+- An edited date is now written/shown as `dd-MMM-yy` (e.g. 04-Mar-26), matching
+  how Dataverse renders the date column, instead of the ISO `yyyy-MM-dd` it used
+  before - so an edited cell looks the same as the others. That display format
+  also parses back, so a shown date round-trips.
+
+### Changed
+- A single mouse click on a date cell now opens the calendar immediately (like
+  the Dataverse date field). Reaching the cell with Tab or the arrow keys selects
+  it without opening, as before.
+
 ## [0.17.0] - 2026-06-05
 
 ### Added

@@ -1037,9 +1037,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
       return;
     }
     selectCell({ rowIndex, colIndex });
-    // Choice and boolean cells open their dropdown on a single click, like a
-    // spreadsheet pick-list.
-    if (col.editable && (col.kind === "choice" || col.kind === "boolean")) {
+    // A single MOUSE click opens the in-cell picker for choice, yes/no and date
+    // columns - the way Dataverse opens the dropdown / calendar on click. (This
+    // runs only on a real click; Tab/arrow navigation goes through selectCell and
+    // does not open anything.)
+    if (
+      col.editable &&
+      (col.kind === "choice" ||
+        col.kind === "boolean" ||
+        col.kind === "date" ||
+        col.kind === "datetime")
+    ) {
       beginEdit(displayOf(row, col));
     } else {
       setEditing(false);

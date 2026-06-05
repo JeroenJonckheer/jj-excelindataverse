@@ -64,6 +64,25 @@ export function formatDateTime(date: Date): string {
   return `${formatDateOnly(date)} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/**
+ * The text shown for a committed date in a cell: `dd-MMM-yy` (e.g. 04-Mar-26),
+ * matching how Dataverse renders date columns, so an edited cell looks the same
+ * as the unedited ones around it.
+ */
+export function formatDisplayDate(date: Date): string {
+  return `${pad2(date.getDate())}-${MONTHS_SHORT[date.getMonth()]}-${pad2(date.getFullYear() % 100)}`;
+}
+
+/** The shown text for a committed date/time: `dd-MMM-yy hh:mm`. */
+export function formatDisplayDateTime(date: Date): string {
+  return `${formatDisplayDate(date)} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
 /**
  * Produces the text shown in a cell for a given value and column. Used for
  * edited values; the unedited display normally comes from the dataset's own
@@ -96,9 +115,9 @@ export function formatValue(value: CellValue, column: ColumnDef): string {
     case "lookup":
       return isLookupValue(value) ? value.name : "";
     case "date":
-      return value instanceof Date ? formatDateOnly(value) : String(value);
+      return value instanceof Date ? formatDisplayDate(value) : String(value);
     case "datetime":
-      return value instanceof Date ? formatDateTime(value) : String(value);
+      return value instanceof Date ? formatDisplayDateTime(value) : String(value);
     default:
       return String(value);
   }
@@ -151,6 +170,19 @@ export function parseDate(raw: string): Date | null {
     const day = monthFirst ? b : a;
     const month = monthFirst ? a : b;
     return buildDate(year, month, day, trimmed);
+  }
+
+  // dd-MMM-yy / dd MMM yyyy (the display format, e.g. 01-Jun-26), so a shown
+  // date round-trips and the picker opens on the right month.
+  const mmm = /^(\d{1,2})[ \-/.]([A-Za-z]{3,})[ \-/.](\d{2,4})/.exec(trimmed);
+  if (mmm) {
+    const day = Number(mmm[1]);
+    const monthIdx = MONTHS_SHORT.findIndex(
+      (m) => m.toLowerCase() === mmm[2].slice(0, 3).toLowerCase(),
+    );
+    let year = Number(mmm[3]);
+    if (year < 100) year += year < 70 ? 2000 : 1900;
+    if (monthIdx >= 0) return buildDate(year, monthIdx + 1, day, trimmed);
   }
 
   const parsed = new Date(trimmed);

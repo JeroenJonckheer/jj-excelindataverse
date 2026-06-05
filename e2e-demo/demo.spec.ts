@@ -170,11 +170,10 @@ test("demo", async ({ page }) => {
   }
   await page.waitForTimeout(900);
 
-  // 3b. Date picker - a calendar, like the Dataverse date field.
-  await say(page, "Dates open a calendar - pick a day, just like the Dataverse date field.", 3600);
+  // 3b. Date picker - clicking the cell opens a calendar, like Dataverse.
+  await say(page, "Click a date cell and a calendar opens - just like the Dataverse date field.", 3600);
   await moveToCell(page, 2, 7); // Close date
   await clickHere(page);
-  await page.keyboard.press("Enter");
   await page.waitForTimeout(900);
   try {
     const day = page.locator(".jj-sheet-cal-days .jj-sheet-cal-day:not(.jj-sheet-cal-out)").nth(21);

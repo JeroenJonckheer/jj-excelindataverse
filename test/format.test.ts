@@ -104,6 +104,17 @@ describe("parseNumber", () => {
 });
 
 describe("parseDate", () => {
+  it("parses the dd-MMM-yy display format (round-trips a shown date)", () => {
+    const d = parseDate("01-Jun-26");
+    expect(d).not.toBeNull();
+    expect(d?.getFullYear()).toBe(2026);
+    expect(d?.getMonth()).toBe(5); // June
+    expect(d?.getDate()).toBe(1);
+    const d2 = parseDate("04 Mar 2026");
+    expect(d2?.getMonth()).toBe(2);
+    expect(d2?.getDate()).toBe(4);
+  });
+
   it("parses ISO style dates", () => {
     const d = parseDate("2026-03-01");
     expect(d).not.toBeNull();
@@ -180,7 +191,11 @@ describe("formatValue", () => {
     expect(
       formatValue({ id: "1", name: "Acme", entityType: "account" }, col({ kind: "lookup" })),
     ).toBe("Acme");
-    expect(formatValue(new Date(2026, 0, 2), col({ kind: "date" }))).toBe("2026-01-02");
+    // Cells show dates the way Dataverse does (dd-MMM-yy), not ISO.
+    expect(formatValue(new Date(2026, 0, 2), col({ kind: "date" }))).toBe("02-Jan-26");
+    expect(formatValue(new Date(2026, 2, 4, 9, 7), col({ kind: "datetime" }))).toBe(
+      "04-Mar-26 09:07",
+    );
   });
   it("returns empty string for empty values", () => {
     expect(formatValue(null, col({}))).toBe("");
