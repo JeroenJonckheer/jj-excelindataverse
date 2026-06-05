@@ -426,6 +426,38 @@ describe("lookupNameFilter", () => {
   });
 });
 
+describe("getAccess", () => {
+  it("reads write/delete/create from RetrievePrincipalAccess", async () => {
+    global.fetch = mockFetch([
+      {
+        match: "EntityDefinitions",
+        body: { EntitySetName: "accounts", PrimaryNameAttribute: "name", PrimaryIdAttribute: "accountid", ObjectTypeCode: 1 },
+      },
+      { match: "WhoAmI", body: { UserId: "u1" } },
+      { match: "RetrievePrincipalAccess", body: { AccessRights: "ReadAccess,WriteAccess,AppendAccess" } },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const a = await svc.getAccess("account", "r1");
+    expect(a).toEqual({ canWrite: true, canDelete: false, canCreate: false });
+  });
+
+  it("reads full access", async () => {
+    global.fetch = mockFetch([
+      { match: "EntityDefinitions", body: { EntitySetName: "accounts", PrimaryNameAttribute: "name", PrimaryIdAttribute: "accountid", ObjectTypeCode: 1 } },
+      { match: "WhoAmI", body: { UserId: "u1" } },
+      { match: "RetrievePrincipalAccess", body: { AccessRights: "ReadAccess,WriteAccess,DeleteAccess,CreateAccess" } },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    expect(await svc.getAccess("account", "r1")).toEqual({ canWrite: true, canDelete: true, canCreate: true });
+  });
+
+  it("fails open (allows editing) when the access probe errors", async () => {
+    global.fetch = jest.fn(() => Promise.reject(new Error("boom"))) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    expect(await svc.getAccess("account", "r1")).toEqual({ canWrite: true, canDelete: true, canCreate: true });
+  });
+});
+
 describe("openRecord", () => {
   it("opens a record through context.navigation", () => {
     const openForm = jest.fn();

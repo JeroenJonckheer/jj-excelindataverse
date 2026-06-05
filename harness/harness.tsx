@@ -625,6 +625,21 @@ function createService(store: Store): IDataverseService {
       });
       return Promise.resolve(results);
     },
+    getAccess: () => {
+      // ?access=read (no write), ?access=nodelete, ?access=nocreate simulate a
+      // restricted security role; default allows everything.
+      let mode = "";
+      try {
+        mode = new URLSearchParams(window.location.search).get("access") ?? "";
+      } catch {
+        /* not a browser */
+      }
+      return Promise.resolve({
+        canWrite: mode !== "read",
+        canDelete: mode !== "read" && mode !== "nodelete",
+        canCreate: mode !== "read" && mode !== "nocreate",
+      });
+    },
     openRecord: (_entity, recordId) => {
       // The harness has no host form; surface the intent for the demo and tests.
       console.info(`JJ - Excel in Dataverse: open record ${recordId}`);

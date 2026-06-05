@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.18.0] - 2026-06-05
+
+### Added
+- Security-role awareness (table level). The control reads the current user's
+  access to the table from the server (RetrievePrincipalAccess) and:
+  - makes the whole grid read-only when the role has no Write privilege,
+  - hides the Delete actions (footer and right-click) without the Delete
+    privilege,
+  - blocks adding rows (and Duplicate row) without the Create privilege.
+  It fails open: if the access check cannot run, editing is allowed as before
+  (the server still enforces the real rules). Reading already follows the role,
+  because the grid only renders the records the platform returns.
+
+### Note
+- Field-Level Security (per-column read/update) is the next step and will be
+  validated against an FLS-configured environment before shipping, so it can
+  never wrongly hide a field the user may see.
+
 ## [0.17.1] - 2026-06-05
 
 ### Fixed

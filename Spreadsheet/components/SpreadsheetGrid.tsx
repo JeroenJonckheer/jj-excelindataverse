@@ -76,6 +76,9 @@ export interface SpreadsheetGridProps {
   onSaveBatch?: (ops: BatchOp[]) => Promise<BatchResult[]>;
   /** Called once after a batch of saves/creates/deletes has fully resolved. */
   onCommitted?: () => void;
+  /** The user's table access; when false the matching action is blocked/hidden. */
+  canDelete?: boolean;
+  canCreate?: boolean;
   onOpenRecord: (recordId: string) => void;
   /** Opens a record referenced by a lookup value (its own table and id). */
   onOpenLookup?: (entityType: string, recordId: string) => void;
@@ -148,6 +151,8 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onDelete,
   onSaveBatch,
   onCommitted,
+  canDelete = true,
+  canCreate = true,
   onOpenRecord,
   onOpenLookup,
   searchLookup,
@@ -1078,6 +1083,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Add an empty new row at the bottom and select its first editable cell.
   const addRow = () => {
+    if (!canCreate) return;
     record();
     const id = `${NEW_ROW_PREFIX}${++newRowIdRef.current}`;
     setNewRows((nr) => [...nr, id]);
@@ -1102,6 +1108,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // otherwise add a new row. Triggered by ArrowDown on the last row and by
   // scrolling past the bottom - no button needed.
   const extendDown = () => {
+    if (!canCreate) return;
     const firstEditable = Math.max(columns.findIndex((c) => c.editable), 0);
     if (lastRowIsEmptyNew()) {
       setEditing(false);
@@ -1250,7 +1257,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // Marks rows for deletion. New (unsaved) rows are dropped immediately; saved
   // records are flagged and removed from Dataverse on save. Ctrl+Z reverts.
   const deleteRows = (ids: string[]) => {
-    if (ids.length === 0) return;
+    if (ids.length === 0 || !canDelete) return;
     record();
     const newToRemove = ids.filter(isNewRow);
     const existing = ids.filter((id) => !isNewRow(id));
@@ -1287,6 +1294,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   // (created in Dataverse on save). Read-only columns are skipped.
   const duplicateRow = (recordId: string) => {
     setMenu(null);
+    if (!canCreate) return;
     const src = allRows.find((r) => r.recordId === recordId);
     if (!src) return;
     record();
@@ -2179,18 +2187,22 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
               Open record
             </li>
           )}
-          <li
-            role="menuitem"
-            className="jj-sheet-menu-item"
-            onClick={() => duplicateRow(menu.recordId)}
-          >
-            Duplicate row
-          </li>
-          <li role="menuitem" className="jj-sheet-menu-item" onClick={menuDelete}>
-            {selectedRows.size > 1 && selectedRows.has(menu.recordId)
-              ? `Delete ${selectedRows.size} rows`
-              : "Delete row"}
-          </li>
+          {canCreate && (
+            <li
+              role="menuitem"
+              className="jj-sheet-menu-item"
+              onClick={() => duplicateRow(menu.recordId)}
+            >
+              Duplicate row
+            </li>
+          )}
+          {canDelete && (
+            <li role="menuitem" className="jj-sheet-menu-item" onClick={menuDelete}>
+              {selectedRows.size > 1 && selectedRows.has(menu.recordId)
+                ? `Delete ${selectedRows.size} rows`
+                : "Delete row"}
+            </li>
+          )}
         </ul>
       )}
       <Footer
@@ -2198,7 +2210,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         dirtyCount={dirtyCount}
         errorCount={errorCount}
         deleteCount={deleteCount}
-        selectedCount={selectedRows.size}
+        selectedCount={canDelete ? selectedRows.size : 0}
         selectionStats={selectionStats}
         onDeleteSelected={() => deleteRows(Array.from(selectedRows))}
         saving={saving}

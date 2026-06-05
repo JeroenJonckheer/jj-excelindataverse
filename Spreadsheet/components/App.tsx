@@ -24,6 +24,7 @@ import {
   DataverseService,
   type IDataverseService,
   type BatchOp,
+  type RecordAccess,
 } from "../services/DataverseService";
 import { CONTROL_VERSION } from "../services/version";
 import { SpreadsheetGrid } from "./SpreadsheetGrid";
@@ -92,6 +93,35 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
       cancelled = true;
     };
   }, [sig, entityName, dataverse]);
+
+  // The current user's table access. Read once from the server (reflects the
+  // security role); fails open so a probe error never blocks editing.
+  const firstRecordId = (dataset.sortedRecordIds ?? [])[0];
+  const [access, setAccess] = React.useState<RecordAccess>({
+    canWrite: true,
+    canDelete: true,
+    canCreate: true,
+  });
+  React.useEffect(() => {
+    if (!entityName || !firstRecordId) return;
+    let cancelled = false;
+    dataverse
+      .getAccess(entityName, firstRecordId)
+      .then((a) => {
+        if (!cancelled) setAccess(a);
+        return null;
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, [entityName, firstRecordId, dataverse]);
+
+  // When the role cannot write the table, every column is shown read-only.
+  const effectiveColumns = React.useMemo(
+    () => (access.canWrite ? columns : columns.map((c) => ({ ...c, editable: false }))),
+    [columns, access.canWrite],
+  );
 
   const rows: GridRow[] = React.useMemo(() => {
     const ids = dataset.sortedRecordIds ?? [];
@@ -327,9 +357,11 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         <ErrorBoundary onReload={onReload}>
         <SpreadsheetGrid
         key={reloadKey}
-        columns={columns}
+        columns={effectiveColumns}
         rows={rows}
         version={CONTROL_VERSION}
+        canDelete={access.canDelete}
+        canCreate={access.canCreate}
         onCreate={onCreate}
         onDelete={onDelete}
         onSaveBatch={onSaveBatch}

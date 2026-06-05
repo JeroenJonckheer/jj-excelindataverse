@@ -98,6 +98,8 @@ function renderGrid(overrides?: {
   onSort?: (columnName: string) => void;
   sortColumn?: string | null;
   sortDescending?: boolean;
+  canDelete?: boolean;
+  canCreate?: boolean;
   paging?: {
     loaded: number;
     total: number;
@@ -141,6 +143,8 @@ function renderGrid(overrides?: {
       onSort={overrides?.onSort}
       sortColumn={overrides?.sortColumn ?? null}
       sortDescending={overrides?.sortDescending}
+      canDelete={overrides?.canDelete}
+      canCreate={overrides?.canCreate}
       paging={overrides?.paging}
     />,
   );
@@ -918,6 +922,27 @@ describe("find and replace (brok F)", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Replace$/ }));
     expect(cell(container, 0, 0).textContent).toContain("Zeta");
     expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
+  });
+});
+
+describe("security: table privileges gate the UI", () => {
+  it("blocks adding a row when the user cannot create", () => {
+    const { container } = renderGrid({ canCreate: false });
+    fireEvent.click(cell(container, 1, 0)); // last row
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
+    // No new row was added (still 2 rows).
+    expect(container.querySelectorAll("tbody tr[data-record-id]").length).toBe(2);
+  });
+
+  it("hides the delete actions when the user cannot delete", () => {
+    const { container } = renderGrid({ canDelete: false });
+    const boxes = container.querySelectorAll('input[aria-label="Select row"]');
+    fireEvent.click(boxes[0]);
+    // The footer "Delete selected" button does not appear.
+    expect(screen.queryByRole("button", { name: /Delete selected/ })).toBeNull();
+    // ... and the right-click menu offers no Delete.
+    fireEvent.contextMenu(cell(container, 0, 0));
+    expect(screen.queryByText(/^Delete row$/)).toBeNull();
   });
 });
 

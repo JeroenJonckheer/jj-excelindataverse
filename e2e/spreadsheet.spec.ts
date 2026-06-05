@@ -293,6 +293,21 @@ test("moves a selected block to another area by dragging its border", async ({
   await expect(cell(page, 1, 0)).toHaveText("");
 });
 
+test("a read-only security role makes the grid read-only", async ({ page }) => {
+  await page.goto("/?access=read");
+  // Editing is blocked: Enter does not open an editor on a read-only cell.
+  await cell(page, 0, 0).click();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Account")).toHaveCount(0);
+  // No delete action is offered.
+  await page.locator('tbody tr[data-record-id] input[type="checkbox"]').first().click();
+  await expect(page.getByRole("button", { name: /Delete selected/ })).toHaveCount(0);
+  // No new row can be added past the end.
+  await cell(page, 4, 0).click();
+  await page.keyboard.press("ArrowDown");
+  await expect(cell(page, 5, 0)).toHaveCount(0);
+});
+
 test("sorts the grid when a column header is clicked", async ({ page }) => {
   // Ascending by Score puts the lowest score (Hooli, 15) first.
   await page.getByRole("columnheader", { name: "Score" }).click();

@@ -64,6 +64,14 @@ export interface IDataverseService {
    * bulk edit.
    */
   writeBatch(entityName: string, ops: BatchOp[]): Promise<BatchResult[]>;
+  /**
+   * The current user's access to the table, read from the server
+   * (RetrievePrincipalAccess on a sample record, which reflects the user's
+   * security role). Used to make the grid read-only / hide delete / block new
+   * rows when the role does not allow it. Fails open (all allowed) so a lookup
+   * error never wrongly blocks editing.
+   */
+  getAccess(entityName: string, sampleRecordId: string): Promise<RecordAccess>;
   /** Opens the standard form for a record in the host app. */
   openRecord(entityName: string, recordId: string): void;
   /**
@@ -76,6 +84,13 @@ export interface IDataverseService {
     columns: ViewColumn[],
     sort: ViewSort[],
   ): Promise<void>;
+}
+
+/** The current user's table-level access (from the server). */
+export interface RecordAccess {
+  canWrite: boolean;
+  canDelete: boolean;
+  canCreate: boolean;
 }
 
 /** One create/update/delete to commit in a batch. */
@@ -475,6 +490,46 @@ export class DataverseService implements IDataverseService {
 
   async deleteRecord(entityName: string, recordId: string): Promise<void> {
     await this.withRetry(() => this.webApi.deleteRecord(entityName, recordId));
+  }
+
+  private currentUserId: string | null = null;
+  private accessCache = new Map<string, RecordAccess>();
+
+  private async whoAmI(): Promise<string> {
+    if (this.currentUserId) return this.currentUserId;
+    const r = await this.fetchOData("WhoAmI()");
+    this.currentUserId = String(r?.UserId ?? "");
+    return this.currentUserId;
+  }
+
+  async getAccess(entityName: string, sampleRecordId: string): Promise<RecordAccess> {
+    const allowed: RecordAccess = { canWrite: true, canDelete: true, canCreate: true };
+    const cached = this.accessCache.get(entityName);
+    if (cached) return cached;
+    try {
+      const meta = await this.getEntityMeta(entityName);
+      const me = await this.whoAmI();
+      if (!me) return allowed;
+      const param = encodeURIComponent(JSON.stringify({ "@odata.id": `systemusers(${me})` }));
+      const res = await this.fetchOData(
+        `${meta.entitySetName}(${sampleRecordId})/Microsoft.Dynamics.CRM.RetrievePrincipalAccess(Target=@p)?@p=${param}`,
+      );
+      const rights = String(res?.AccessRights ?? "");
+      const access: RecordAccess = {
+        canWrite: rights.includes("WriteAccess"),
+        canDelete: rights.includes("DeleteAccess"),
+        canCreate: rights.includes("CreateAccess"),
+      };
+      this.accessCache.set(entityName, access);
+      return access;
+    } catch (e) {
+      // Fail open: never block editing because an access probe failed.
+      console.warn(
+        "JJ - Excel in Dataverse: could not read table access; allowing edits.",
+        e,
+      );
+      return allowed;
+    }
   }
 
   async writeBatch(entityName: string, ops: BatchOp[]): Promise<BatchResult[]> {
