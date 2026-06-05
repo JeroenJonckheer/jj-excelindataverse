@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.3] - 2026-06-05
+
+### Changed
+- Lookup search now matches Dataverse: a plain term finds records whose name
+  STARTS WITH it; prefix the term with `*` to search anywhere in the name
+  (e.g. `al` -> starts with "al", `*al` -> contains "al").
+- The lookup magnifying glass is larger and more visible.
+
 ## [0.16.2] - 2026-06-05
 
 ### Fixed

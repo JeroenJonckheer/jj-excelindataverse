@@ -270,19 +270,19 @@
 /* Magnifying-glass search on a lookup cell, like the Dataverse lookup field. */
 .jj-sheet-lookup-search {
   position: absolute;
-  right: 3px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
-  border-radius: 3px;
+  border-radius: 4px;
   background: transparent;
-  color: var(--colorNeutralForeground3, #616161);
+  color: var(--colorNeutralForeground2, #424242);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.12s;
@@ -290,7 +290,7 @@
 }
 .jj-sheet-td:hover .jj-sheet-lookup-search,
 .jj-sheet-td-active .jj-sheet-lookup-search {
-  opacity: 0.75;
+  opacity: 0.85;
 }
 .jj-sheet-lookup-search:hover {
   opacity: 1;

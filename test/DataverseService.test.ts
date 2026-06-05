@@ -8,6 +8,7 @@ import {
   DataverseService,
   escapeODataString,
   isTransientError,
+  lookupNameFilter,
   type BatchOp,
 } from "../Spreadsheet/services/DataverseService";
 import type { ColumnDef, PendingEdit } from "../Spreadsheet/services/types";
@@ -396,7 +397,7 @@ describe("searchLookup", () => {
       },
     ]) as unknown as typeof fetch;
 
-    const retrieveMultipleRecords = jest.fn(() =>
+    const retrieveMultipleRecords = jest.fn((_entity: string, _query: string) =>
       Promise.resolve({
         entities: [{ accountid: "1", name: "Acme" }],
         nextLink: "",
@@ -407,7 +408,21 @@ describe("searchLookup", () => {
     );
     const results = await svc.searchLookup(["account"], "Ac");
     expect(results).toEqual([{ id: "1", name: "Acme", entityType: "account" }]);
-    expect(retrieveMultipleRecords).toHaveBeenCalled();
+    // Default search is "starts with", like the Dataverse lookup.
+    expect(String(retrieveMultipleRecords.mock.calls[0][1])).toContain(
+      "startswith(name,'Ac')",
+    );
+  });
+});
+
+describe("lookupNameFilter", () => {
+  it("uses starts-with by default and a * wildcard for contains", () => {
+    expect(lookupNameFilter("name", "al")).toBe("startswith(name,'al')");
+    expect(lookupNameFilter("name", "*al")).toBe("contains(name,'al')");
+    expect(lookupNameFilter("name", "*al*")).toBe("contains(name,'al')");
+    expect(lookupNameFilter("name", "")).toBe("");
+    expect(lookupNameFilter("name", "*")).toBe("");
+    expect(lookupNameFilter("name", "O'Br")).toBe("startswith(name,'O''Br')");
   });
 });
 

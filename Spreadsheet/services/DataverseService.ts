@@ -365,10 +365,8 @@ export class DataverseService implements IDataverseService {
         const meta = await this.getEntityMeta(target);
         const name = meta.primaryNameAttribute;
         const id = meta.primaryIdAttribute;
-        const filter =
-          term.trim().length > 0
-            ? `&$filter=contains(${name},'${escapeODataString(term)}')`
-            : "";
+        const cond = lookupNameFilter(name, term);
+        const filter = cond ? `&$filter=${cond}` : "";
         const query = `?$select=${id},${name}&$top=${top}${filter}&$orderby=${name}`;
         const list = await this.webApi.retrieveMultipleRecords(target, query);
         for (const e of list.entities) {
@@ -785,6 +783,22 @@ function numericMetadataType(dataType: string): string {
 /** Escapes a single quote for safe inclusion in an OData string literal. */
 export function escapeODataString(value: string): string {
   return value.replace(/'/g, "''");
+}
+
+/**
+ * Builds the OData filter for a lookup search the way Dataverse does it: a plain
+ * term matches records whose name STARTS WITH it; a `*` wildcard switches to
+ * "contains" (e.g. `*al` finds "al" anywhere in the name). Returns "" when there
+ * is nothing to filter on (browse the top records).
+ */
+export function lookupNameFilter(nameAttr: string, rawTerm: string): string {
+  const wildcard = rawTerm.trimStart().startsWith("*");
+  const inner = rawTerm.replace(/\*/g, "").trim();
+  if (inner.length === 0) return "";
+  const esc = escapeODataString(inner);
+  return wildcard
+    ? `contains(${nameAttr},'${esc}')`
+    : `startswith(${nameAttr},'${esc}')`;
 }
 
 /** Normalises a name for lenient matching: trim, collapse whitespace, lowercase. */

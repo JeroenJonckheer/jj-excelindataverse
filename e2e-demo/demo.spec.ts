@@ -132,8 +132,9 @@ test("demo", async ({ page }) => {
   await page.keyboard.press("Enter");
   await say(page, "The edited cell is marked as a pending change.", 2600);
 
-  // 2. Lookup search with the magnifying glass (browse + pick, like Dataverse).
-  await say(page, "Look up a record with the search button - browse and pick from the list.", 3800);
+  // 2. Lookup search with the magnifying glass (like Dataverse: starts-with,
+  //    and * matches anywhere).
+  await say(page, "Look up a record with the search button - it searches like Dataverse.", 3600);
   await moveToCell(page, 3, 0); // Account cell
   await page.waitForTimeout(400);
   try {
@@ -141,7 +142,10 @@ test("demo", async ({ page }) => {
     if (glass) {
       await moveMouse(page, glass.x + glass.width / 2, glass.y + glass.height / 2, 600);
       await clickHere(page);
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(800);
+      await say(page, 'Type "Sta" to find records that START WITH it (use *al to match anywhere).', 3600);
+      await page.getByLabel("Account").fill("Sta");
+      await page.waitForTimeout(1100);
       const opt = page.getByRole("option", { name: "Stark Industries" });
       const ob = await opt.boundingBox();
       if (ob) {

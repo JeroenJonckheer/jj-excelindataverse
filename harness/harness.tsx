@@ -550,9 +550,15 @@ function createService(store: Store): IDataverseService {
       ),
     searchLookup: (targets, term) => {
       const pool = targets.includes("account") ? DEMO_ACCOUNTS : CONTACTS;
-      return Promise.resolve(
-        pool.filter((c) => c.name.toLowerCase().includes(term.toLowerCase())),
-      );
+      // Mirror Dataverse: starts-with by default, `*` switches to contains.
+      const wildcard = term.trimStart().startsWith("*");
+      const q = term.replace(/\*/g, "").trim().toLowerCase();
+      const match = (n: string) => {
+        if (q.length === 0) return true;
+        const name = n.toLowerCase();
+        return wildcard ? name.includes(q) : name.startsWith(q);
+      };
+      return Promise.resolve(pool.filter((c) => match(c.name)));
     },
     resolveLookup: (targets, text) => {
       const term = text.trim().toLowerCase();
