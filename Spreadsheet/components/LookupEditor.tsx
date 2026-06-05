@@ -39,11 +39,9 @@ export const LookupEditor: React.FC<LookupEditorProps> = ({
   const reqRef = React.useRef(0);
 
   React.useEffect(() => {
+    // Search even on an empty term so opening the picker (the magnifying glass)
+    // shows a browse list straight away, like the Dataverse lookup search.
     const term = text.trim();
-    if (term.length === 0) {
-      setOptions([]);
-      return;
-    }
     const myReq = ++reqRef.current;
     setLoading(true);
     searchLookup(targets, term)

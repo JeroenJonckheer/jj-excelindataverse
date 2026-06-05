@@ -132,24 +132,27 @@ test("demo", async ({ page }) => {
   await page.keyboard.press("Enter");
   await say(page, "The edited cell is marked as a pending change.", 2600);
 
-  // 2. Lookup type-ahead.
-  await say(page, "Pick a lookup as you type - it matches a real record.", 3400);
-  await moveToCell(page, 3, 0); // Account = Cyberdyne Systems
-  await clickHere(page);
-  await page.keyboard.press("Enter");
-  await page.getByLabel("Account").fill("Wayne");
-  await page.waitForTimeout(900);
+  // 2. Lookup search with the magnifying glass (browse + pick, like Dataverse).
+  await say(page, "Look up a record with the search button - browse and pick from the list.", 3800);
+  await moveToCell(page, 3, 0); // Account cell
+  await page.waitForTimeout(400);
   try {
-    const opt = page.getByRole("option", { name: "Wayne Enterprises" });
-    const ob = await opt.boundingBox();
-    if (ob) {
-      await moveMouse(page, ob.x + ob.width / 2, ob.y + ob.height / 2, 650);
+    const glass = await cell(page, 3, 0).locator(".jj-sheet-lookup-search").boundingBox();
+    if (glass) {
+      await moveMouse(page, glass.x + glass.width / 2, glass.y + glass.height / 2, 600);
       await clickHere(page);
+      await page.waitForTimeout(900);
+      const opt = page.getByRole("option", { name: "Stark Industries" });
+      const ob = await opt.boundingBox();
+      if (ob) {
+        await moveMouse(page, ob.x + ob.width / 2, ob.y + ob.height / 2, 700);
+        await clickHere(page);
+      }
     }
   } catch {
     await page.keyboard.press("Escape");
   }
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1100);
 
   // 3. Choice field.
   await say(page, "Choice and Yes/No fields edit in place.", 3200);
@@ -203,22 +206,25 @@ test("demo", async ({ page }) => {
     /* fill geometry can vary headless */
   }
 
-  // 7. Paste from Excel - the headline.
-  await say(page, "Paste straight from Excel: rows and columns at once. New rows are created for you.", 4200);
-  await moveToCell(page, 13, 2); // Company of the last row
+  // 7. Paste from Excel - complete records (the headline).
+  await say(page, "Paste complete records from Excel: lookups resolve and new rows are created for you.", 4400);
+  await moveToCell(page, 13, 0); // last row, Account column
   await clickHere(page);
+  await page.keyboard.press("ArrowDown"); // a fresh row at the bottom
+  await page.waitForTimeout(500);
   await page.evaluate(() => {
     const grid = document.querySelector('[role="grid"]') as HTMLElement;
     const event = new Event("paste", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "clipboardData", {
       value: {
         getData: () =>
-          "Northwind Talent\tHaarlem\nFabrikam Staffing\tZwolle\nContoso People\tMaastricht",
+          "Stark Industries\tRichard Miles\tStark Defense\tApeldoorn\t26\t125\n" +
+          "Tyrell Corp\tJane Doe\tTyrell Bio\tHaarlem\t18\t95",
       },
     });
     grid.dispatchEvent(event);
   });
-  await page.waitForTimeout(2400);
+  await page.waitForTimeout(3000); // hold so the pasted lookups resolve to links
 
   // 8. Move a block by dragging its border.
   await say(page, "Move a block of cells by dragging its border.", 3400);

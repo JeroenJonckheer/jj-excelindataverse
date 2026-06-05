@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] - 2026-06-05
+
+### Added
+- Lookup search button: lookup cells now show a magnifying glass (like the
+  standard Dataverse lookup field). Clicking it opens the picker and the editor
+  shows a browse list straight away, so you can pick a record without typing -
+  in addition to the existing type-ahead.
+
+### Changed
+- The required-column asterisk in the header is now bold (it was already red),
+  so mandatory columns stand out.
+
 ## [0.15.5] - 2026-06-04
 
 ### Changed

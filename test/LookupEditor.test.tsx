@@ -42,6 +42,12 @@ function setup() {
 }
 
 describe("LookupEditor", () => {
+  it("shows a browse list as soon as it opens (empty term)", async () => {
+    const { searchLookup } = setup();
+    await screen.findByText("Jane Doe");
+    expect(searchLookup).toHaveBeenCalledWith(["contact"], "");
+  });
+
   it("searches as the user types and lists suggestions", async () => {
     const { input, searchLookup } = setup();
     fireEvent.change(input, { target: { value: "J" } });

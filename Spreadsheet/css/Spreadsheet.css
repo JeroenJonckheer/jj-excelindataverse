@@ -145,6 +145,7 @@
 
 .jj-sheet-required {
   color: var(--colorPaletteRedForeground1, #b10e1c);
+  font-weight: 700;
 }
 
 /* Sort indicator drawn with CSS borders (no glyphs). */
@@ -266,6 +267,37 @@
 
 /* The little square at the bottom-right of the selection; drag to fill the
    column down or up, like Excel. */
+/* Magnifying-glass search on a lookup cell, like the Dataverse lookup field. */
+.jj-sheet-lookup-search {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--colorNeutralForeground3, #616161);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 2;
+}
+.jj-sheet-td:hover .jj-sheet-lookup-search,
+.jj-sheet-td-active .jj-sheet-lookup-search {
+  opacity: 0.75;
+}
+.jj-sheet-lookup-search:hover {
+  opacity: 1;
+  background: var(--colorNeutralBackground3, #f0f0f0);
+  color: var(--colorBrandForeground1, #0f6cbd);
+}
+
 .jj-sheet-fill-handle {
   position: absolute;
   right: 0;

@@ -921,6 +921,18 @@ describe("find and replace (brok F)", () => {
   });
 });
 
+describe("lookup search button", () => {
+  it("opens the lookup picker from the magnifying-glass button", () => {
+    const { container } = renderGrid();
+    // The Owner column (index 3) is a lookup; its cell carries a search button.
+    const ownerCell = container.querySelector('[data-col="3"] .jj-sheet-lookup-search') as HTMLElement;
+    expect(ownerCell).not.toBeNull();
+    fireEvent.click(ownerCell);
+    // The lookup editor (an input labelled by the column) is now open.
+    expect(screen.getByLabelText("Owner")).toBeInTheDocument();
+  });
+});
+
 describe("fill handle", () => {
   it("shows a fill handle on the active cell", () => {
     const { container } = renderGrid();

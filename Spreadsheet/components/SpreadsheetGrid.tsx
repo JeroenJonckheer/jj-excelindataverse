@@ -2060,6 +2060,31 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                             {displayOf(row, col)}
                           </span>
                         )}
+                        {col.kind === "lookup" && col.editable && !isEditingCell && (
+                          <button
+                            type="button"
+                            className="jj-sheet-lookup-search"
+                            aria-label="Search for a record"
+                            title={`Look up ${col.displayName}`}
+                            tabIndex={-1}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectCell({ rowIndex, colIndex });
+                              beginEdit("");
+                            }}
+                          >
+                            <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true">
+                              <path
+                                fill="currentColor"
+                                d="M8.5 3a5.5 5.5 0 0 1 4.38 8.84l3.64 3.64a.9.9 0 0 1-1.27 1.27l-3.64-3.64A5.5 5.5 0 1 1 8.5 3Zm0 1.8a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4Z"
+                              />
+                            </svg>
+                          </button>
+                        )}
                         {isFillCorner && (
                           <span
                             className="jj-sheet-fill-handle"
