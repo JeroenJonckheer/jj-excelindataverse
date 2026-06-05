@@ -35,12 +35,19 @@ async function installOverlay(page: Page) {
       #demo-caption.show{opacity:1;}
     `;
     document.head.appendChild(style);
-    const cur = document.createElement("div");
-    cur.id = "demo-cursor";
-    cur.innerHTML =
+    const ARROW =
       "<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'>" +
       "<path d='M5 2.5 L5 19.5 L9.2 15.3 L12.2 21.5 L14.8 20.3 L11.8 14.2 L17.5 14.2 Z' " +
       "fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/></svg>";
+    // A four-way "move" cursor, shown while dragging a block to a new location.
+    const MOVE =
+      "<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'>" +
+      "<path d='M12 1.5 L8.5 5 H11 V11 H5 V8.5 L1.5 12 L5 15.5 V13 H11 V19 H8.5 L12 22.5 " +
+      "L15.5 19 H13 V13 H19 V15.5 L22.5 12 L19 8.5 V11 H13 V5 H15.5 Z' " +
+      "fill='white' stroke='black' stroke-width='1' stroke-linejoin='round'/></svg>";
+    const cur = document.createElement("div");
+    cur.id = "demo-cursor";
+    cur.innerHTML = ARROW;
     document.body.appendChild(cur);
     const ring = document.createElement("div");
     ring.id = "demo-ring";
@@ -48,7 +55,14 @@ async function installOverlay(page: Page) {
     const cap = document.createElement("div");
     cap.id = "demo-caption";
     document.body.appendChild(cap);
-    const w = window as unknown as { __say: (t: string) => void; __pulse: () => void };
+    const w = window as unknown as {
+      __say: (t: string) => void;
+      __pulse: () => void;
+      __cursor: (kind: "arrow" | "move") => void;
+    };
+    w.__cursor = (kind) => {
+      cur.innerHTML = kind === "move" ? MOVE : ARROW;
+    };
     document.addEventListener(
       "mousemove",
       (e) => {
@@ -99,6 +113,20 @@ async function moveToCell(page: Page, row: number, col: number, ms = 800) {
   const b = await box(page, row, col);
   await moveMouse(page, b.x + b.width / 2, b.y + b.height / 2, ms);
   return b;
+}
+
+async function setCursor(page: Page, kind: "arrow" | "move") {
+  await page.evaluate(
+    (k) => (window as unknown as { __cursor: (s: "arrow" | "move") => void }).__cursor(k),
+    kind,
+  );
+}
+
+async function scrollGrid(page: Page, to: "top" | "bottom") {
+  await page.locator(".jj-sheet").evaluate((el, t) => {
+    el.scrollTop = t === "bottom" ? el.scrollHeight : 0;
+  }, to);
+  await page.waitForTimeout(500);
 }
 
 async function clickHere(page: Page) {
@@ -158,16 +186,17 @@ test("demo", async ({ page }) => {
   }
   await page.waitForTimeout(1100);
 
-  // 3. Choice field.
-  await say(page, "Choice and Yes/No fields edit in place.", 3200);
+  // 3. Choice field - a real dropdown opens; pick from the list.
+  await say(page, "Choice fields open a dropdown - pick a value from the list.", 3400);
   await moveToCell(page, 1, 6); // Status = Lead
   await clickHere(page);
-  await page.waitForTimeout(300);
-  try {
-    await page.getByLabel("Status").selectOption({ label: "Qualified" });
-  } catch {
-    /* option set may differ */
-  }
+  // The click opens the option list; hold so the viewer sees it open...
+  await page.waitForTimeout(1200);
+  // ...then move the highlight down to "Qualified" and commit, so the change is
+  // a deliberate pick from the visible list (not an instant, magic switch).
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(900);
+  await page.keyboard.press("Enter");
   await page.waitForTimeout(900);
 
   // 3b. Date picker - clicking the cell opens a calendar, like Dataverse.
@@ -233,28 +262,53 @@ test("demo", async ({ page }) => {
     /* fill geometry can vary headless */
   }
 
-  // 7. Paste from Excel - complete records (the headline).
-  await say(page, "Paste complete records from Excel: lookups resolve and new rows are created for you.", 4400);
-  await moveToCell(page, 13, 0); // last row, Account column
+  // 7. Paste from Excel - many complete records at once (the headline).
+  // 15 rows of [Account, Contact, Company, City, Hours, Rate], tab-separated and
+  // newline-delimited, exactly as Excel puts a copied block on the clipboard.
+  const accounts = [
+    "Acme Corporation", "Globex Trading", "Initech Software", "Cyberdyne Systems",
+    "Wayne Enterprises", "Umbrella Health", "Stark Industries", "Tyrell Corp",
+  ];
+  const contacts = ["Jane Doe", "John Roe", "Mary Major", "Richard Miles"];
+  const cities = [
+    "Apeldoorn", "Haarlem", "Zwolle", "Venlo", "Hoorn", "Assen", "Gouda", "Ede",
+    "Hilversum", "Roosendaal", "Emmen", "Helmond", "Alkmaar", "Deventer", "Weert",
+  ];
+  const pasteText = Array.from({ length: 15 }, (_, i) =>
+    [
+      accounts[i % accounts.length],
+      contacts[i % contacts.length],
+      `New Lead ${i + 1}`,
+      cities[i],
+      String(8 + i),
+      String(60 + i * 5),
+    ].join("\t"),
+  ).join("\n");
+
+  await say(page, "Outgrowing Excel? Copy a whole block there and paste it straight in.", 4200);
+  await scrollGrid(page, "bottom");
+  await moveToCell(page, 13, 0); // last existing row, Account column
   await clickHere(page);
-  await page.keyboard.press("ArrowDown"); // a fresh row at the bottom
-  await page.waitForTimeout(500);
-  await page.evaluate(() => {
+  await say(page, "Press the down arrow on the last row and a fresh, empty row appears.", 4000);
+  await page.keyboard.press("ArrowDown"); // a fresh empty row at the bottom
+  await scrollGrid(page, "bottom");
+  await page.waitForTimeout(1200); // let the new empty row be seen
+  await say(page, "Now paste 15 rows: new rows are created and the lookups resolve to links.", 4400);
+  await page.evaluate((text) => {
     const grid = document.querySelector('[role="grid"]') as HTMLElement;
     const event = new Event("paste", { bubbles: true, cancelable: true });
     Object.defineProperty(event, "clipboardData", {
-      value: {
-        getData: () =>
-          "Stark Industries\tRichard Miles\tStark Defense\tApeldoorn\t26\t125\n" +
-          "Tyrell Corp\tJane Doe\tTyrell Bio\tHaarlem\t18\t95",
-      },
+      value: { getData: () => text },
     });
     grid.dispatchEvent(event);
-  });
-  await page.waitForTimeout(3000); // hold so the pasted lookups resolve to links
+  }, pasteText);
+  await page.waitForTimeout(1200);
+  await scrollGrid(page, "bottom"); // follow the freshly created rows down
+  await page.waitForTimeout(3200); // hold so the pasted lookups resolve to links
 
-  // 8. Move a block by dragging its border.
-  await say(page, "Move a block of cells by dragging its border.", 3400);
+  // 8. Move a block by dragging its border (back at the top of the grid).
+  await scrollGrid(page, "top");
+  await say(page, "Select a block, then drag its border to move it - the cursor shows the move handle.", 4200);
   await moveToCell(page, 8, 2);
   await clickHere(page);
   await moveToCell(page, 9, 3, 750);
@@ -266,15 +320,19 @@ test("demo", async ({ page }) => {
     const band = await page.locator(".jj-sheet-move-left").boundingBox();
     if (band) {
       await moveMouse(page, band.x + band.width / 2, band.y + 10, 450);
+      await setCursor(page, "move"); // switch to the four-way move cursor for the drag
       await page.mouse.down();
       const t = await box(page, 5, 2);
       await moveMouse(page, t.x + t.width / 2, t.y + t.height / 2, 1300);
       await page.waitForTimeout(300);
       await page.mouse.up();
+      await setCursor(page, "arrow");
       await page.waitForTimeout(900);
+    } else {
+      await setCursor(page, "arrow");
     }
   } catch {
-    /* move band geometry can vary headless */
+    await setCursor(page, "arrow");
   }
 
   // 9. Find.

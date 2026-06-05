@@ -30,13 +30,13 @@ Playwright records WebM only. GitHub READMEs autoplay a GIF inline (a committed
 
 ```bash
 ffmpeg -y -i demo-output/demo-demo-chromium/video.webm \
-  -vf "fps=10,scale=760:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=96[p];[s1][p]paletteuse=dither=bayer" \
+  -vf "fps=8,scale=700:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=80[p];[s1][p]paletteuse=dither=bayer" \
   -loop 0 media/demo.gif
 ```
 
-Install ffmpeg if needed: `winget install Gyan.FFmpeg`. The full ~2 min narrated
-clip lands around 8-9 MB at these settings; drop `fps`/`scale` to trade smoothness
-for size.
+Install ffmpeg if needed: `winget install Gyan.FFmpeg`. The full ~2.5 min narrated
+clip lands around 8 MB at these settings; raise `fps`/`scale`/`max_colors` for a
+smoother (larger) GIF, or lower them for a smaller one.
 
 ## What is committed vs generated
 
