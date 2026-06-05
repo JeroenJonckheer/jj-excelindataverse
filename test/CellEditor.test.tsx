@@ -76,7 +76,7 @@ describe("CellEditor dispatch", () => {
         searchLookup={noSearch}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Field"), { target: { value: "1" } });
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Yes" }));
     expect(onCommitValue).toHaveBeenCalledWith(true, null);
   });
 
@@ -95,8 +95,32 @@ describe("CellEditor dispatch", () => {
         searchLookup={noSearch}
       />,
     );
-    fireEvent.change(screen.getByLabelText("Field"), { target: { value: "" } });
+    fireEvent.mouseDown(screen.getByRole("option", { name: "(empty)" }));
     expect(onCommitValue).toHaveBeenCalledWith(null, null);
+  });
+
+  it("moves the highlight with the keyboard and commits on Enter", () => {
+    const onCommitValue = jest.fn();
+    render(
+      <CellEditor
+        column={col({
+          kind: "choice",
+          options: [
+            { value: 1, label: "Open" },
+            { value: 2, label: "Closed" },
+          ],
+        })}
+        initialText="Open"
+        onCommitText={jest.fn()}
+        onCommitValue={onCommitValue}
+        onCancel={jest.fn()}
+        searchLookup={noSearch}
+      />,
+    );
+    const trigger = screen.getByLabelText("Field");
+    fireEvent.keyDown(trigger, { key: "ArrowDown" }); // Open -> Closed
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    expect(onCommitValue).toHaveBeenCalledWith(2, "Enter");
   });
 
   it("cancels a choice edit on Escape", () => {

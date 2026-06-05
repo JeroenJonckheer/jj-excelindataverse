@@ -230,9 +230,9 @@ describe("inline editing", () => {
 
   it("opens the choice dropdown on a single click and commits the chosen value", () => {
     const { container } = renderGrid();
-    // Single click enters edit and shows the native select.
+    // Single click enters edit and opens the dropdown list; pick "Closed".
     fireEvent.click(cell(container, 0, 2));
-    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "2" } });
+    fireEvent.mouseDown(screen.getByRole("option", { name: "Closed" }));
     expect(cell(container, 0, 2).textContent).toContain("Closed");
     expect(screen.getByText(/1 pending change/)).toBeInTheDocument();
   });

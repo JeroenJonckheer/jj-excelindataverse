@@ -186,17 +186,19 @@ test("demo", async ({ page }) => {
   }
   await page.waitForTimeout(1100);
 
-  // 3. Choice field - a real dropdown opens; pick from the list.
+  // 3. Choice field - a real in-DOM dropdown opens; pick from the list with the
+  // mouse (the list is part of the page, so it shows up in the recording).
   await say(page, "Choice fields open a dropdown - pick a value from the list.", 3400);
   await moveToCell(page, 1, 6); // Status = Lead
   await clickHere(page);
-  // The click opens the option list; hold so the viewer sees it open...
-  await page.waitForTimeout(1200);
-  // ...then move the highlight down to "Qualified" and commit, so the change is
-  // a deliberate pick from the visible list (not an instant, magic switch).
-  await page.keyboard.press("ArrowDown");
-  await page.waitForTimeout(900);
-  await page.keyboard.press("Enter");
+  const qualified = page.getByRole("option", { name: "Qualified" }).first();
+  await qualified.waitFor({ state: "visible" });
+  await page.waitForTimeout(1000); // hold so the open list is clearly seen
+  const qb = await qualified.boundingBox();
+  if (qb) {
+    await moveMouse(page, qb.x + qb.width / 2, qb.y + qb.height / 2, 700);
+    await clickHere(page);
+  }
   await page.waitForTimeout(900);
 
   // 3b. Date picker - clicking the cell opens a calendar, like Dataverse.
@@ -287,12 +289,16 @@ test("demo", async ({ page }) => {
 
   await say(page, "Outgrowing Excel? Copy a whole block there and paste it straight in.", 4200);
   await scrollGrid(page, "bottom");
-  await moveToCell(page, 13, 0); // last existing row, Account column
-  await clickHere(page);
-  await say(page, "Press the down arrow on the last row and a fresh, empty row appears.", 4000);
-  await page.keyboard.press("ArrowDown"); // a fresh empty row at the bottom
+  await moveToCell(page, 13, 0); // mouse over the grid, on the last existing row
+  await say(page, "Add a row the spreadsheet way: scroll past the bottom (or press Down on the last row).", 4400);
+  // A wheel past the bottom adds a fresh empty row - exactly what a user does by
+  // scrolling, no button needed.
+  await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(700);
   await scrollGrid(page, "bottom");
   await page.waitForTimeout(1200); // let the new empty row be seen
+  await moveToCell(page, 14, 0); // select the fresh row to paste into
+  await clickHere(page);
   await say(page, "Now paste 15 rows: new rows are created and the lookups resolve to links.", 4400);
   await page.evaluate((text) => {
     const grid = document.querySelector('[role="grid"]') as HTMLElement;

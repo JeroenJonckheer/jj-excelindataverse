@@ -353,6 +353,23 @@
   box-sizing: border-box;
 }
 
+/* The choice/boolean dropdown trigger looks like the in-cell editor: white,
+   full-width, value on the left and a chevron on the right. */
+.jj-sheet-choice-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+}
+.jj-sheet-choice-value {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- Lookup autocomplete ---- */
 
 .jj-sheet-lookup {

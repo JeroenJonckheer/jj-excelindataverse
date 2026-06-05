@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.20.0] - 2026-06-05
+
+### Changed
+- Choice and Yes/No cells now use an in-page dropdown (a portal flyout, like the
+  lookup and date pickers) instead of a native `<select>`. The option list is
+  real DOM, so it looks identical on every OS, is never clipped by the cell, and
+  is visible in screen recordings (a native `<select>` popup is drawn by the OS
+  and is not captured). It opens on a single click; arrow keys move the
+  highlight, Enter/Tab commit, Escape cancels, and clicking an option commits it.
+
+### Demo
+- The choice step now shows the dropdown opening and a value being picked from
+  the list. The "add a row" step demonstrates scrolling past the bottom (and
+  names the Down-arrow alternative), then pastes 15 complete rows from Excel.
+
 ## [0.19.1] - 2026-06-05
 
 ### Changed
