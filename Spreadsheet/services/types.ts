@@ -92,6 +92,8 @@ export interface ColumnDef {
    * choice columns). The server applies it on create, so it is display-only.
    */
   defaultValue?: CellValue;
+  /** Whether the column is a Field-Level-Security secured field. */
+  secured?: boolean;
 }
 
 /** Address of a single cell in the grid. */

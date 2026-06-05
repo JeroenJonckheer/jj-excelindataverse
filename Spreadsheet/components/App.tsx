@@ -25,6 +25,7 @@ import {
   type IDataverseService,
   type BatchOp,
   type RecordAccess,
+  type FieldAccess,
 } from "../services/DataverseService";
 import { CONTROL_VERSION } from "../services/version";
 import { SpreadsheetGrid } from "./SpreadsheetGrid";
@@ -117,10 +118,37 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
     };
   }, [entityName, firstRecordId, dataverse]);
 
-  // When the role cannot write the table, every column is shown read-only.
+  // Field-Level Security: the user's read/update access for the secured columns.
+  const securedKey = columns.filter((c) => c.secured).map((c) => c.name).join(",");
+  const [fieldAccess, setFieldAccess] = React.useState<Record<string, FieldAccess>>({});
+  React.useEffect(() => {
+    if (!entityName || securedKey === "") {
+      setFieldAccess({});
+      return;
+    }
+    let cancelled = false;
+    dataverse
+      .getFieldAccess(entityName, securedKey.split(","))
+      .then((fa) => {
+        if (!cancelled) setFieldAccess(fa);
+        return null;
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, [entityName, securedKey, dataverse]);
+
+  // A column is shown read-only when the role cannot write the table, or FLS
+  // denies update on (or read of) a secured column.
   const effectiveColumns = React.useMemo(
-    () => (access.canWrite ? columns : columns.map((c) => ({ ...c, editable: false }))),
-    [columns, access.canWrite],
+    () =>
+      columns.map((c) => {
+        const fa = c.secured ? fieldAccess[c.name] : undefined;
+        const flsBlocked = !!fa && (fa.update === false || fa.read === false);
+        return !access.canWrite || flsBlocked ? { ...c, editable: false } : c;
+      }),
+    [columns, access.canWrite, fieldAccess],
   );
 
   const rows: GridRow[] = React.useMemo(() => {
@@ -362,6 +390,7 @@ export const App: React.FC<AppProps> = ({ context, onChange, service }) => {
         version={CONTROL_VERSION}
         canDelete={access.canDelete}
         canCreate={access.canCreate}
+        fieldAccess={fieldAccess}
         onCreate={onCreate}
         onDelete={onDelete}
         onSaveBatch={onSaveBatch}

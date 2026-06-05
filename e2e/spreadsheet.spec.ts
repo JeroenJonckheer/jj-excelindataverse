@@ -293,6 +293,21 @@ test("moves a selected block to another area by dragging its border", async ({
   await expect(cell(page, 1, 0)).toHaveText("");
 });
 
+test("field-level security masks no-read columns and locks no-update columns", async ({
+  page,
+}) => {
+  await page.goto("/?fls=email:noread,score:noupdate");
+  // Email (col 1) has no read access: the value is masked.
+  await expect(cell(page, 0, 1)).toContainText("••••••");
+  await expect(cell(page, 0, 1)).not.toContainText("@");
+  // Score (col 2) has no update access: editing is blocked.
+  await cell(page, 0, 2).click();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Score")).toHaveCount(0);
+  // Both secured columns show a lock in the header.
+  expect(await page.locator(".jj-sheet-fls-lock").count()).toBeGreaterThanOrEqual(2);
+});
+
 test("a read-only security role makes the grid read-only", async ({ page }) => {
   await page.goto("/?access=read");
   // Editing is blocked: Enter does not open an editor on a read-only cell.

@@ -70,4 +70,32 @@ describe("DateEditor", () => {
     fireEvent.keyDown(screen.getByLabelText("Close date"), { key: "Escape" });
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it("navigates to the previous month and year", () => {
+    setup();
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Previous month" }));
+    expect(screen.getByText("May 2026")).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Previous year" }));
+    expect(screen.getByText("May 2025")).toBeInTheDocument();
+  });
+
+  it("commits the typed value and moves with ArrowDown", () => {
+    const { onCommitText } = setup("2026-06-09");
+    fireEvent.keyDown(screen.getByLabelText("Close date"), { key: "ArrowDown" });
+    expect(onCommitText).toHaveBeenCalledWith("2026-06-09", "ArrowDown");
+  });
+
+  it("keeps the time of day for a date/time column", () => {
+    const onCommitText = jest.fn();
+    render(
+      <DateEditor
+        column={{ ...column, kind: "datetime", dataType: "DateAndTime.DateAndTime" }}
+        initialText="2026-06-05 14:30"
+        onCommitText={onCommitText}
+        onCancel={jest.fn()}
+      />,
+    );
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Wed Jun 10 2026" }));
+    expect(onCommitText).toHaveBeenCalledWith("2026-06-10 14:30", null);
+  });
 });

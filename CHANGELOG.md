@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.19.0] - 2026-06-05
+
+### Added
+- Field-Level Security (FLS) awareness. Secured columns are detected from
+  metadata (IsSecured) and the user's field access is read from their field
+  security profiles:
+  - a column the user cannot update shows a lock in the header and is read-only,
+  - a column the user cannot read is masked in every cell ("••••••"),
+  - both fail open: if the access cannot be determined, the column behaves as
+    before (never wrongly hides a field the user may see). The server remains the
+    source of truth.
+
+### Changed
+- The e2e suite now retries once locally as well, to absorb the occasional flake
+  in the geometry/drag-based specs (a real failure still fails both attempts).
+
+### Note
+- FLS resolves directly-assigned field security profiles; team-assigned profiles
+  are not yet considered (those columns stay accessible - fail open). Validate
+  against an FLS-configured environment.
+
 ## [0.18.0] - 2026-06-05
 
 ### Added

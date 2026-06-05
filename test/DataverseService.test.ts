@@ -458,6 +458,47 @@ describe("getAccess", () => {
   });
 });
 
+describe("getFieldAccess", () => {
+  it("maps the user's field permissions; a secured column with no grant is denied", async () => {
+    global.fetch = mockFetch([
+      { match: "WhoAmI", body: { UserId: "u1" } },
+      { match: "systemuserprofiles_association", body: { value: [{ fieldsecurityprofileid: "p1" }] } },
+      {
+        match: "fieldpermissions",
+        body: {
+          value: [
+            { attributelogicalname: "salary", canread: 0, canupdate: 4, _fieldsecurityprofileid_value: "p1" },
+            { attributelogicalname: "ssn", canread: 0, canupdate: 0, _fieldsecurityprofileid_value: "p1" },
+            { attributelogicalname: "other", canread: 4, canupdate: 4, _fieldsecurityprofileid_value: "pX" },
+          ],
+        },
+      },
+    ]) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    const fa = await svc.getFieldAccess("account", ["salary", "ssn", "other"]);
+    expect(fa).toEqual({
+      salary: { read: false, update: true },
+      ssn: { read: false, update: false },
+      // "other" is granted only on a profile the user does not have -> denied.
+      other: { read: false, update: false },
+    });
+  });
+
+  it("returns an empty map (fail open) when the query errors", async () => {
+    global.fetch = jest.fn(() => Promise.reject(new Error("boom"))) as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    expect(await svc.getFieldAccess("account", ["salary"])).toEqual({});
+  });
+
+  it("does not query when there are no secured columns", async () => {
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const svc = new DataverseService(makeContext({} as Partial<ComponentFramework.WebApi>));
+    expect(await svc.getFieldAccess("account", [])).toEqual({});
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("openRecord", () => {
   it("opens a record through context.navigation", () => {
     const openForm = jest.fn();

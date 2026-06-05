@@ -100,6 +100,8 @@ function renderGrid(overrides?: {
   sortDescending?: boolean;
   canDelete?: boolean;
   canCreate?: boolean;
+  fieldAccess?: Record<string, { read: boolean; update: boolean }>;
+  columns?: ColumnDef[];
   paging?: {
     loaded: number;
     total: number;
@@ -130,7 +132,8 @@ function renderGrid(overrides?: {
     );
   const { container } = render(
     <SpreadsheetGrid
-      columns={columns()}
+      columns={overrides?.columns ?? columns()}
+      fieldAccess={overrides?.fieldAccess}
       rows={overrides?.rows ?? rows()}
       version="0.1.0"
       onSave={onSave}
@@ -932,6 +935,29 @@ describe("security: table privileges gate the UI", () => {
     fireEvent.keyDown(screen.getByRole("grid"), { key: "ArrowDown" });
     // No new row was added (still 2 rows).
     expect(container.querySelectorAll("tbody tr[data-record-id]").length).toBe(2);
+  });
+
+  it("masks a no-read secured column and locks a no-update one", () => {
+    const cols: ColumnDef[] = [
+      { name: "name", displayName: "Name", dataType: "SingleLine.Text", kind: "text", editable: true, required: "none" },
+      { name: "secret", displayName: "Secret", dataType: "SingleLine.Text", kind: "text", editable: false, required: "none", secured: true },
+      { name: "rate", displayName: "Rate", dataType: "Decimal", kind: "number", editable: false, required: "none", secured: true },
+    ];
+    const data: GridRow[] = [
+      { recordId: "r1", raw: { name: "Acme", secret: "top", rate: 99 }, display: { name: "Acme", secret: "top", rate: "99" } },
+    ];
+    const { container } = renderGrid({
+      columns: cols,
+      rows: data,
+      fieldAccess: { secret: { read: false, update: false }, rate: { read: true, update: false } },
+    });
+    // No read -> masked; the real value never reaches the DOM.
+    expect(cell(container, 0, 1).textContent).toContain("••••••");
+    expect(cell(container, 0, 1).textContent).not.toContain("top");
+    // Read but no update -> value shown, not masked.
+    expect(cell(container, 0, 2).textContent).toContain("99");
+    // Both secured-restricted columns show a lock in the header.
+    expect(container.querySelectorAll(".jj-sheet-fls-lock").length).toBe(2);
   });
 
   it("hides the delete actions when the user cannot delete", () => {

@@ -148,6 +148,20 @@
   font-weight: 700;
 }
 
+/* Field-Level-Security: a lock on a secured column header, masked cell text. */
+.jj-sheet-fls-lock {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: var(--colorNeutralForeground3, #616161);
+  vertical-align: middle;
+}
+.jj-sheet-masked {
+  color: var(--colorNeutralForeground4, #919191);
+  letter-spacing: 1px;
+  user-select: none;
+}
+
 /* Sort indicator drawn with CSS borders (no glyphs). */
 .jj-sheet-sort {
   display: inline-block;

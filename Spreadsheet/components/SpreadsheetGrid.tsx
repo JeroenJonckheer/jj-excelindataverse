@@ -40,7 +40,7 @@ import { nextCell, toNavKey, type NavKey } from "../services/navigation";
 import { resolveText, resolveValue } from "../services/edit";
 import { isLookupValue, isEmpty, formatValue, valuesEqual } from "../services/format";
 import { serverErrorMessage } from "../services/errors";
-import type { BatchOp, BatchResult } from "../services/DataverseService";
+import type { BatchOp, BatchResult, FieldAccess } from "../services/DataverseService";
 import {
   parseClipboard,
   parseHtmlClipboard,
@@ -79,6 +79,8 @@ export interface SpreadsheetGridProps {
   /** The user's table access; when false the matching action is blocked/hidden. */
   canDelete?: boolean;
   canCreate?: boolean;
+  /** Field-Level-Security access per secured column (read/update). */
+  fieldAccess?: Record<string, FieldAccess>;
   onOpenRecord: (recordId: string) => void;
   /** Opens a record referenced by a lookup value (its own table and id). */
   onOpenLookup?: (entityType: string, recordId: string) => void;
@@ -153,6 +155,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onCommitted,
   canDelete = true,
   canCreate = true,
+  fieldAccess,
   onOpenRecord,
   onOpenLookup,
   searchLookup,
@@ -242,6 +245,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     () => orderColumns(inputColumns, columnOrder),
     [inputColumns, columnOrder],
   );
+
+  // Field-Level Security helpers. A secured column the user cannot READ is
+  // masked; one they cannot read OR update shows a lock and is read-only.
+  const isMasked = (col: ColumnDef): boolean =>
+    col.secured === true && fieldAccess?.[col.name]?.read === false;
+  const isLocked = (col: ColumnDef): boolean =>
+    col.secured === true &&
+    (fieldAccess?.[col.name]?.read === false || fieldAccess?.[col.name]?.update === false);
 
   // Undo/redo history. Each user action (a committed edit, a delete or a paste)
   // records one snapshot of the pending state, so Ctrl+Z reverts the whole
@@ -1864,6 +1875,20 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         {" *"}
                       </span>
                     )}
+                    {isLocked(c) && (
+                      <span
+                        className="jj-sheet-fls-lock"
+                        title="Secured field - you cannot edit it"
+                        aria-label="Secured field"
+                      >
+                        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+                          <path
+                            fill="currentColor"
+                            d="M8 1a3 3 0 0 0-3 3v2H4.5A1.5 1.5 0 0 0 3 7.5v5A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-5A1.5 1.5 0 0 0 11.5 6H11V4a3 3 0 0 0-3-3Zm1.5 5h-3V4a1.5 1.5 0 0 1 3 0v2Z"
+                          />
+                        </svg>
+                      </span>
+                    )}
                     {sorted && (
                       <span
                         className={
@@ -2035,7 +2060,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                         onClick={(e) => onCellClick(e, rowIndex, colIndex, row, col)}
                         onDoubleClick={() => openRow(row.recordId)}
                       >
-                        {isEditingCell ? (
+                        {isMasked(col) ? (
+                          <span
+                            className="jj-sheet-cell-text jj-sheet-masked"
+                            aria-label="Hidden by field security"
+                            title="You do not have permission to view this field"
+                          >
+                            ••••••
+                          </span>
+                        ) : isEditingCell ? (
                           <CellEditor
                             column={col}
                             initialText={editText}

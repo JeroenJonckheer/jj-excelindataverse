@@ -72,6 +72,16 @@ export interface IDataverseService {
    * error never wrongly blocks editing.
    */
   getAccess(entityName: string, sampleRecordId: string): Promise<RecordAccess>;
+  /**
+   * The current user's Field-Level-Security access for the given secured
+   * columns, from the user's field security profiles. Returns a map per column
+   * of { read, update }. Fails open (empty map = treat all as accessible) so a
+   * query error never wrongly hides a field the user may see.
+   */
+  getFieldAccess(
+    entityName: string,
+    securedColumns: string[],
+  ): Promise<Record<string, FieldAccess>>;
   /** Opens the standard form for a record in the host app. */
   openRecord(entityName: string, recordId: string): void;
   /**
@@ -91,6 +101,12 @@ export interface RecordAccess {
   canWrite: boolean;
   canDelete: boolean;
   canCreate: boolean;
+}
+
+/** The current user's Field-Level-Security access for one secured column. */
+export interface FieldAccess {
+  read: boolean;
+  update: boolean;
 }
 
 /** One create/update/delete to commit in a batch. */
@@ -165,29 +181,29 @@ function castForColumn(column: ColumnDef): CastConfig | null {
   switch (column.kind) {
     case "text":
     case "multiline":
-      return { cast: CAST_STRING, select: "MaxLength,RequiredLevel,Format,IsValidForUpdate" };
+      return { cast: CAST_STRING, select: "MaxLength,RequiredLevel,Format,IsValidForUpdate,IsSecured" };
     case "number":
       return {
         cast: numericMetadataType(column.dataType),
-        select: "MinValue,MaxValue,Precision,RequiredLevel,IsValidForUpdate",
+        select: "MinValue,MaxValue,Precision,RequiredLevel,IsValidForUpdate,IsSecured",
       };
     case "choice":
       return {
         cast: CAST_PICKLIST,
-        select: "RequiredLevel,IsValidForUpdate,DefaultFormValue",
+        select: "RequiredLevel,IsValidForUpdate,IsSecured,DefaultFormValue",
         expand: "OptionSet",
       };
     case "boolean":
       return {
         cast: CAST_BOOLEAN,
-        select: "RequiredLevel,IsValidForUpdate,DefaultValue",
+        select: "RequiredLevel,IsValidForUpdate,IsSecured,DefaultValue",
         expand: "OptionSet",
       };
     case "lookup":
-      return { cast: CAST_LOOKUP, select: "Targets,RequiredLevel,IsValidForUpdate" };
+      return { cast: CAST_LOOKUP, select: "Targets,RequiredLevel,IsValidForUpdate,IsSecured" };
     case "date":
     case "datetime":
-      return { cast: CAST_DATETIME, select: "RequiredLevel,IsValidForUpdate" };
+      return { cast: CAST_DATETIME, select: "RequiredLevel,IsValidForUpdate,IsSecured" };
     default:
       return null;
   }
@@ -199,6 +215,7 @@ function enrichFromMeta(column: ColumnDef, meta: any): ColumnDef {
     ...column,
     editable: editableFromMeta(column, meta),
     required: mapRequiredLevel(meta?.RequiredLevel?.Value),
+    secured: meta?.IsSecured === true ? true : column.secured,
   };
   switch (column.kind) {
     case "text":
@@ -529,6 +546,69 @@ export class DataverseService implements IDataverseService {
         e,
       );
       return allowed;
+    }
+  }
+
+  private fieldAccessCache = new Map<string, Record<string, FieldAccess>>();
+
+  async getFieldAccess(
+    entityName: string,
+    securedColumns: string[],
+  ): Promise<Record<string, FieldAccess>> {
+    if (securedColumns.length === 0) return {};
+    const cached = this.fieldAccessCache.get(entityName);
+    if (cached) return cached;
+    try {
+      const me = await this.whoAmI();
+      if (!me) return {};
+      // The field security profiles assigned directly to the user. (Team-assigned
+      // profiles are not yet considered; those columns simply stay accessible -
+      // fail-open - until that path is added.)
+      const profilesRes = await this.fetchOData(
+        `systemusers(${me})/systemuserprofiles_association?$select=fieldsecurityprofileid`,
+      );
+      const profileIds = new Set<string>(
+        ((profilesRes?.value ?? []) as { fieldsecurityprofileid?: string }[])
+          .map((p) => p.fieldsecurityprofileid)
+          .filter((id): id is string => typeof id === "string"),
+      );
+      // The field permissions for this table; keep the ones in the user's profiles.
+      const permsRes = await this.fetchOData(
+        `fieldpermissions?$select=attributelogicalname,canread,canupdate,_fieldsecurityprofileid_value` +
+          `&$filter=entityname eq '${escapeODataString(entityName)}'`,
+      );
+      const granted = new Map<string, FieldAccess>();
+      for (const p of (permsRes?.value ?? []) as {
+        attributelogicalname?: string;
+        canread?: number;
+        canupdate?: number;
+        _fieldsecurityprofileid_value?: string;
+      }[]) {
+        if (!p.attributelogicalname) continue;
+        if (profileIds.size > 0 && !profileIds.has(p._fieldsecurityprofileid_value ?? "")) {
+          continue;
+        }
+        const prev = granted.get(p.attributelogicalname) ?? { read: false, update: false };
+        // The canread/canupdate option set uses 4 for "Allowed".
+        granted.set(p.attributelogicalname, {
+          read: prev.read || p.canread === 4,
+          update: prev.update || p.canupdate === 4,
+        });
+      }
+      const result: Record<string, FieldAccess> = {};
+      for (const col of securedColumns) {
+        // A secured column with no granting permission row means no access.
+        result[col] = granted.get(col) ?? { read: false, update: false };
+      }
+      this.fieldAccessCache.set(entityName, result);
+      return result;
+    } catch (e) {
+      // Fail open: never hide a field because the FLS query failed.
+      console.warn(
+        "JJ - Excel in Dataverse: could not read field security; not masking.",
+        e,
+      );
+      return {};
     }
   }
 

@@ -151,6 +151,31 @@ try {
   /* not in a browser */
 }
 
+// ?fls=email:noread,score:noupdate marks columns as Field-Level-Security secured
+// and drives the simulated per-user access, so the FLS UI (mask / lock) is
+// testable offline.
+function readUrlFls(): Map<string, { read: boolean; update: boolean }> {
+  const map = new Map<string, { read: boolean; update: boolean }>();
+  try {
+    const raw = new URLSearchParams(window.location.search).get("fls") ?? "";
+    for (const part of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+      const [name, flag] = part.split(":");
+      const cur = map.get(name) ?? { read: true, update: true };
+      if (flag === "noread") cur.read = false;
+      if (flag === "noupdate") cur.update = false;
+      map.set(name, cur);
+    }
+  } catch {
+    /* not a browser */
+  }
+  return map;
+}
+const FLS = readUrlFls();
+for (const name of FLS.keys()) {
+  const c = META.find((x) => x.name === name);
+  if (c) c.secured = true;
+}
+
 const COL_BY_NAME = new Map(META.map((c) => [c.name, c]));
 
 const CONTACTS: LookupValue[] = [
@@ -624,6 +649,13 @@ function createService(store: Store): IDataverseService {
         return { recordId: op.recordId, ok: true };
       });
       return Promise.resolve(results);
+    },
+    getFieldAccess: (_entity, securedColumns) => {
+      const out: Record<string, { read: boolean; update: boolean }> = {};
+      for (const name of securedColumns) {
+        out[name] = FLS.get(name) ?? { read: true, update: true };
+      }
+      return Promise.resolve(out);
     },
     getAccess: () => {
       // ?access=read (no write), ?access=nodelete, ?access=nocreate simulate a
